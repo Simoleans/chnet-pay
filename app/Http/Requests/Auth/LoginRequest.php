@@ -31,6 +31,8 @@ class LoginRequest extends FormRequest
             'id_number' => ['required', 'string'],
             'password' => ['required', 'string'],
         ];
+
+
     }
 
     /**

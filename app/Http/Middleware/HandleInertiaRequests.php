@@ -44,6 +44,7 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
+            'imgHome' => 'img/inicio.jpg',
             'auth' => [
                 'user' => $request->user() ? User::with('zone', 'plan', 'invoices')->find($request->user()->id) : null,
             ],

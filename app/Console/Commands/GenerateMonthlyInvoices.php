@@ -19,6 +19,8 @@ class GenerateMonthlyInvoices extends Command
         $period = Carbon::now()->startOfMonth();     // ej. 2025-06-01
         $total  = 0;
 
+
+
         foreach (User::active()->with('plan')->get() as $user) {
 
             /* 1. Filtros básicos */

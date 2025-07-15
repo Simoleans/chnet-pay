@@ -9,6 +9,7 @@ class ZonesSeeder extends Seeder
 {
     public function run()
     {
+
         $zones = [
             'SAMAN TARAZONERO II',
             'SAMAN TARAZONERO I',

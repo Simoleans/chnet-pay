@@ -47,7 +47,6 @@ const paymentLoading = ref(false);
 const paymentError = ref(false);
 const showReferenceInput = ref(false);
 const referenceNumber = ref('');
-const paymentDate = ref('');
 const paymentAmount = ref('');
 const showReportLink = ref(false);
 
@@ -62,7 +61,6 @@ const resetStates = () => {
     paymentError.value = false;
     showReferenceInput.value = false;
     referenceNumber.value = '';
-    paymentDate.value = '';
     paymentAmount.value = '';
     showReportLink.value = false;
 };
@@ -156,12 +154,6 @@ const checkPayment = async () => {
     showReferenceInput.value = true;
     showReportLink.value = false;
 
-    // Si no hay fecha, usar la fecha actual
-    if (!paymentDate.value) {
-        const today = new Date();
-        paymentDate.value = today.toISOString().split('T')[0];
-    }
-
     // Si no hay monto, usar el del plan
     if (!paymentAmount.value && bcv.value && page.props.auth?.user?.plan?.price) {
         paymentAmount.value = (parseFloat(page.props.auth.user.plan.price) * parseFloat(bcv.value)).toFixed(2);
@@ -170,14 +162,11 @@ const checkPayment = async () => {
     try {
         if (referenceNumber.value.trim()) {
             console.log('LOG:: Validando referencia:', referenceNumber.value);
-            console.log('LOG:: Fecha de pago:', paymentDate.value);
             console.log('LOG:: Monto esperado:', paymentAmount.value);
 
-            const res = await axios.get(`/api/bnc/validate-reference/${referenceNumber.value}`, {
-                params: {
-                    payment_date: paymentDate.value,
-                    expected_amount: parseFloat(paymentAmount.value)
-                }
+            const res = await axios.post('/api/bnc/validate-and-store-payment', {
+                reference: referenceNumber.value,
+                amount: parseFloat(paymentAmount.value)
             });
 
             console.log('LOG:: Respuesta de validación:', res.data);
@@ -278,46 +267,50 @@ const handleOpenChange = (open: boolean) => {
                             {{ paymentLoading ? 'Verificando...' : 'Ya pagué' }}
                         </Button>
 
-                        <div v-if="showReferenceInput" class="space-y-2">
-                            <label class="text-sm font-medium">Número de referencia:</label>
-                            <div class="flex gap-2 flex-col">
+                        <div v-if="showReferenceInput" class="space-y-4">
+                            <div class="space-y-2">
+                                <label for="referenceNumber" class="text-sm font-medium">Número de referencia:</label>
                                 <Input
+                                    id="referenceNumber"
                                     v-model="referenceNumber"
-                                    placeholder="Ingrese el número de referencia"
-                                    class="flex-1"
+                                    placeholder="Ingrese el número de referencia del pago"
+                                    class="w-full"
                                 />
+                            </div>
+
+                            <div class="space-y-2">
+                                <label for="paymentAmount" class="text-sm font-medium">Monto pagado (Bs):</label>
                                 <Input
-                                    type="date"
-                                    v-model="paymentDate"
-                                    class="flex-1"
-                                />
-                                <Input
+                                    id="paymentAmount"
                                     type="number"
                                     v-model="paymentAmount"
                                     :placeholder="bcv && $page.props.auth?.user?.plan?.price ?
-                                        `Monto en Bs. (Sugerido: ${(parseFloat($page.props.auth.user.plan.price) * parseFloat(bcv)).toFixed(2)})` :
-                                        'Monto en Bs.'"
-                                    class="flex-1"
+                                        `Monto sugerido: ${(parseFloat($page.props.auth.user.plan.price) * parseFloat(bcv)).toFixed(2)} Bs` :
+                                        'Ingrese el monto en bolívares'"
+                                    class="w-full"
                                     step="0.01"
+                                    min="0"
                                 />
-                                <div class="flex items-center justify-between">
-                                    <Button
-                                        @click="submitReference"
-                                        size="sm"
-                                        :disabled="!referenceNumber.trim() || !paymentAmount || parseFloat(paymentAmount) <= 0"
-                                    >
-                                        Enviar
-                                    </Button>
-                                    <Button
-                                        v-if="showReportLink"
-                                        @click="handleReportManually"
-                                        size="sm"
-                                        variant="link"
-                                        class="text-blue-500 hover:text-blue-700"
-                                    >
-                                        Reportar pago manualmente
-                                    </Button>
-                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between gap-2">
+                                <Button
+                                    @click="submitReference"
+                                    size="sm"
+                                    :disabled="!referenceNumber.trim() || !paymentAmount || parseFloat(paymentAmount) <= 0"
+                                    class="flex-1"
+                                >
+                                    Verificar Pago
+                                </Button>
+                                <Button
+                                    v-if="showReportLink"
+                                    @click="handleReportManually"
+                                    size="sm"
+                                    variant="link"
+                                    class="text-blue-500 hover:text-blue-700"
+                                >
+                                    Reportar manualmente
+                                </Button>
                             </div>
                         </div>
                     </div>

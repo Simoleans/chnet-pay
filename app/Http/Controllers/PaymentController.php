@@ -393,6 +393,185 @@ class PaymentController extends Controller
     }
 
     /**
+     * Valida una referencia de pago y la almacena si es exitosa
+     */
+    public function validateAndStorePayment(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Usuario no autenticado'
+                ], 401);
+            }
+
+            // Validar los datos de entrada
+            $request->validate([
+                'reference' => 'required|string|max:255',
+                'amount' => 'required|numeric|min:0.01', // Monto en bolívares
+            ]);
+
+            $reference = $request->reference;
+            $amountBs = $request->amount;
+            $currentDate = now()->format('Y-m-d'); // Usar fecha actual
+
+            // Validar la referencia con el banco
+            $result = BncHelper::validateOperationReference(
+                $reference,
+                $currentDate,
+                $amountBs
+            );
+
+            if (!$result) {
+                return response()->json([
+                    'success' => false,
+                    'showReportLink' => true,
+                    'message' => 'No se pudo validar la referencia con el banco. ¿Desea reportar su pago manualmente?'
+                ]);
+            }
+
+            // Validar si el movimiento existe
+            if (!$result['MovementExists']) {
+                return response()->json([
+                    'success' => false,
+                    'showReportLink' => true,
+                    'message' => 'No se encontró ningún pago con esta referencia en la fecha actual. ¿Desea reportar su pago manualmente?'
+                ]);
+            }
+
+            // Validar que el monto sea correcto (con un margen de error de 0.01)
+            $amountDiff = abs($result['Amount'] - $amountBs);
+            if ($amountDiff > 0.01) {
+                return response()->json([
+                    'success' => false,
+                    'showReportLink' => true,
+                    'message' => 'El monto del pago no coincide con el esperado. ¿Desea reportar su pago manualmente?'
+                ]);
+            }
+
+            // Si llegamos aquí, la validación fue exitosa, crear el pago
+            $bcvData = BncHelper::getBcvRatesCached();
+            $bcvRate = $bcvData['Rate'] ?? null;
+
+            if (!$bcvRate) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No se pudo obtener la tasa BCV. Intente nuevamente.'
+                ], 500);
+            }
+
+            // Convertir el monto de bolívares a dólares
+            $amountInUSD = $amountBs / $bcvRate;
+
+            // Crear el pago marcado como verificado
+            $payment = Payment::create([
+                'reference' => $reference,
+                'user_id' => $user->id,
+                'invoice_id' => null,
+                'amount' => $amountInUSD,
+                'id_number' => $user->id_number ?? 'V-00000000',
+                'bank' => '0191', // BNC
+                'phone' => $user->phone ?? '0000-0000000',
+                'payment_date' => $currentDate,
+                'verify_payments' => true, // Marcado como verificado
+            ]);
+
+            // Aplicar el pago a facturas pendientes (misma lógica que en store)
+            $remainingPayment = $amountInUSD;
+            $appliedInvoices = [];
+
+            $invoices = $user->invoices()
+                ->where('status', '!=', 'paid')
+                ->orderBy('period')
+                ->get();
+
+            if ($invoices->count() > 0) {
+                foreach ($invoices as $invoice) {
+                    $remaining = $invoice->amount_due - $invoice->amount_paid;
+
+                    if ($remaining <= 0) continue;
+
+                    if ($remainingPayment > 0) {
+                        $paymentToApply = min($remaining, $remainingPayment);
+
+                        if ($paymentToApply > 0) {
+                            // Crear un nuevo registro de pago asociado a la factura
+                            Payment::create([
+                                'reference' => $reference . ' (Aplicado a Factura)',
+                                'user_id' => $user->id,
+                                'invoice_id' => $invoice->id,
+                                'amount' => $paymentToApply,
+                                'id_number' => $user->id_number ?? 'V-00000000',
+                                'bank' => '0191',
+                                'phone' => $user->phone ?? '0000-0000000',
+                                'payment_date' => $currentDate,
+                                'verify_payments' => true,
+                            ]);
+
+                            $invoice->amount_paid += $paymentToApply;
+                            $remainingPayment -= $paymentToApply;
+
+                            // Actualizar estado de la factura
+                            $amountDiff = abs($invoice->amount_paid - $invoice->amount_due);
+                            if ($amountDiff < 0.01 || $invoice->amount_paid >= $invoice->amount_due) {
+                                $invoice->amount_paid = $invoice->amount_due;
+                                $invoice->status = 'paid';
+                            } elseif ($invoice->amount_paid > 0) {
+                                $invoice->status = 'partial';
+                            }
+
+                            $invoice->save();
+
+                            $appliedInvoices[] = [
+                                'id' => $invoice->id,
+                                'period' => $invoice->period ? $invoice->period->format('Y-m') : null,
+                                'applied_amount_usd' => $paymentToApply,
+                                'applied_amount_bs' => $paymentToApply * $bcvRate,
+                                'status' => $invoice->status,
+                            ];
+                        }
+                    }
+
+                    if ($remainingPayment <= 0) break;
+                }
+            }
+
+            // Actualizar el crédito del usuario
+            $currentCredit = $user->credit_balance ?? 0;
+            $finalCreditBalance = $currentCredit + $remainingPayment;
+            \App\Models\User::where('id', $user->id)->update(['credit_balance' => $finalCreditBalance]);
+
+            // Preparar mensaje de respuesta
+            $message = 'Pago verificado y procesado exitosamente. ';
+            if (count($appliedInvoices) > 0) {
+                $message .= 'Aplicado a ' . count($appliedInvoices) . ' factura(s). ';
+            }
+            if ($remainingPayment > 0) {
+                $message .= 'Crédito disponible: $' . number_format($remainingPayment, 2);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'data' => [
+                    'payment_id' => $payment->id,
+                    'applied_invoices' => $appliedInvoices,
+                    'remaining_credit' => $remainingPayment,
+                    'verified' => true
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error en validateAndStorePayment: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al procesar el pago: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Obtiene la lista de bancos desde el BNC
      */
     public function getBanks()

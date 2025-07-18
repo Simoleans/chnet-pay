@@ -73,6 +73,8 @@ Route::get('/api/banks', [PaymentController::class, 'getBanks'])->name('get-bank
 
 Route::get('/api/bnc/validate-reference/{reference}', [App\Http\Controllers\PaymentController::class, 'validateReference'])->middleware(['auth']);
 
+Route::post('/api/bnc/validate-and-store-payment', [App\Http\Controllers\PaymentController::class, 'validateAndStorePayment'])->middleware(['auth']);
+
 Route::get('/api/users/search/{code}', [App\Http\Controllers\UserController::class, 'searchByCode']);
 
 

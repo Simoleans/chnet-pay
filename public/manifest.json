@@ -1,14 +1,14 @@
 {
-    "name": "Laravel PWA",
-    "short_name": "LPT",
+    "name": "CHNET App",
+    "short_name": "CHNET",
     "start_url": "/",
     "background_color": "#000000",
-    "description": "A Progressive Web Application setup for Laravel projects.",
+    "description": "Intranet de CHNET",
     "display": "fullscreen",
     "theme_color": "#000000",
     "icons": [
         {
-            "src": "logo.png",
+            "src": "img/logo.png",
             "sizes": "512x512",
             "type": "image/png"
         }

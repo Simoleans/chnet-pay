@@ -23,7 +23,7 @@ jobs:
           npm install
           npm run build
 
-      - name: Upload Laravel Core to /app-panel/
+      - name: Upload Laravel Core to app-panel
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
           server: 192.99.85.240
@@ -50,7 +50,7 @@ jobs:
             package.json
             deploy.php
 
-      - name: Upload Vite build to /app-panel/public/build/
+      - name: Upload Vite build to app-panel/public/build
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
           server: 192.99.85.240
@@ -59,7 +59,7 @@ jobs:
           local-dir: ./public/build/
           server-dir: /app-panel/public/build/
 
-      - name: Upload Vite build to /panel.chnet.com.ve/build/
+      - name: Upload Vite build to panel.chnet.com.ve/build
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
           server: 192.99.85.240
@@ -67,17 +67,6 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./public/build/
           server-dir: /panel.chnet.com.ve/build/
-
-      - name: Upload rest of public (except build) to /panel.chnet.com.ve/
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
-        with:
-          server: 192.99.85.240
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./public/
-          server-dir: /panel.chnet.com.ve/
-          exclude: |
-            build/**
 
       - name: Ejecutar deploy.php con clave
         run: |

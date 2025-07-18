@@ -21,13 +21,13 @@ return [
     'manifest' => [
         'name' => 'CHNET App',
         'short_name' => 'CHNET',
-        'background_color' => '#6777ef',
+        'background_color' => '#343333',
         'display' => 'fullscreen',
         'description' => 'Intranet de CHNET',
-        'theme_color' => '#6777ef',
+        'theme_color' => '#343333',
         'icons' => [
             [
-                'src' => 'logo.png',
+                'src' => 'img/logo.png',
                 'sizes' => '512x512',
                 'type' => 'image/png',
             ],

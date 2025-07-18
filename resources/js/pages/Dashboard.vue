@@ -27,6 +27,8 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+
+
 // Usar el store de BCV
 const bcvStore = useBcvStore()
 const { bcv, date, loading, error } = storeToRefs(bcvStore)

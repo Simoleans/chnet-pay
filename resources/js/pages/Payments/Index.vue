@@ -14,8 +14,30 @@
                     placeholder="Buscar por referencia o código de abonado..."
                     class="w-full sm:w-1/2 p-2 border rounded-md dark:text-black"
                 />
-                <div class="flex w-full justify-end items-center gap-2">
-                    <Button variant="outline" @click="restoreFilters">Restaurar Filtros</Button>
+
+                <!-- Filtros de fecha -->
+                <div class="flex gap-2 items-center">
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <div class="flex flex-col">
+                            <label class="text-xs text-muted-foreground mb-1">Desde</label>
+                            <input
+                                v-model="dateFrom"
+                                @change="submit"
+                                type="date"
+                                class="p-2 border rounded-md dark:text-black text-sm"
+                            />
+                        </div>
+                        <div class="flex flex-col">
+                            <label class="text-xs text-muted-foreground mb-1">Hasta</label>
+                            <input
+                                v-model="dateTo"
+                                @change="submit"
+                                type="date"
+                                class="p-2 border rounded-md dark:text-black text-sm"
+                            />
+                        </div>
+                    </div>
+                    <Button variant="outline" @click="restoreFilters" class="mt-5">Restaurar Filtros</Button>
                 </div>
             </div>
 
@@ -165,7 +187,9 @@ const columns = [
     { key: 'actions', label: 'Acciones' },
 ]
 
-const search = ref(props.filters.search || '')
+const search = ref(props.filters?.search || '')
+const dateFrom = ref(props.filters?.date_from || '')
+const dateTo = ref(props.filters?.date_to || '')
 
 // Estados para los modales
 const showPaymentDetailsModal = ref(false)
@@ -174,12 +198,16 @@ const selectedPayment = ref(null)
 
 const restoreFilters = () => {
     search.value = ''
+    dateFrom.value = ''
+    dateTo.value = ''
     submit()
 }
 
 const submit = debounce(() => {
     router.get(route('payments.index'), {
         search: search.value,
+        date_from: dateFrom.value,
+        date_to: dateTo.value,
         page: 1, // Resetear a la primera página al filtrar
     }, {
         preserveState: true,
@@ -191,6 +219,8 @@ const previousPage = () => {
     if (props.pagination.current_page > 1) {
         router.get(route('payments.index'), {
             search: search.value,
+            date_from: dateFrom.value,
+            date_to: dateTo.value,
             page: props.pagination.current_page - 1,
         }, {
             preserveState: true,
@@ -203,6 +233,8 @@ const nextPage = () => {
     if (props.pagination.current_page < props.pagination.last_page) {
         router.get(route('payments.index'), {
             search: search.value,
+            date_from: dateFrom.value,
+            date_to: dateTo.value,
             page: props.pagination.current_page + 1,
         }, {
             preserveState: true,

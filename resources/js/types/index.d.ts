@@ -33,6 +33,34 @@ export interface User {
     email_verified_at: string | null;
     created_at: string;
     updated_at: string;
+    // Propiedades adicionales del modelo
+    phone?: string;
+    address?: string;
+    zone_id?: number;
+    code?: string;
+    id_number?: string;
+    plan_id?: number;
+    status?: boolean;
+    role?: number;
+    credit_balance?: number;
+    due?: number;
+    // Relaciones
+    zone?: Zone;
+    plan?: Plan;
+}
+
+export interface Zone {
+    id: number;
+    name: string;
+    description?: string;
+}
+
+export interface Plan {
+    id: number;
+    name: string;
+    price: string;
+    mbps?: number;
+    type?: string;
 }
 
 export type BreadcrumbItemType = BreadcrumbItem;

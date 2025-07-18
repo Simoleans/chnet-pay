@@ -5,25 +5,11 @@ import { Head, usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import PlaceholderPattern from '../components/PlaceholderPattern.vue';
 import ReportPaymentModal from '../components/ReportPaymentModal.vue';
+import UserPaymentModal from '../components/UserPaymentModal.vue';
 import { useForm } from '@inertiajs/vue3';
-import { useNotifications } from '@/composables/useNotifications';
-import axios from 'axios';
-const { notify } = useNotifications();
 
 // Components
-
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 
 import { useBcvStore } from '@/stores/bcv';
 import { useBanksStore } from '@/stores/banks';
@@ -54,20 +40,9 @@ banksStore.loadBanks()
 // Usar usePage para acceder a los datos del usuario
 const page = usePage()
 
-// Estados para el pago
-const paymentLoading = ref(false)
-const paymentError = ref(false)
-const showReferenceInput = ref(false)
-const referenceNumber = ref('')
-const paymentDate = ref('')
-const paymentAmount = ref('')
-const showReportLink = ref(false)
-
-// Estado para el modal de reportar pago
+// Estado para los modales
 const showReportPaymentModal = ref(false)
-
-// Estado para el modal de pagar plan
-const showPaymentModal = ref(false)
+const showUserPaymentModal = ref(false)
 
 const payFee = () => {
     form.post(route('pay-fee'));
@@ -77,164 +52,13 @@ const reloadBcvRate = async () => {
     await bcvStore.$reloadBcvAmount()
 }
 
-const copyPaymentReference = async () => {
-    console.log('Intentando copiar...', { bcv: bcv.value, user: page.props.auth?.user });
-
-    if (bcv.value && page.props.auth?.user?.plan?.price) {
-        const total = (parseFloat(page.props.auth.user.plan.price) * parseFloat(bcv.value)).toFixed(2);
-
-        // Formato mejorado de los datos bancarios
-        const bankingData = `📧 CHNET - Datos para Pago Movil
-
-            Banco: 0191
-            RIF: J125697857
-            Teléfono: 04120355541
-            Monto: ${total} Bs`;
-
-        console.log('Datos a copiar:', bankingData);
-
-        try {
-            // Intentar usar la API moderna del Clipboard
-            if (navigator.clipboard && window.isSecureContext) {
-                await navigator.clipboard.writeText(bankingData);
-                notify({
-                    message: 'Datos copiados correctamente',
-                    type: 'success',
-                    duration: 1500,
-                });
-            } else {
-                // Fallback para navegadores que no soportan clipboard API
-                const textArea = document.createElement('textarea');
-                textArea.value = bankingData;
-                textArea.style.position = 'fixed';
-                textArea.style.left = '-9999px';
-                textArea.style.top = '0';
-                textArea.style.opacity = '0';
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-
-                const successful = document.execCommand('copy');
-                document.body.removeChild(textArea);
-
-                if (successful) {
-                    notify({
-                        message: '✅ Datos bancarios copiados (método compatible)',
-                        type: 'success',
-                        duration: 2000,
-                    });
-                } else {
-                    throw new Error('Método de copia no disponible');
-                }
-            }
-        } catch (err) {
-            console.error('Error al copiar:', err);
-
-            // Mostrar modal con los datos para copiar manualmente
-            notify({
-                message: '⚠️ No se pudo copiar automáticamente. Revisa la consola para copiar manualmente.',
-                type: 'error',
-                duration: 4000,
-            });
-
-            // Log los datos en consola para que el usuario pueda copiarlos
-            console.log('📋 COPIA ESTOS DATOS MANUALMENTE:');
-            console.log('=====================================');
-            console.log(bankingData);
-            console.log('=====================================');
-
-            // También mostrar un alert como último recurso
-            alert(`No se pudo copiar automáticamente. Copia estos datos manualmente:\n\n${bankingData}`);
-        }
-    } else {
-        notify({
-            message: '❌ No hay datos disponibles para copiar. Verifica que tengas un plan asignado y que la tasa BCV esté cargada.',
-            type: 'error',
-            duration: 3000,
-        });
-    }
+// Funciones para manejar los modales
+const openUserPaymentModal = () => {
+    showUserPaymentModal.value = true;
 }
 
-const handleReportManually = () => {
-    showPaymentModal.value = false;
+const handleOpenReportModal = () => {
     showReportPaymentModal.value = true;
-}
-
-const checkPayment = async () => {
-    paymentLoading.value = true;
-    paymentError.value = false;
-    showReferenceInput.value = true;
-    showReportLink.value = false;
-
-    // Si no hay fecha, usar la fecha actual
-    if (!paymentDate.value) {
-        const today = new Date();
-        paymentDate.value = today.toISOString().split('T')[0];
-    }
-
-    // Si no hay monto, usar el del plan
-    if (!paymentAmount.value && bcv.value && $page.props.auth?.user?.plan?.price) {
-        paymentAmount.value = (parseFloat($page.props.auth.user.plan.price) * parseFloat(bcv.value)).toFixed(2);
-    }
-
-    try {
-        if (referenceNumber.value.trim()) {
-            console.log('LOG:: Validando referencia:', referenceNumber.value);
-            console.log('LOG:: Fecha de pago:', paymentDate.value);
-            console.log('LOG:: Monto esperado:', paymentAmount.value);
-
-            const res = await axios.get(`/api/bnc/validate-reference/${referenceNumber.value}`, {
-                params: {
-                    payment_date: paymentDate.value,
-                    expected_amount: parseFloat(paymentAmount.value)
-                }
-            });
-
-            console.log('LOG:: Respuesta de validación:', res.data);
-
-            if (res.data.success) {
-                notify({
-                    message: res.data.message,
-                    type: 'success',
-                    duration: 2000,
-                });
-                showReferenceInput.value = false;
-                referenceNumber.value = '';
-                paymentDate.value = '';
-                paymentAmount.value = '';
-                showPaymentModal.value = false;
-            } else {
-                showReportLink.value = res.data.showReportLink;
-                notify({
-                    message: res.data.message,
-                    type: 'warning',
-                    duration: 4000,
-                });
-            }
-        }
-    } catch (err) {
-        console.error('LOG:: Error al validar referencia:', err);
-        paymentError.value = true;
-        notify({
-            message: err.response?.data?.error || 'Error al validar la referencia. Por favor, intente nuevamente.',
-            type: 'error',
-            duration: 3000,
-        });
-    } finally {
-        paymentLoading.value = false;
-    }
-}
-
-const submitReference = async () => {
-    if (referenceNumber.value.trim()) {
-        await checkPayment();
-    } else {
-        notify({
-            message: 'Por favor ingrese un número de referencia válido',
-            type: 'error',
-            duration: 2000,
-        });
-    }
 }
 
 </script>
@@ -294,117 +118,22 @@ const submitReference = async () => {
                         </div>
                         <div class="mt-4" v-if="$page.props.auth.user.plan_id && bcv">
                             <div class="flex gap-2">
-                                <Dialog>
-                                    <DialogTrigger asChild>
-                                        <Button class="flex-1" size="sm">
-                                            Pagar Plan
-                                        </Button>
-                                    </DialogTrigger>
-                                <DialogContent class="sm:max-w-md">
-                                    <DialogHeader>
-                                        <DialogTitle>Pagar Plan</DialogTitle>
-                                        <DialogDescription>
-                                            Datos para realizar el pago de tu plan
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <div class="space-y-4">
-                                        <input type="hidden" :value="$page.props.auth.user.id" />
+                                <Button
+                                    @click="openUserPaymentModal"
+                                    class="flex-1"
+                                    size="sm"
+                                >
+                                    Pagar Plan
+                                </Button>
 
-                                        <div class="space-y-2">
-                                            <p class="font-medium">🏦 Banco Nacional de Crédito</p>
-                                            <!-- <p class="text-sm"><span class="font-medium">💳 Cuenta:</span> 0191-0001-48-2101010049</p> -->
-                                            <p class="text-sm"><span class="font-medium">👤 RIF:</span> J-12569785-7</p>
-                                            <p class="text-sm"><span class="font-medium">📞 Teléfono:</span> 0412-0355541</p>
-                                            <p class="text-sm">
-                                                <span class="font-medium">💰 Monto a pagar: </span>
-                                                <span class="text-lg font-bold">
-                                                    {{ bcv && $page.props.auth.user.plan.price ?
-                                                        `${(parseFloat($page.props.auth.user.plan.price) * parseFloat(bcv)).toFixed(2)} Bs` :
-                                                        'Calculando...'
-                                                    }}
-                                                </span>
-                                            </p>
-                                                                                        <div class="mt-3 space-y-2">
-                                                <Button
-                                                    @click="copyPaymentReference"
-                                                    size="sm"
-                                                    variant="outline"
-                                                    :disabled="!bcv || !$page.props.auth.user.plan.price"
-                                                    class="w-full"
-                                                >
-                                                    Copiar datos bancarios
-                                                </Button>
-
-                                                <Button
-                                                    @click="checkPayment"
-                                                    size="sm"
-                                                    :disabled="paymentLoading || !bcv || !$page.props.auth.user.plan.price"
-                                                    class="w-full"
-                                                >
-                                                    {{ paymentLoading ? 'Verificando...' : 'Ya pagué' }}
-                                                </Button>
-
-                                                <div v-if="showReferenceInput" class="space-y-2">
-                                                    <label class="text-sm font-medium">Número de referencia:</label>
-                                                    <div class="flex gap-2 flex-col">
-                                                        <Input
-                                                            v-model="referenceNumber"
-                                                            placeholder="Ingrese el número de referencia"
-                                                            class="flex-1"
-                                                        />
-                                                        <Input
-                                                            type="date"
-                                                            v-model="paymentDate"
-                                                            class="flex-1"
-                                                        />
-                                                        <Input
-                                                            type="number"
-                                                            v-model="paymentAmount"
-                                                            :placeholder="bcv && $page.props.auth?.user?.plan?.price ?
-                                                                `Monto en Bs. (Sugerido: ${(parseFloat($page.props.auth.user.plan.price) * parseFloat(bcv)).toFixed(2)})` :
-                                                                'Monto en Bs.'"
-                                                            class="flex-1"
-                                                            step="0.01"
-                                                        />
-                                                        <div class="flex items-center justify-between">
-                                                            <Button
-                                                                @click="submitReference"
-                                                                size="sm"
-                                                                :disabled="!referenceNumber.trim() || !paymentAmount || paymentAmount <= 0"
-                                                            >
-                                                                Enviar
-                                                            </Button>
-                                                            <Button
-                                                                v-if="showReportLink"
-                                                                @click="handleReportManually"
-                                                                size="sm"
-                                                                variant="link"
-                                                                class="text-blue-500 hover:text-blue-700"
-                                                            >
-                                                                Reportar pago manualmente
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <DialogFooter>
-                                        <DialogClose asChild>
-                                            <Button variant="outline">Cerrar</Button>
-                                        </DialogClose>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
-
-                            <Button
-                                @click="showReportPaymentModal = true"
-                                class="flex-1"
-                                size="sm"
-                                variant="outline"
-                            >
-                                Reportar pago
-                            </Button>
+                                <Button
+                                    @click="handleOpenReportModal"
+                                    class="flex-1"
+                                    size="sm"
+                                    variant="outline"
+                                >
+                                    Reportar pago
+                                </Button>
                         </div>
                         </div>
                     </div>
@@ -436,6 +165,12 @@ const submitReference = async () => {
                 <!-- <pre>{{ $page.props.auth.user}}</pre> -->
             </div>
         </div>
+
+        <!-- Modal de pago del usuario -->
+        <UserPaymentModal
+            v-model:open="showUserPaymentModal"
+            @openReportModal="handleOpenReportModal"
+        />
 
         <!-- Modal para reportar pago -->
         <ReportPaymentModal

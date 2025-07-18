@@ -8,6 +8,7 @@ use App\Helpers\BncLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
 
 class PaymentController extends Controller
 {
@@ -27,6 +28,15 @@ class PaymentController extends Controller
                       $userQuery->where('code', 'like', '%' . $searchTerm . '%');
                   });
             });
+        }
+
+        // Filtro por rango de fechas
+        if ($request->has('date_from') && $request->date_from) {
+            $query->whereDate('payment_date', '>=', $request->date_from);
+        }
+
+        if ($request->has('date_to') && $request->date_to) {
+            $query->whereDate('payment_date', '<=', $request->date_to);
         }
 
         $payments = $query->paginate(15)->appends($request->query());
@@ -51,7 +61,7 @@ class PaymentController extends Controller
             ];
         });
 
-        return \Inertia\Inertia::render('Payments/Index', [
+        return Inertia::render('Payments/Index', [
             'data' => $formattedPayments,
             'pagination' => [
                 'current_page' => $payments->currentPage(),
@@ -63,6 +73,8 @@ class PaymentController extends Controller
             ],
             'filters' => [
                 'search' => $request->search ?? '',
+                'date_from' => $request->date_from ?? '',
+                'date_to' => $request->date_to ?? '',
             ],
         ]);
     }

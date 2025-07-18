@@ -81,7 +81,7 @@
                             type="text"
                             id="edit-code"
                             v-model="form.code"
-                            placeholder="USR001"
+                            placeholder="000001"
                             required
                         />
                     </div>

@@ -76,7 +76,7 @@
                             type="text"
                             id="code"
                             v-model="form.code"
-                            placeholder="USR001"
+                            placeholder="000001"
                             required
                         />
                     </div>

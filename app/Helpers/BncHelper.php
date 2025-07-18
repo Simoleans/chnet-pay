@@ -280,6 +280,62 @@ class BncHelper
         return null;
     }
 
+    public static function sendC2PPayment(array $data): ?array
+    {
+        try {
+            $key = self::getWorkingKey();
+            $clientId = config('app.bnc.client_id');
+
+            if (!$key) {
+                throw new \Exception('WorkingKey no disponible');
+            }
+
+            // Construir el cuerpo de la solicitud con los campos requeridos
+            $payload = [
+                'ClientID' => $clientId,
+                'ChildClientID' => '',
+                'BranchID' => '',
+                'PhoneNumber' => $data['PhoneNumber'] ?? null,
+                'Amount' => $data['Amount'] ?? null,
+                'Description' => $data['Description'] ?? '',
+                'Name' => $data['Name'] ?? null,
+                'LastName' => $data['LastName'] ?? null,
+                'DocumentNumber' => $data['DocumentNumber'] ?? null,
+                'DocumentType' => $data['DocumentType'] ?? null,
+            ];
+
+            Log::info('BNC C2P: Enviando payload', $payload);
+
+            // Enviar al endpoint
+            $response = BncApiService::send('MobPayment/SendC2P', $payload);
+
+            if ($response->ok() || $response->status() === 202) {
+                $json = $response->json();
+
+                if (!isset($json['value'])) {
+                    Log::error('BNC C2P: Respuesta sin campo value');
+                    return null;
+                }
+
+                $decrypted = BncCryptoHelper::decryptAES($json['value'], $key);
+                Log::info('BNC C2P: Respuesta desencriptada', ['response' => $decrypted]);
+
+                return $decrypted;
+            }
+
+            Log::error('BNC C2P: Error HTTP', ['status' => $response->status()]);
+        } catch (\Throwable $e) {
+            Log::error('BNC C2P: Excepción', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+        }
+
+        return null;
+    }
+
+
 
 
 

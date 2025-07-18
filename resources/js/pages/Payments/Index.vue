@@ -99,6 +99,24 @@
                                         <span class="text-xs text-muted-foreground">{{ item.phone }}</span>
                                     </div>
                                 </template>
+                                <template v-else-if="column.key === 'verification_status'">
+                                    <div class="flex items-center gap-2">
+                                        <div
+                                            :class="[
+                                                'w-2 h-2 rounded-full',
+                                                item.verify_payments ? 'bg-green-500' : 'bg-red-500'
+                                            ]"
+                                        ></div>
+                                        <span
+                                            :class="[
+                                                'text-xs font-medium',
+                                                item.verify_payments ? 'text-green-600' : 'text-red-600'
+                                            ]"
+                                        >
+                                            {{ item.verify_payments ? 'Verificado' : 'Sin verificar' }}
+                                        </span>
+                                    </div>
+                                </template>
                                 <template v-else>
                                     {{ item[column.key] }}
                                 </template>
@@ -151,6 +169,7 @@
         <PaymentDetailsModal
             v-model:open="showPaymentDetailsModal"
             :payment="selectedPayment"
+            @payment-updated="handlePaymentUpdate"
         />
 
         <PaymentReceiptModal
@@ -183,6 +202,7 @@ const columns = [
     { key: 'bank', label: 'Banco' },
     { key: 'contact_info', label: 'Contacto' },
     { key: 'invoice_period', label: 'Período' },
+    { key: 'verification_status', label: 'Verificación' },
     { key: 'created_at', label: 'Registrado' },
     { key: 'actions', label: 'Acciones' },
 ]
@@ -253,6 +273,11 @@ const viewReceipt = (payment) => {
         selectedPayment.value = payment
         showReceiptModal.value = true
     }
+}
+
+const handlePaymentUpdate = () => {
+    // Recargar la lista de pagos para mostrar el estado actualizado
+    submit()
 }
 
 

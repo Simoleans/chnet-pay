@@ -58,6 +58,7 @@ class PaymentController extends Controller
                     $payment->invoice->period->format('Y-m') : 'Sin factura',
                 'created_at' => $payment->created_at ? $payment->created_at->format('d/m/Y H:i') : null,
                 'image_path' => $payment->image_path,
+                'verify_payments' => $payment->verify_payments,
             ];
         });
 
@@ -295,6 +296,41 @@ class PaymentController extends Controller
     public function destroy(Payment $payment)
     {
         //
+    }
+
+        /**
+     * Toggle payment verification status
+     */
+    public function toggleVerification(Request $request, Payment $payment)
+    {
+        try {
+            $payment->verify_payments = !$payment->verify_payments;
+            $payment->save();
+
+            $status = $payment->verify_payments ? 'verificado' : 'sin verificar';
+
+            // Si es una petición Inertia, redirigir de vuelta
+            if ($request->header('X-Inertia')) {
+                return back()->with('success', "Pago marcado como {$status}");
+            }
+
+            // Si es una petición AJAX/JSON normal
+            return response()->json([
+                'success' => true,
+                'verified' => $payment->verify_payments,
+                'message' => "Pago marcado como {$status}"
+            ]);
+        } catch (\Exception $e) {
+            // Si es una petición Inertia, redirigir de vuelta con error
+            if ($request->header('X-Inertia')) {
+                return back()->with('error', 'Error al actualizar la verificación del pago');
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar la verificación del pago'
+            ], 500);
+        }
     }
 
     /**

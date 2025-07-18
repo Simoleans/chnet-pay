@@ -16,10 +16,12 @@ class Payment extends Model
         'payment_date',
         'amount',
         'image_path',
+        'verify_payments',
     ];
 
     protected $casts = [
         'payment_date' => 'date',
+        'verify_payments' => 'boolean',
     ];
 
 

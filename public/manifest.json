@@ -1,14 +1,14 @@
 {
     "name": "CHNET App",
     "short_name": "CHNET",
-    "start_url": "/",
-    "background_color": "#000000",
-    "description": "Intranet de CHNET",
+    "background_color": "#343333",
     "display": "fullscreen",
-    "theme_color": "#000000",
+    "description": "Intranet de CHNET",
+    "theme_color": "#343333",
+    "start_url": "/",
     "icons": [
         {
-            "src": "img/logo.png",
+            "src": "logo.png",
             "sizes": "512x512",
             "type": "image/png"
         }

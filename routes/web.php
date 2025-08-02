@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\TestApiController;
-use App\Http\Controllers\{PlanController,UserController,ZoneController,PaymentController};
+use App\Http\Controllers\{PlanController,UserController,ZoneController,PaymentController,ClientImportController};
 use App\Helpers\BncHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -37,6 +37,11 @@ Route::get('/api/bcv', function () {
     return response()->json(BncHelper::getBcvRatesCached());
 });
 
+//imports
+Route::get('/import-clients', function () {
+    return Inertia::render('User/ImportUsers');
+})->middleware(['auth'])->name('import-clients.index');
+Route::post('/import-clients', [ClientImportController::class, 'import'])->name('import-clients');
 
 
 Route::get('/api/bnc/history', function (Request $request) {

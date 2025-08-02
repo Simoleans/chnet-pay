@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, Package, Users, MapPin, CreditCard } from 'lucide-vue-next';
+import { LayoutGrid, Package, Users, MapPin, CreditCard, Upload } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 import { usePage } from '@inertiajs/vue3';
 const page = usePage();
@@ -27,6 +26,12 @@ const mainNavItems: NavItem[] = [
         title: 'Usuarios',
         href: '/users',
         icon: Users,
+        show: true
+    },
+    {
+        title: 'Importar Usuarios',
+        href: route('import-clients.index'),
+        icon: Upload,
         show: true
     },
     {
@@ -76,7 +81,6 @@ const mainNavItems: NavItem[] = [
         </SidebarContent>
 
         <SidebarFooter>
-            <NavFooter :items="footerNavItems" />
             <NavUser />
         </SidebarFooter>
     </Sidebar>

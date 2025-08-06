@@ -280,36 +280,48 @@ class BncHelper
         return null;
     }
 
-    public static function sendC2PPayment(array $data): ?array
-    {
+/**
+     * Envía un pago C2P (Comercio a Persona) al endpoint MobPayment/SendC2P
+     *
+     * @param int $debtorBankCode      Código del banco emisor (por ejemplo, 191)
+     * @param string $debtorCellPhone  Teléfono móvil del emisor (formato internacional sin "+", ej: 584241234567)
+     * @param string $debtorID         Cédula o RIF del emisor (ej: V12345678)
+     * @param float $amount            Monto del pago
+     * @param string $token            Token de validación enviado por el banco
+     * @param string $terminal         ID del terminal autorizado
+     * @param string $childClientID    (Opcional)
+     * @param string $branchID         (Opcional)
+     * @return array|null              Respuesta desencriptada o null si falla
+     */
+    public static function sendC2PPayment(
+        int $debtorBankCode,
+        string $debtorCellPhone,
+        string $debtorID,
+        float $amount,
+        string $token,
+        string $terminal,
+        string $childClientID = '',
+        string $branchID = ''
+    ): ?array {
         try {
-            $key = self::getWorkingKey();
-            $clientId = config('app.bnc.client_id');
+            $key = BncHelper::getWorkingKey();
 
-            if (!$key) {
-                throw new \Exception('WorkingKey no disponible');
-            }
-
-            // Construir el cuerpo de la solicitud con los campos requeridos
-            $payload = [
-                'ClientID' => $clientId,
-                'ChildClientID' => '',
-                'BranchID' => '',
-                'PhoneNumber' => $data['PhoneNumber'] ?? null,
-                'Amount' => $data['Amount'] ?? null,
-                'Description' => $data['Description'] ?? '',
-                'Name' => $data['Name'] ?? null,
-                'LastName' => $data['LastName'] ?? null,
-                'DocumentNumber' => $data['DocumentNumber'] ?? null,
-                'DocumentType' => $data['DocumentType'] ?? null,
+            $body = [
+                'DebtorBankCode'  => $debtorBankCode,
+                'DebtorCellPhone' => $debtorCellPhone,
+                'DebtorID'        => $debtorID,
+                'Amount'          => $amount,
+                'Token'           => $token,
+                'Terminal'        => $terminal,
+                'ChildClientID'   => $childClientID,
+                'BranchID'        => $branchID,
             ];
 
-            Log::info('BNC C2P: Enviando payload', $payload);
+            Log::info('BNC C2P: Enviando pago', ['payload' => $body]);
 
-            // Enviar al endpoint
-            $response = BncApiService::send('MobPayment/SendC2P', $payload);
+            $response = BncApiService::send('MobPayment/SendC2P', $body);
 
-            if ($response->ok() || $response->status() === 202) {
+            if (in_array($response->status(), [200, 202])) {
                 $json = $response->json();
 
                 if (!isset($json['value'])) {
@@ -318,7 +330,7 @@ class BncHelper
                 }
 
                 $decrypted = BncCryptoHelper::decryptAES($json['value'], $key);
-                Log::info('BNC C2P: Respuesta desencriptada', ['response' => $decrypted]);
+                Log::info('BNC C2P: Pago exitoso', ['result' => $decrypted]);
 
                 return $decrypted;
             }
@@ -334,6 +346,8 @@ class BncHelper
 
         return null;
     }
+
+
 
 
 

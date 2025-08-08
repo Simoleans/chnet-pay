@@ -335,13 +335,45 @@ class BncHelper
                 return $decrypted;
             }
 
-            Log::error('BNC C2P: Error HTTP', ['status' => $response->status()]);
+            // Log detallado del error
+            $rawBody = $response->body();
+            $json = null;
+            $decryptedError = null;
+            try {
+                $json = $response->json();
+                if (is_array($json) && isset($json['value'])) {
+                    $decryptedError = BncCryptoHelper::decryptAES($json['value'], $key);
+                }
+            } catch (\Throwable $e) {
+                // ignorar errores de parseo
+            }
+
+            Log::error('BNC C2P: Error HTTP', [
+                'status' => $response->status(),
+                'body' => $rawBody,
+                'json' => $json,
+                'decrypted' => $decryptedError,
+            ]);
+
+            // Retornar estructura de error para que el controlador pueda propagar el mensaje
+            return [
+                'error' => true,
+                'status' => $response->status(),
+                'message' => is_array($json) && isset($json['message']) ? $json['message'] : 'Error procesando C2P',
+                'decrypted' => $decryptedError,
+            ];
         } catch (\Throwable $e) {
             Log::error('BNC C2P: Excepción', [
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine()
             ]);
+            return [
+                'error' => true,
+                'status' => 500,
+                'message' => 'Excepción al enviar C2P: ' . $e->getMessage(),
+                'decrypted' => null,
+            ];
         }
 
         return null;

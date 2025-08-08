@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use App\Http\Controllers\TestApiController;
+//use App\Http\Controllers\TestApiController;
 use App\Http\Controllers\{PlanController,UserController,ZoneController,PaymentController,ClientImportController};
 use App\Helpers\BncHelper;
 use Illuminate\Http\Request;
@@ -14,7 +14,7 @@ Route::get('/', function () {
     return Inertia::render('auth/Login');
 })->name('home');
 
-Route::post('pay-fee', [TestApiController::class, 'testApi'])->name('pay-fee');
+//Route::post('pay-fee', [TestApiController::class, 'testApi'])->name('pay-fee');
 
 //plans
 Route::resource('plans', PlanController::class);
@@ -79,6 +79,8 @@ Route::get('/api/banks', [PaymentController::class, 'getBanks'])->name('get-bank
 Route::get('/api/bnc/validate-reference/{reference}', [App\Http\Controllers\PaymentController::class, 'validateReference'])->middleware(['auth']);
 
 Route::post('/api/bnc/validate-and-store-payment', [App\Http\Controllers\PaymentController::class, 'validateAndStorePayment'])->middleware(['auth']);
+
+Route::post('/api/bnc/send-c2p', [App\Http\Controllers\PaymentController::class, 'sendC2P'])->middleware(['auth']);
 
 Route::get('/api/users/search/{code}', [App\Http\Controllers\UserController::class, 'searchByCode']);
 

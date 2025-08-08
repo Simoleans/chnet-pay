@@ -610,4 +610,95 @@ class PaymentController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Envía un pago C2P usando el helper BncHelper::sendC2PPayment
+     */
+    public function sendC2P(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Usuario no autenticado'
+                ], 401);
+            }
+
+            $validated = $request->validate([
+                'debtor_bank_code' => 'required|integer',
+                'token' => 'required|string|max:255',
+                'amount' => 'required|numeric|min:0.01', // en bolívares
+                'debtor_id' => ['required','string','max:20','regex:/^[VEve]-?[0-9]+$/'],
+                'debtor_phone' => ['required','string','max:20'],
+            ]);
+
+            $terminal = config('app.bnc.terminal');
+            if (empty($terminal)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Terminal BNC no configurado'
+                ], 500);
+            }
+
+            // Normalizar teléfono a solo dígitos y validar formato internacional venezolano 58 + 10 dígitos
+            $debtorPhoneDigits = preg_replace('/\D/', '', (string) $validated['debtor_phone']);
+            if (!preg_match('/^58\d{10}$/', $debtorPhoneDigits)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Formato de teléfono inválido. Use 58XXXXXXXXXX (sin +, espacios ni guiones)'
+                ], 422);
+            }
+
+            // Normalizar cédula a mayúsculas y sin guiones/puntos
+            $normalizedId = strtoupper(preg_replace('/[^VE0-9]/', '', $validated['debtor_id']));
+            // Validación final por seguridad: debe iniciar con V o E seguido solo de dígitos
+            if (!preg_match('/^[VE][0-9]+$/', $normalizedId)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Formato de cédula inválido. Debe ser V00000000 o E00000000'
+                ], 422);
+            }
+
+            $result = BncHelper::sendC2PPayment(
+                (int) $validated['debtor_bank_code'],
+                $debtorPhoneDigits,
+                $normalizedId,
+                (float) $validated['amount'],
+                (string) $validated['token'],
+                (string) $terminal
+            );
+
+            // Manejo de error estructurado desde el helper
+            if (!$result || (is_array($result) && isset($result['error']) && $result['error'] === true)) {
+                $friendlyMessage = 'No se pudo procesar el pago C2P';
+                if (is_array($result)) {
+                    // Priorizar mensaje desencriptado si trae un texto legible
+                    if (isset($result['decrypted']) && is_array($result['decrypted']) && isset($result['decrypted']['message'])) {
+                        $friendlyMessage = $result['decrypted']['message'];
+                    } elseif (isset($result['message'])) {
+                        $friendlyMessage = $result['message'];
+                    }
+                }
+                return response()->json([
+                    'success' => false,
+                    'message' => $friendlyMessage,
+                ], 409);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Solicitud de pago C2P enviada',
+                'data' => $result,
+            ]);
+        } catch (\Throwable $e) {
+            BncLogger::error('SEND C2P: Excepción', [
+                'message' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al enviar C2P: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

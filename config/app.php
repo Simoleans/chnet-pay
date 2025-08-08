@@ -130,6 +130,7 @@ return [
         'phone' => env('BNC_PHONE', ''),
         'client_id' => env('BNC_CLIENT_ID', ''),
         'account' => env('BNC_ACCOUNT', ''),
+        'terminal' => env('BNC_TERMINAL', ''),
     ],
 
 ];

@@ -5,6 +5,8 @@ import { useNotifications } from '@/composables/useNotifications';
 import { useBcvStore } from '@/stores/bcv';
 import { storeToRefs } from 'pinia';
 import axios from 'axios';
+import { useBanksStore } from '@/stores/banks';
+import { computed } from 'vue';
 
 const { notify } = useNotifications();
 
@@ -42,6 +44,10 @@ const page = usePage();
 const bcvStore = useBcvStore();
 const { bcv } = storeToRefs(bcvStore);
 
+// Store de bancos
+const banksStore = useBanksStore();
+const { banks, loading: banksLoading, error: banksError } = storeToRefs(banksStore as any);
+
 // Estados para el pago
 const paymentLoading = ref(false);
 const paymentError = ref(false);
@@ -49,11 +55,32 @@ const showReferenceInput = ref(false);
 const referenceNumber = ref('');
 const paymentAmount = ref('');
 const showReportLink = ref(false);
+// Estados para C2P
+const showC2PSection = ref(false);
+const c2pBankCode = ref('');
+const c2pToken = ref('');
+const c2pId = ref('');
+const c2pPhone = ref('');
+
+const suggestedAmountBs = computed(() => {
+    if (bcv.value && page.props.auth?.user?.plan?.price) {
+        return (parseFloat(page.props.auth.user.plan.price) * parseFloat(bcv.value)).toFixed(2);
+    }
+    return '';
+});
 
 // Watcher para reiniciar estados cuando se abre el modal
 watch(() => props.open, (newVal) => {
     if (newVal) {
         resetStates();
+        // Cargar bancos si no están cargados
+        if (!banks.value || banks.value.length === 0) {
+            banksStore.loadBanks();
+        }
+        // Inicializar banco por defecto si existe
+        if (banks.value && banks.value.length > 0) {
+            c2pBankCode.value = String(banks.value[0].Code || '');
+        }
     }
 });
 
@@ -63,6 +90,75 @@ const resetStates = () => {
     referenceNumber.value = '';
     paymentAmount.value = '';
     showReportLink.value = false;
+    showC2PSection.value = false;
+};
+
+const openC2PSection = () => {
+    showC2PSection.value = true;
+    if (!banks.value || banks.value.length === 0) {
+        banksStore.loadBanks();
+    }
+    // precargar datos del usuario
+    c2pId.value = page.props.auth?.user?.id_number || '';
+    c2pPhone.value = page.props.auth?.user?.phone || '';
+    // cargar/actualizar BCV
+    if (typeof (bcvStore as any).$reloadBcvAmount === 'function') {
+        (bcvStore as any).$reloadBcvAmount();
+    }
+};
+
+const sendC2P = async () => {
+    try {
+        if (!c2pBankCode.value || !c2pToken.value || !c2pId.value || !c2pPhone.value) {
+            notify({ message: 'Complete los datos del C2P', type: 'error', duration: 2000 });
+            return;
+        }
+
+        // Validación de cédula: V00000000 o E00000000 (sin guiones)
+        const idPattern = /^[VE][0-9]+$/i;
+        const normalized = c2pId.value.trim().toUpperCase().replace(/[^VE0-9]/g, '');
+        if (!idPattern.test(normalized)) {
+            notify({ message: 'La cédula debe ser en formato V00000000 o E00000000', type: 'error', duration: 2500 });
+            return;
+        }
+        c2pId.value = normalized;
+
+        // Validación de teléfono: 58 + 10 dígitos
+        const phoneDigits = c2pPhone.value.replace(/\D/g, '');
+        if (!/^58\d{10}$/.test(phoneDigits)) {
+            notify({ message: 'El teléfono debe tener formato 58XXXXXXXXXX (sin +, espacios ni guiones)', type: 'error', duration: 2500 });
+            return;
+        }
+
+        // Calcular monto exacto como en el otro modal
+        const hasPrice = !!page.props.auth?.user?.plan?.price;
+        const hasBcv = bcv.value !== null && bcv.value !== undefined;
+        if (!hasPrice || !hasBcv) {
+            notify({ message: 'No se pudo calcular el monto. Verifique su plan o la tasa BCV.', type: 'error', duration: 2500 });
+            return;
+        }
+        const amountStr = (parseFloat(page.props.auth.user.plan.price) * parseFloat(String(bcv.value))).toFixed(2);
+
+        const res = await axios.post('/api/bnc/send-c2p', {
+            debtor_bank_code: parseInt(c2pBankCode.value, 10),
+            token: c2pToken.value,
+            amount: parseFloat(amountStr),
+            debtor_id: c2pId.value,
+            debtor_phone: phoneDigits,
+        });
+
+        if (res.data?.success) {
+            notify({ message: res.data.message || 'C2P enviado', type: 'success', duration: 2500 });
+            // Opcional: cerrar modal
+            emit('update:open', false);
+            resetStates();
+        } else {
+            notify({ message: res.data?.error || res.data?.message || 'No se pudo enviar C2P', type: 'error', duration: 3000 });
+        }
+    } catch (e: any) {
+        const msg = e?.response?.data?.message ?? e?.response?.data?.error ?? e?.message ?? 'Error al enviar C2P';
+        notify({ message: msg, type: 'error', duration: 3000 });
+    }
 };
 
 const copyPaymentReference = async () => {
@@ -267,6 +363,16 @@ const handleOpenChange = (open: boolean) => {
                             {{ paymentLoading ? 'Verificando...' : 'Ya pagué' }}
                         </Button>
 
+                        <Button
+                            @click="openC2PSection"
+                            size="sm"
+                            variant="outline"
+                            :disabled="!bcv || !$page.props.auth.user?.plan?.price"
+                            class="w-full"
+                        >
+                            Pagar C2P
+                        </Button>
+
                         <div v-if="showReferenceInput" class="space-y-4">
                             <div class="space-y-2">
                                 <label for="referenceNumber" class="text-sm font-medium">Número de referencia:</label>
@@ -310,6 +416,51 @@ const handleOpenChange = (open: boolean) => {
                                     class="text-blue-500 hover:text-blue-700"
                                 >
                                     Reportar manualmente
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div v-if="showC2PSection" class="space-y-4 border rounded-md p-3 mt-2">
+                            <p class="font-medium">Datos C2P</p>
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium">Banco emisor</label>
+                                <select v-model="c2pBankCode" class="w-full border rounded-md p-2 bg-background">
+                                    <option value="" disabled>Seleccione un banco</option>
+                                    <option v-for="b in banks" :key="b.Code" :value="String(b.Code)">
+                                        {{ b.Code }} - {{ b.Name }}
+                                    </option>
+                                </select>
+                                <p v-if="banksLoading" class="text-xs text-muted-foreground">Cargando bancos...</p>
+                                <p v-if="banksError" class="text-xs text-red-500">{{ banksError }}</p>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium">Cédula/RIF</label>
+                                <Input v-model="c2pId" placeholder="V00000000 o E00000000" class="w-full uppercase" />
+                                <p class="text-xs text-muted-foreground">Formato requerido: inicie con V o E seguido de números, sin guiones ni puntos.</p>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium">Teléfono (emisor)</label>
+                                <Input v-model="c2pPhone" placeholder="58XXXXXXXXXX" class="w-full" />
+                                <p class="text-xs text-muted-foreground">Formato: 58 + 10 dígitos, sin +, espacios ni guiones.</p>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium">Monto (Bs)</label>
+                                <Input :model-value="$page.props.auth?.user?.plan?.price && bcv ? `${(parseFloat($page.props.auth.user.plan.price) * parseFloat(bcv)).toFixed(2)} Bs` : 'Calculando...'" readonly class="w-full font-semibold" />
+                                <p class="text-xs text-muted-foreground">Este monto es calculado automáticamente según tu plan y la tasa BCV.</p>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium">Código enviado por SMS</label>
+                                <Input v-model="c2pToken" placeholder="Ingrese el código de verificación" class="w-full" />
+                                <p class="text-xs text-muted-foreground">Introduce el código que tu banco envió por SMS para autorizar el pago.</p>
+                            </div>
+
+                            <div>
+                                <Button @click="sendC2P" size="sm" class="w-full" :disabled="!c2pToken || !c2pBankCode || !($page.props.auth?.user?.plan?.price && bcv)">
+                                    Enviar C2P
                                 </Button>
                             </div>
                         </div>

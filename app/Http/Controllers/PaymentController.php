@@ -145,110 +145,22 @@ class PaymentController extends Controller
         // Convertir el monto de bolívares a dólares
         $amountInUSD = $validated['amount'] / $bcvRate;
 
-        // PASO 1: Registrar SIEMPRE el pago original (independientemente de facturas)
+        // PASO 1: Registrar SOLO el pago (sin aplicar a facturas hasta verificación)
         $originalPayment = Payment::create([
             'reference' => $validated['reference'],
             'user_id' => $user->id,
-            'invoice_id' => null, // Sin factura asociada inicialmente
+            'invoice_id' => null, // Sin factura asociada hasta verificación
             'amount' => $amountInUSD, // En USD
             'id_number' => $fullIdNumber,
             'bank' => $validated['bank'],
             'phone' => $validated['phone'],
             'payment_date' => $validated['payment_date'],
             'image_path' => $imagePath, // Guardar la ruta de la imagen
+            'verify_payments' => false, // Sin verificar por defecto
         ]);
 
-        $remainingPayment = $amountInUSD; // Monto disponible para aplicar
-        $creditAvailable = $user->credit_balance ?? 0; // Ya está en USD
-        $appliedInvoices = [];
-
-        // PASO 2: Obtener facturas pendientes y aplicar pagos
-        $invoices = $user->invoices()
-            ->where('status', '!=', 'paid')
-            ->orderBy('period')
-            ->get();
-
-        // Si hay facturas pendientes, aplicar el pago
-        if ($invoices->count() > 0) {
-            foreach ($invoices as $invoice) {
-                $remaining = $invoice->amount_due - $invoice->amount_paid; // En USD
-
-                if ($remaining <= 0) continue; // Saltar facturas ya pagadas
-
-                // Aplicar el pago a esta factura
-                if ($remainingPayment > 0) {
-                    $paymentToApply = min($remaining, $remainingPayment);
-
-                    // Asociar parte del pago original a esta factura
-                    if ($paymentToApply > 0) {
-                    // Crear un nuevo registro de pago asociado a la factura
-                         Payment::create([
-                             'reference' => $validated['reference'] . ' (Aplicado a Factura)',
-                             'user_id' => $user->id,
-                             'invoice_id' => $invoice->id,
-                             'amount' => $paymentToApply, // En USD
-                             'id_number' => $fullIdNumber,
-                             'bank' => $validated['bank'],
-                             'phone' => $validated['phone'],
-                             'payment_date' => $validated['payment_date'],
-                             'image_path' => $imagePath,
-                         ]);
-
-                        $invoice->amount_paid += $paymentToApply;
-                        $remainingPayment -= $paymentToApply;
-
-                        // Actualizar estado de la factura con comparación robusta para decimales
-                        $amountDiff = abs($invoice->amount_paid - $invoice->amount_due);
-
-                        if ($amountDiff < 0.01 || $invoice->amount_paid >= $invoice->amount_due) {
-                            // Si la diferencia es menor a 1 centavo o está pagado completamente
-                            $invoice->amount_paid = $invoice->amount_due; // Asegurar que sea exacto
-                            $invoice->status = 'paid';
-                            Log::info('PAYMENT STORE: Factura marcada como PAID', [
-                                'invoice_id' => $invoice->id,
-                                'amount_due' => $invoice->amount_due,
-                                'amount_paid' => $invoice->amount_paid,
-                                'diff' => $amountDiff
-                            ]);
-                        } elseif ($invoice->amount_paid > 0) {
-                            $invoice->status = 'partial';
-                            Log::info('PAYMENT STORE: Factura marcada como PARTIAL', [
-                                'invoice_id' => $invoice->id,
-                                'amount_due' => $invoice->amount_due,
-                                'amount_paid' => $invoice->amount_paid,
-                                'diff' => $amountDiff
-                            ]);
-                        }
-
-                        $invoice->save();
-
-                        $appliedInvoices[] = [
-                            'id' => $invoice->id,
-                            'period' => $invoice->period ? $invoice->period->format('Y-m') : null,
-                            'applied_amount_usd' => $paymentToApply,
-                            'applied_amount_bs' => $paymentToApply * $bcvRate,
-                            'status' => $invoice->status,
-                        ];
-                    }
-                }
-
-                // Si ya no queda dinero para aplicar, salir
-                if ($remainingPayment <= 0) break;
-            }
-        }
-
-        // PASO 3: Actualizar el crédito del usuario con lo que sobró
-        $finalCreditBalance = $creditAvailable + $remainingPayment;
-        \App\Models\User::where('id', $user->id)->update(['credit_balance' => $finalCreditBalance]);
-
         // Preparar mensaje informativo
-        $message = 'Pago registrado exitosamente. ';
-        if (count($appliedInvoices) > 0) {
-            $message .= 'Aplicado a ' . count($appliedInvoices) . ' factura(s). ';
-        }
-        if ($remainingPayment > 0) {
-            $message .= 'Crédito disponible: $' . number_format($remainingPayment, 2);
-        }
+        $message = 'Pago registrado exitosamente. Pendiente de verificación por el operador.';
 
         // Determinar la redirección apropiada
         if ($request->is('quick-payment')) {
@@ -305,23 +217,36 @@ class PaymentController extends Controller
     public function toggleVerification(Request $request, Payment $payment)
     {
         try {
+            $wasVerified = $payment->verify_payments;
             $payment->verify_payments = !$payment->verify_payments;
             $payment->save();
 
             $status = $payment->verify_payments ? 'verificado' : 'sin verificar';
+            $message = "Pago marcado como {$status}";
+
+            // Si se está verificando el pago (cambiando de false a true)
+            if (!$wasVerified && $payment->verify_payments) {
+                $appliedInvoices = $this->applyPaymentToInvoices($payment);
+
+                if (count($appliedInvoices) > 0) {
+                    $message .= ' y aplicado a ' . count($appliedInvoices) . ' factura(s).';
+                }
+            }
 
             // Si es una petición Inertia, redirigir de vuelta
             if ($request->header('X-Inertia')) {
-                return back()->with('success', "Pago marcado como {$status}");
+                return back()->with('success', $message);
             }
 
             // Si es una petición AJAX/JSON normal
             return response()->json([
                 'success' => true,
                 'verified' => $payment->verify_payments,
-                'message' => "Pago marcado como {$status}"
+                'message' => $message
             ]);
         } catch (\Exception $e) {
+            Log::error('Error en toggleVerification: ' . $e->getMessage());
+
             // Si es una petición Inertia, redirigir de vuelta con error
             if ($request->header('X-Inertia')) {
                 return back()->with('error', 'Error al actualizar la verificación del pago');
@@ -332,6 +257,88 @@ class PaymentController extends Controller
                 'message' => 'Error al actualizar la verificación del pago'
             ], 500);
         }
+    }
+
+    /**
+     * Aplica un pago verificado a las facturas pendientes del usuario
+     */
+    private function applyPaymentToInvoices(Payment $payment)
+    {
+        $user = $payment->user;
+        $remainingPayment = $payment->amount; // En USD
+        $appliedInvoices = [];
+
+        // Obtener la tasa BCV actual para los cálculos de crédito
+        $bcvData = BncHelper::getBcvRatesCached();
+        $bcvRate = $bcvData['Rate'] ?? 1;
+
+        // Obtener facturas pendientes del usuario
+        $invoices = $user->invoices()
+            ->where('status', '!=', 'paid')
+            ->orderBy('period')
+            ->get();
+
+        if ($invoices->count() > 0) {
+            foreach ($invoices as $invoice) {
+                $remaining = $invoice->amount_due - $invoice->amount_paid;
+
+                if ($remaining <= 0) continue;
+
+                if ($remainingPayment > 0) {
+                    $paymentToApply = min($remaining, $remainingPayment);
+
+                    if ($paymentToApply > 0) {
+                        // Crear nuevo registro de pago asociado a la factura
+                        Payment::create([
+                            'reference' => $payment->reference . ' (Aplicado a Factura)',
+                            'user_id' => $user->id,
+                            'invoice_id' => $invoice->id,
+                            'amount' => $paymentToApply,
+                            'id_number' => $payment->id_number,
+                            'bank' => $payment->bank,
+                            'phone' => $payment->phone,
+                            'payment_date' => $payment->payment_date,
+                            'image_path' => $payment->image_path,
+                            'verify_payments' => true, // Ya verificado
+                        ]);
+
+                        $invoice->amount_paid += $paymentToApply;
+                        $remainingPayment -= $paymentToApply;
+
+                        // Actualizar estado de la factura
+                        $amountDiff = abs($invoice->amount_paid - $invoice->amount_due);
+                        if ($amountDiff < 0.01 || $invoice->amount_paid >= $invoice->amount_due) {
+                            $invoice->amount_paid = $invoice->amount_due;
+                            $invoice->status = 'paid';
+                        } elseif ($invoice->amount_paid > 0) {
+                            $invoice->status = 'partial';
+                        }
+
+                        $invoice->save();
+
+                        $appliedInvoices[] = [
+                            'id' => $invoice->id,
+                            'period' => $invoice->period ? $invoice->period->format('Y-m') : null,
+                            'applied_amount_usd' => $paymentToApply,
+                            'applied_amount_bs' => $paymentToApply * $bcvRate,
+                            'status' => $invoice->status,
+                        ];
+                    }
+                }
+
+                if ($remainingPayment <= 0) break;
+            }
+        }
+
+        // Actualizar crédito del usuario con lo que sobró (en bolívares)
+        if ($remainingPayment > 0) {
+            $remainingPaymentBs = $remainingPayment * $bcvRate;
+            $currentCreditBs = $user->credit_balance ?? 0;
+            $finalCreditBalance = $currentCreditBs + $remainingPaymentBs;
+            \App\Models\User::where('id', $user->id)->update(['credit_balance' => $finalCreditBalance]);
+        }
+
+        return $appliedInvoices;
     }
 
     /**
@@ -465,7 +472,7 @@ class PaymentController extends Controller
             // Convertir el monto de bolívares a dólares
             $amountInUSD = $amountBs / $bcvRate;
 
-            // Crear el pago marcado como verificado
+            // Crear el pago marcado como verificado (este método sí verifica automáticamente)
             $payment = Payment::create([
                 'reference' => $reference,
                 'user_id' => $user->id,
@@ -475,7 +482,7 @@ class PaymentController extends Controller
                 'bank' => '0191', // BNC
                 'phone' => $user->phone ?? '0000-0000000',
                 'payment_date' => $currentDate,
-                'verify_payments' => true, // Marcado como verificado
+                'verify_payments' => true, // Marcado como verificado (validación automática BNC)
             ]);
 
             // Aplicar el pago a facturas pendientes (misma lógica que en store)
@@ -507,7 +514,7 @@ class PaymentController extends Controller
                                 'bank' => '0191',
                                 'phone' => $user->phone ?? '0000-0000000',
                                 'payment_date' => $currentDate,
-                                'verify_payments' => true,
+                                'verify_payments' => true, // Marcado como verificado (validación automática BNC)
                             ]);
 
                             $invoice->amount_paid += $paymentToApply;
@@ -538,9 +545,10 @@ class PaymentController extends Controller
                 }
             }
 
-            // Actualizar el crédito del usuario
-            $currentCredit = $user->credit_balance ?? 0;
-            $finalCreditBalance = $currentCredit + $remainingPayment;
+            // Actualizar el crédito del usuario (en bolívares)
+            $remainingPaymentBs = $remainingPayment * $bcvRate; // Convertir a bolívares
+            $currentCreditBs = $user->credit_balance ?? 0; // Ya está en bolívares
+            $finalCreditBalance = $currentCreditBs + $remainingPaymentBs;
             \App\Models\User::where('id', $user->id)->update(['credit_balance' => $finalCreditBalance]);
 
             // Preparar mensaje de respuesta
@@ -549,7 +557,7 @@ class PaymentController extends Controller
                 $message .= 'Aplicado a ' . count($appliedInvoices) . ' factura(s). ';
             }
             if ($remainingPayment > 0) {
-                $message .= 'Crédito disponible: $' . number_format($remainingPayment, 2);
+                $message .= 'Crédito disponible: Bs. ' . number_format($remainingPaymentBs, 2);
             }
 
             return response()->json([

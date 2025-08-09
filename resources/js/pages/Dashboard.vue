@@ -118,7 +118,7 @@ const handleOpenReportModal = () => {
                                 </div>
                             </div>
                         </div>
-                        <div class="mt-4" v-if="$page.props.auth.user.plan_id && bcv">
+                        <div class="mt-4" v-if="$page.props.auth.user.plan_id && bcv && $page.props.auth.user.due > 0">
                             <div class="flex gap-2">
                                 <Button
                                     @click="openUserPaymentModal"
@@ -164,7 +164,7 @@ const handleOpenReportModal = () => {
             </div>
             <div class="relative min-h-[100vh] flex-1 rounded-xl border border-sidebar-border/70 dark:border-sidebar-border md:min-h-min">
                 <PlaceholderPattern />
-                <!-- <pre>{{ $page.props.auth.user}}</pre> -->
+                <pre>{{ $page.props.auth.user.due}}</pre>
             </div>
         </div>
 

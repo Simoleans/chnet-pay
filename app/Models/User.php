@@ -196,7 +196,7 @@ class User extends Authenticatable
                 'mbps' => $user->plan->mbps,
                 'type' => $user->plan->type,
             ] : null,
-            'credit_balance' => $user->credit_balance ?? 0,
+            'credit_balance' => $user->credit_balance ?? 0, // En bolívares
             'total_debt' => $user->due,
             'invoice_data' => $invoiceData,
         ];

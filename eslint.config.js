@@ -13,6 +13,8 @@ export default defineConfigWithVueTs(
         rules: {
             'vue/multi-word-component-names': 'off',
             '@typescript-eslint/no-explicit-any': 'off',
+            // Permitir usar <script lang="js"> en SFCs
+            'vue/block-lang': 'off',
         },
     },
     prettier,

@@ -38,6 +38,7 @@
                         </div>
                     </div>
                     <Button variant="outline" @click="restoreFilters" class="mt-5">Restaurar Filtros</Button>
+                    <Button @click="exportExcel" class="mt-5">Exportar Excel</Button>
                 </div>
             </div>
 
@@ -118,7 +119,7 @@
                                     </div>
                                 </template>
                                 <template v-else>
-                                    {{ item[column.key] }}
+                                    {{ getValue(item, column.key) }}
                                 </template>
                             </td>
                         </tr>
@@ -179,14 +180,14 @@
     </AppLayout>
 </template>
 
-<script setup>
+<!-- eslint-disable vue/block-lang -->
+<script setup lang="js">
 import AppLayout from '@/layouts/AppLayout.vue'
 import { Head, router } from '@inertiajs/vue3'
 import { ref } from 'vue'
 import { Button } from '@/components/ui/button'
 import PaymentDetailsModal from '@/components/PaymentDetailsModal.vue'
 import PaymentReceiptModal from '@/components/PaymentReceiptModal.vue'
-import { debounce } from 'lodash'
 
 const props = defineProps({
     data: Array,
@@ -221,6 +222,14 @@ const restoreFilters = () => {
     dateFrom.value = ''
     dateTo.value = ''
     submit()
+}
+
+function debounce(fn, wait) {
+    let timeout
+    return (...args) => {
+        if (timeout) clearTimeout(timeout)
+        timeout = setTimeout(() => fn(...args), wait)
+    }
 }
 
 const submit = debounce(() => {
@@ -278,6 +287,34 @@ const viewReceipt = (payment) => {
 const handlePaymentUpdate = () => {
     // Recargar la lista de pagos para mostrar el estado actualizado
     submit()
+}
+
+const exportExcel = () => {
+    const params = new URLSearchParams({
+        search: search.value || '',
+        date_from: dateFrom.value || '',
+        date_to: dateTo.value || '',
+    })
+    // Abrir descarga en la misma pestaña
+    window.location.href = route('payments.export') + '?' + params.toString()
+}
+
+// Helper para resolver valores genéricos por clave
+const getValue = (item, key) => {
+    switch (key) {
+        case 'reference':
+            return item.reference
+        case 'payment_date':
+            return item.payment_date
+        case 'bank':
+            return item.bank || ''
+        case 'invoice_period':
+            return item.invoice_period
+        case 'created_at':
+            return item.created_at
+        default:
+            return item[key]
+    }
 }
 
 

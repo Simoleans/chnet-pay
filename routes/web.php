@@ -28,6 +28,7 @@ Route::resource('zones', ZoneController::class);
 //payments
 Route::resource('payments', PaymentController::class)->middleware('auth');
 Route::patch('/payments/{payment}/verify', [PaymentController::class, 'toggleVerification'])->name('payments.toggle-verification')->middleware('auth');
+Route::get('/payments-export', [PaymentController::class, 'export'])->name('payments.export')->middleware('auth');
 
 // Ruta especial para pago rápido desde login (sin autenticación)
 Route::post('/quick-payment', [PaymentController::class, 'store'])->name('quick-payment.store');

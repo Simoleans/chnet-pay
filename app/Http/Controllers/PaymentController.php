@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Payment;
 use App\Helpers\BncHelper;
 use App\Helpers\BncLogger;
+use App\Exports\PaymentsExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -700,5 +701,19 @@ class PaymentController extends Controller
                 'error' => 'Error al enviar C2P: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Exporta la lista de pagos a Excel respetando los filtros actuales.
+     */
+    public function export(Request $request)
+    {
+        $search = $request->get('search');
+        $dateFrom = $request->get('date_from');
+        $dateTo = $request->get('date_to');
+
+        $export = new PaymentsExport($search, $dateFrom, $dateTo);
+        $fileName = 'pagos_' . now()->format('Ymd_His') . '.xlsx';
+        return $export->download($fileName);
     }
 }

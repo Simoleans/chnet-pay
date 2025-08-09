@@ -15,6 +15,10 @@ import { router } from '@inertiajs/vue3'
 const props = defineProps({
     open: Boolean,
     payment: Object,
+    showAdminActions: {
+        type: Boolean,
+        default: true
+    }
 })
 
 const emit = defineEmits(['update:open', 'paymentUpdated'])
@@ -120,7 +124,7 @@ const toggleVerification = () => {
 
                 <!-- Sección de verificación -->
                 <div class="border-t pt-4">
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center" :class="showAdminActions ? 'justify-between' : 'justify-start'">
                         <div>
                             <span class="font-medium text-muted-foreground">Estado de Verificación:</span>
                             <div class="flex items-center gap-2 mt-1">
@@ -141,6 +145,7 @@ const toggleVerification = () => {
                             </div>
                         </div>
                         <Button
+                            v-if="showAdminActions"
                             :variant="isVerified ? 'destructive' : 'default'"
                             size="sm"
                             :disabled="isUpdatingVerification"

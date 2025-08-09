@@ -87,7 +87,42 @@ Route::get('/api/users/search/{code}', [App\Http\Controllers\UserController::cla
 
 
 Route::get('dashboard', function () {
-    return Inertia::render('Dashboard');
+    $user = \Illuminate\Support\Facades\Auth::user();
+    $data = [];
+
+    // Si el usuario tiene role = 0 (usuario), cargar sus pagos
+    if ($user && $user->role === 0) {
+        $payments = $user->payments()
+            ->with(['invoice'])
+            ->orderBy('id', 'desc')
+            ->limit(10) // Mostrar los últimos 10 pagos
+            ->get();
+
+        // Formatear los datos igual que en PaymentController
+        $formattedPayments = $payments->map(function ($payment) {
+            return [
+                'id' => $payment->id,
+                'reference' => $payment->reference,
+                'amount' => $payment->amount,
+                'amount_bs' => $payment->amount * (\App\Helpers\BncHelper::getBcvRatesCached()['Rate'] ?? 1),
+                'payment_date' => $payment->payment_date ? $payment->payment_date->format('d/m/Y') : null,
+                'bank' => $payment->bank,
+                'phone' => $payment->phone,
+                'id_number' => $payment->id_number,
+                'user_name' => $payment->user ? $payment->user->name : 'N/A',
+                'user_code' => $payment->user ? $payment->user->code : 'N/A',
+                'invoice_period' => $payment->invoice && $payment->invoice->period ?
+                    $payment->invoice->period->format('Y-m') : 'Sin factura',
+                'created_at' => $payment->created_at ? $payment->created_at->format('d/m/Y H:i') : null,
+                'image_path' => $payment->image_path,
+                'verify_payments' => $payment->verify_payments,
+            ];
+        });
+
+        $data['user_payments'] = $formattedPayments;
+    }
+
+    return Inertia::render('Dashboard', $data);
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 require __DIR__.'/settings.php';

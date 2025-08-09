@@ -13,13 +13,13 @@
 
                     <div class="p-6">
                         <form @submit.prevent="submitForm" class="space-y-6">
-                            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-                                <div class="space-y-4">
-                                    <div class="flex justify-center">
-                                        <Icon name="Upload" class="h-12 w-12 text-gray-400" />
-                                    </div>
-                                    <div>
-                                        <Label for="file" class="cursor-pointer">
+                            <Label for="file" class="cursor-pointer block">
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 hover:bg-gray-50 transition-all duration-200">
+                                    <div class="space-y-4">
+                                        <div class="flex justify-center">
+                                            <Icon name="Upload" class="h-12 w-12 text-gray-400" />
+                                        </div>
+                                        <div>
                                             <span class="text-lg font-medium text-gray-900">
                                                 Seleccionar archivo Excel
                                             </span>
@@ -32,30 +32,33 @@
                                                 class="hidden"
                                                 required
                                             />
-                                        </Label>
-                                        <p class="text-gray-500 text-sm mt-1">
-                                            Formatos permitidos: .xlsx, .xls
-                                        </p>
-                                    </div>
-
-                                    <div v-if="selectedFile" class="bg-blue-50 p-4 rounded-md">
-                                        <div class="flex items-center space-x-2">
-                                            <Icon name="FileText" class="h-5 w-5 text-blue-600" />
-                                            <span class="text-blue-900 font-medium">{{ selectedFile.name }}</span>
-                                            <span class="text-blue-600 text-sm">({{ formatFileSize(selectedFile.size) }})</span>
+                                            <p class="text-gray-500 text-sm mt-1">
+                                                Formatos permitidos: .xlsx, .xls
+                                            </p>
+                                            <p class="text-gray-400 text-xs mt-2">
+                                                Haz clic en cualquier parte de esta área para seleccionar un archivo
+                                            </p>
                                         </div>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            @click="removeFile"
-                                            class="mt-2 text-red-600 hover:text-red-800"
-                                        >
-                                            Quitar archivo
-                                        </Button>
+
+                                        <div v-if="selectedFile" class="bg-blue-50 p-4 rounded-md">
+                                            <div class="flex items-center space-x-2">
+                                                <Icon name="FileText" class="h-5 w-5 text-blue-600" />
+                                                <span class="text-blue-900 font-medium">{{ selectedFile.name }}</span>
+                                                <span class="text-blue-600 text-sm">({{ formatFileSize(selectedFile.size) }})</span>
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                @click.stop="removeFile"
+                                                class="mt-2 text-red-600 hover:text-red-800"
+                                            >
+                                                Quitar archivo
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            </Label>
 
                             <!-- Información del formato esperado -->
                             <div class="bg-gray-50 p-4 rounded-lg">
@@ -192,13 +195,33 @@ const submitForm = () => {
     }
 
     form.post(route('import-clients'), {
-        onSuccess: () => {
+        onSuccess: (page) => {
             removeFile()
+
+            // Mostrar mensaje de éxito con alert
+            if (page.props.flash?.success) {
+                alert(`✅ ${page.props.flash.success}`)
+                importResult.value = {
+                    success: true,
+                    message: page.props.flash.success
+                }
+            } else {
+                alert('✅ Importación completada exitosamente')
+                importResult.value = {
+                    success: true,
+                    message: 'Importación completada exitosamente'
+                }
+            }
         },
         onError: (errors) => {
+            const errorMessage = Object.values(errors)[0] || 'Error al importar los usuarios'
+
+            // Mostrar error con alert
+            alert(`❌ ${errorMessage}`)
+
             importResult.value = {
                 success: false,
-                message: Object.values(errors)[0] || 'Error al importar los usuarios'
+                message: errorMessage
             }
         }
     })

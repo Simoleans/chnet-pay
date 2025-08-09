@@ -180,7 +180,6 @@
     </AppLayout>
 </template>
 
-<!-- eslint-disable vue/block-lang -->
 <script setup lang="js">
 import AppLayout from '@/layouts/AppLayout.vue'
 import { Head, router } from '@inertiajs/vue3'

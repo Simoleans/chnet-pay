@@ -196,16 +196,34 @@ const submitForm = () => {
 
     form.post(route('import-clients'), {
         onSuccess: (page) => {
+            console.log('=== RESPUESTA EXITOSA RECIBIDA ===')
+            console.log('page.props:', page.props)
+            console.log('flash success:', page.props.flash?.success)
+            console.log('flash error:', page.props.flash?.error)
+
             removeFile()
+
+            // Verificar si hay un mensaje de error en el flash
+            if (page.props.flash?.error) {
+                console.log('ERROR encontrado en respuesta exitosa:', page.props.flash.error)
+                alert(`❌ ${page.props.flash.error}`)
+                importResult.value = {
+                    success: false,
+                    message: page.props.flash.error
+                }
+                return
+            }
 
             // Mostrar mensaje de éxito con alert
             if (page.props.flash?.success) {
+                console.log('SUCCESS confirmado:', page.props.flash.success)
                 alert(`✅ ${page.props.flash.success}`)
                 importResult.value = {
                     success: true,
                     message: page.props.flash.success
                 }
             } else {
+                console.log('SUCCESS sin mensaje específico')
                 alert('✅ Importación completada exitosamente')
                 importResult.value = {
                     success: true,
@@ -214,6 +232,9 @@ const submitForm = () => {
             }
         },
         onError: (errors) => {
+            console.log('=== ERROR RECIBIDO ===')
+            console.log('errors:', errors)
+
             const errorMessage = Object.values(errors)[0] || 'Error al importar los usuarios'
 
             // Mostrar error con alert

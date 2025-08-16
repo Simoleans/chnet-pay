@@ -171,14 +171,17 @@ class ClientImportController extends Controller
                 $contador++;
             }
 
-                        // Si hay errores, cancelar la transacción
+            // Si hay errores, cancelar la transacción
             if (!empty($errores)) {
                 Log::warning('Se encontraron errores durante la validación. Total de errores: ' . count($errores));
                 Log::warning('Errores encontrados: ' . implode(' | ', $errores));
                 DB::rollBack();
                 Log::info('ROLLBACK ejecutado - No se guardó ningún dato');
 
-                $mensajeError = "No se completó la importación. Se encontraron los siguientes errores:\n" . implode("\n", $errores);
+                                $mensajeError = "No se completó la importación. Se encontraron los siguientes errores:\n" . implode("\n", $errores);
+
+                Log::info('Preparando respuesta de ERROR');
+                Log::info('Mensaje de error que se enviará: ' . $mensajeError);
 
                 return redirect()
                     ->route('import-clients.index')
@@ -192,9 +195,13 @@ class ClientImportController extends Controller
             Log::info('COMMIT ejecutado - Datos guardados en la base de datos');
             Log::info('=== FIN DE IMPORTACIÓN EXITOSA ===');
 
+            $mensajeExito = "Importación completada exitosamente. Se crearon {$contador} clientes.";
+            Log::info('Preparando respuesta de ÉXITO');
+            Log::info('Mensaje de éxito que se enviará: ' . $mensajeExito);
+
             return redirect()
                 ->route('import-clients.index')
-                ->with('success', "Importación completada exitosamente. Se crearon {$contador} clientes.");
+                ->with('success', $mensajeExito);
 
         } catch (Exception $e) {
             // En caso de cualquier error, cancelar la transacción
@@ -203,13 +210,17 @@ class ClientImportController extends Controller
             Log::error('Archivo: ' . $e->getFile() . ' - Línea: ' . $e->getLine());
             Log::error('Stack trace: ' . $e->getTraceAsString());
 
-            DB::rollBack();
+                        DB::rollBack();
             Log::info('ROLLBACK ejecutado por excepción - No se guardó ningún dato');
             Log::info('=== FIN DE IMPORTACIÓN CON ERROR ===');
 
+            $mensajeException = 'Error durante la importación: ' . $e->getMessage() . '. No se importó ningún dato.';
+            Log::info('Preparando respuesta de EXCEPCIÓN');
+            Log::info('Mensaje de excepción que se enviará: ' . $mensajeException);
+
             return redirect()
                 ->route('import-clients.index')
-                ->with('error', 'Error durante la importación: ' . $e->getMessage() . '. No se importó ningún dato.');
+                ->with('error', $mensajeException);
         }
     }
 }

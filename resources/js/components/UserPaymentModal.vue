@@ -250,6 +250,7 @@ const checkPayment = async () => {
     paymentError.value = false;
     showReferenceInput.value = true;
     showReportLink.value = false;
+    showC2PSection.value = false;
 
     // Si no hay monto, usar el del plan
     if (!paymentAmount.value && bcv.value && page.props.auth?.user?.plan?.price) {

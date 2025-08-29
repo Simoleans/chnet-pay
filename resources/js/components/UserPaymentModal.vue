@@ -354,20 +354,37 @@ const handleOpenChange = (open: boolean) => {
                             Copiar datos bancarios
                         </Button>
 
-                        <Button
+                        <!-- <Button
                             @click="checkPayment"
                             size="sm"
                             :disabled="paymentLoading || !bcv || !$page.props.auth.user?.plan?.price"
                             class="w-full"
                         >
                             {{ paymentLoading ? 'Verificando...' : 'Ya pagué' }}
+                        </Button> -->
+                        <Button
+                            @click="checkPayment"
+                            size="sm"
+                            :disabled="paymentLoading  || !$page.props.auth.user?.plan?.price"
+                            class="w-full"
+                        >
+                            {{ paymentLoading ? 'Verificando...' : 'Ya pagué' }}
                         </Button>
 
-                        <Button
+                        <!-- <Button
                             @click="openC2PSection"
                             size="sm"
                             variant="outline"
                             :disabled="!bcv || !$page.props.auth.user?.plan?.price"
+                            class="w-full"
+                        >
+                            Pagar C2P
+                        </Button> -->
+                        <Button
+                            @click="openC2PSection"
+                            size="sm"
+                            variant="outline"
+                            :disabled="!$page.props.auth.user?.plan?.price"
                             class="w-full"
                         >
                             Pagar C2P

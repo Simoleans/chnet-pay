@@ -101,6 +101,7 @@ const openC2PSection = () => {
     // precargar datos del usuario
     c2pId.value = page.props.auth?.user?.id_number || '';
     c2pPhone.value = page.props.auth?.user?.phone || '';
+    showReferenceInput.value = false;
     // cargar/actualizar BCV
     if (typeof (bcvStore as any).$reloadBcvAmount === 'function') {
         (bcvStore as any).$reloadBcvAmount();

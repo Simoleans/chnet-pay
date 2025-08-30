@@ -6,12 +6,20 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Zone;
 use App\Models\Plan;
+use App\Services\WisproApiService;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
+    protected $wisproApiService;
+
+    public function __construct(WisproApiService $wisproApiService)
+    {
+        $this->wisproApiService = $wisproApiService;
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -34,6 +42,18 @@ class UserController extends Controller
         $zones = Zone::all();
         $plans = Plan::all();
 
+                // Obtener datos de clientes desde la API de Wispro
+        $wisproClients = [];
+        $wisproPage = $request->get('wispro_page', 1); // Parámetro separado para paginación de Wispro
+        $wisproPerPage = $request->get('wispro_per_page', 20); // Registros por página para Wispro
+        $wisproResponse = $this->wisproApiService->getClients($wisproPage, $wisproPerPage);
+
+        if ($wisproResponse['success']) {
+            $wisproClients = $wisproResponse['data'];
+        } else {
+            Log::warning('Error al obtener clientes de Wispro API: ' . ($wisproResponse['error'] ?? 'Error desconocido'));
+        }
+
         return Inertia::render('User/Index', [
             'data' => $users->items(),
             'pagination' => [
@@ -49,6 +69,7 @@ class UserController extends Controller
             ],
             'zones' => $zones,
             'plans' => $plans,
+            'wispro_clients' => $wisproClients,
         ]);
     }
 
@@ -204,7 +225,7 @@ class UserController extends Controller
                 'data' => $userData
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error buscando usuario por código: ' . $e->getMessage());
+            Log::error('Error buscando usuario por código: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'error' => 'Error interno del servidor'

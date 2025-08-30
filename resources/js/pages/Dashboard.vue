@@ -169,7 +169,7 @@ const getValue = (item: any, key: string) => {
                                 </div>
                             </div>
                         </div>
-                        <div class="mt-4" v-if="$page.props.auth.user.plan_id && bcv && $page.props.auth.user.due > 0">
+                        <div class="mt-4" v-if="$page.props.auth.user.plan_id  && $page.props.auth.user.due > 0">
                             <div class="flex gap-2">
                                 <Button
                                     @click="openUserPaymentModal"

@@ -7,7 +7,9 @@ export const useBanksStore = defineStore('banks', () => {
     const loading = ref(false)
     const error = ref(null)
 
-    const loadBanks = async () => {
+    const loadBanks = async (retryCount = 0) => {
+        const maxRetries = 2 // Máximo 2 reintentos adicionales
+
         if (banks.value.length > 0) {
             return // Ya están cargados
         }
@@ -20,15 +22,30 @@ export const useBanksStore = defineStore('banks', () => {
 
             if (response.data.success) {
                 banks.value = response.data.data
+                console.log('Bancos cargados exitosamente')
             } else {
-                error.value = response.data.message || 'Error al cargar bancos'
-                console.error('Error loading banks:', response.data.message)
+                throw new Error(response.data.message || 'Error al cargar bancos')
             }
         } catch (err) {
-            error.value = err.response?.data?.error || 'Error de conexión al cargar bancos'
-            console.error('Error loading banks:', err)
+            const errorMessage = err.response?.data?.error || err.message || 'Error de conexión al cargar bancos'
+            console.error(`Error loading banks (intento ${retryCount + 1}):`, err)
+
+            // Si no hemos alcanzado el máximo de reintentos, intentar de nuevo
+            if (retryCount < maxRetries) {
+                console.log(`Reintentando cargar bancos... (intento ${retryCount + 2}/${maxRetries + 1})`)
+                // Esperar un poco antes del siguiente intento (delay progresivo)
+                await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 1000))
+                return loadBanks(retryCount + 1)
+            } else {
+                // Si ya agotamos los reintentos, establecer el error final
+                error.value = `${errorMessage} (falló después de ${maxRetries + 1} intentos)`
+                console.error('Error final loading banks después de todos los reintentos:', errorMessage)
+            }
         } finally {
-            loading.value = false
+            // Solo cambiar loading a false si no vamos a reintentar
+            if (retryCount >= maxRetries || banks.value.length > 0) {
+                loading.value = false
+            }
         }
     }
 
@@ -44,11 +61,18 @@ export const useBanksStore = defineStore('banks', () => {
         }))
     }
 
+    const reloadBanks = async () => {
+        // Forzar recarga limpiando los bancos existentes
+        banks.value = []
+        return loadBanks()
+    }
+
     return {
         banks,
         loading,
         error,
         loadBanks,
+        reloadBanks,
         getBankName,
         getBankOptions
     }

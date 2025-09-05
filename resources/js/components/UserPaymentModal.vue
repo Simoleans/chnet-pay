@@ -100,7 +100,7 @@ const openC2PSection = () => {
     }
     // precargar datos del usuario
     c2pId.value = page.props.auth?.user?.id_number || '';
-    c2pPhone.value = page.props.auth?.user?.phone || '';
+    //c2pPhone.value = page.props.auth?.user?.phone || '';
     showReferenceInput.value = false;
     // cargar/actualizar BCV
     if (typeof (bcvStore as any).$reloadBcvAmount === 'function') {
@@ -321,7 +321,7 @@ const handleOpenChange = (open: boolean) => {
 
 <template>
     <Dialog :open="open" @update:open="handleOpenChange">
-        <DialogContent class="sm:max-w-md">
+        <DialogContent class="sm:max-w-lg md:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
                 <DialogTitle>Pagar Plan</DialogTitle>
                 <DialogDescription>
@@ -367,7 +367,7 @@ const handleOpenChange = (open: boolean) => {
                         <Button
                             @click="checkPayment"
                             size="sm"
-                            :disabled="paymentLoading  || !$page.props.auth.user?.plan?.price"
+                            :disabled="paymentLoading  || !bcv || !$page.props.auth.user?.plan?.price || showC2PSection"
                             class="w-full"
                         >
                             {{ paymentLoading ? 'Verificando...' : 'Ya pagué' }}
@@ -386,7 +386,7 @@ const handleOpenChange = (open: boolean) => {
                             @click="openC2PSection"
                             size="sm"
                             variant="outline"
-                            :disabled="!$page.props.auth.user?.plan?.price"
+                            :disabled="!bcv || !$page.props.auth.user?.plan?.price"
                             class="w-full"
                         >
                             Pagar C2P
@@ -439,48 +439,68 @@ const handleOpenChange = (open: boolean) => {
                             </div>
                         </div>
 
-                        <div v-if="showC2PSection" class="space-y-4 border rounded-md p-3 mt-2">
-                            <p class="font-medium">Datos C2P</p>
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium">Banco emisor</label>
-                                <select v-model="c2pBankCode" class="w-full border rounded-md p-2 bg-background">
-                                    <option value="" disabled>Seleccione un banco</option>
-                                    <option v-for="b in banks" :key="b.Code" :value="String(b.Code)">
-                                        {{ b.Code }} - {{ b.Name }}
-                                    </option>
-                                </select>
-                                <p v-if="banksLoading" class="text-xs text-muted-foreground">Cargando bancos...</p>
-                                <p v-if="banksError" class="text-xs text-red-500">{{ banksError }}</p>
-                            </div>
+                        <div v-if="showC2PSection" class="border rounded-md p-3 mt-2">
+                            <p class="font-medium mb-3">Datos C2P</p>
 
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium">Cédula/RIF</label>
-                                <Input v-model="c2pId" placeholder="V00000000 o E00000000" class="w-full uppercase" />
-                                <p class="text-xs text-muted-foreground">Formato requerido: inicie con V o E seguido de números, sin guiones ni puntos.</p>
-                            </div>
+                            <!-- Layout de dos columnas para optimizar espacio -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                                <!-- Columna izquierda -->
+                                <div class="space-y-3">
+                                    <div class="space-y-1">
+                                        <label class="text-sm font-medium">Banco emisor</label>
+                                        <select v-model="c2pBankCode" class="w-full border rounded-md p-2 bg-background text-sm">
+                                            <option value="" disabled>Seleccione un banco</option>
+                                            <option v-for="b in banks" :key="b.Code" :value="String(b.Code)">
+                                                {{ b.Code }} - {{ b.Name }}
+                                            </option>
+                                        </select>
+                                        <p v-if="banksLoading" class="text-xs text-muted-foreground">Cargando bancos...</p>
+                                        <p v-if="banksError" class="text-xs text-red-500">{{ banksError }}</p>
+                                    </div>
 
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium">Teléfono (emisor)</label>
-                                <Input v-model="c2pPhone" placeholder="58XXXXXXXXXX" class="w-full" />
-                                <p class="text-xs text-muted-foreground">Formato: 58 + 10 dígitos, sin +, espacios ni guiones.</p>
-                            </div>
+                                    <div class="space-y-1">
+                                        <label class="text-sm font-medium">Cédula/RIF</label>
+                                        <Input v-model="c2pId" placeholder="V00000000 o E00000000" class="w-full uppercase text-sm" />
+                                        <p class="text-xs text-muted-foreground">Formato: V o E seguido de números</p>
+                                    </div>
 
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium">Monto (Bs)</label>
-                                <Input :model-value="$page.props.auth?.user?.plan?.price && bcv ? `${(parseFloat($page.props.auth.user.plan.price) * parseFloat(bcv)).toFixed(2)} Bs` : 'Calculando...'" readonly class="w-full font-semibold" />
-                                <p class="text-xs text-muted-foreground">Este monto es calculado automáticamente según tu plan y la tasa BCV.</p>
-                            </div>
+                                    <div class="space-y-1">
+                                        <label class="text-sm font-medium">Teléfono</label>
+                                        <Input v-model="c2pPhone" placeholder="58XXXXXXXXXX" class="w-full text-sm" />
+                                        <p class="text-xs text-muted-foreground">58 + 10 dígitos</p>
+                                    </div>
+                                </div>
 
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium">Código enviado por SMS</label>
-                                <Input v-model="c2pToken" placeholder="Ingrese el código de verificación" class="w-full" />
-                                <p class="text-xs text-muted-foreground">Introduce el código que tu banco envió por SMS para autorizar el pago.</p>
-                            </div>
+                                <!-- Columna derecha -->
+                                <div class="space-y-3">
+                                    <div class="space-y-1">
+                                        <label class="text-sm font-medium">Monto (Bs)</label>
+                                        <Input
+                                            :model-value="$page.props.auth?.user?.plan?.price && bcv ? `${(parseFloat($page.props.auth.user.plan.price) * parseFloat(bcv)).toFixed(2)} Bs` : 'Calculando...'"
+                                            readonly
+                                            class="w-full font-semibold text-sm bg-muted"
+                                        />
+                                        <!-- <p class="text-xs text-muted-foreground">Calculado automáticamente</p> -->
+                                    </div>
 
-                            <div>
-                                <Button @click="sendC2P" size="sm" class="w-full" :disabled="!c2pToken || !c2pBankCode || !($page.props.auth?.user?.plan?.price && bcv)">
-                                    Enviar C2P
-                                </Button>
+                                    <div class="space-y-1">
+                                        <label class="text-sm font-medium">Código SMS</label>
+                                        <Input v-model="c2pToken" placeholder="Código de verificación" class="w-full text-sm" />
+                                        <p class="text-xs text-muted-foreground">Código enviado por tu banco</p>
+                                    </div>
+
+                                    <!-- Botón en la columna derecha para balance visual -->
+                                    <div class="mt-10">
+                                        <Button
+                                            @click="sendC2P"
+                                            size="sm"
+                                            class="w-full"
+                                            :disabled="!c2pToken || !c2pBankCode || !($page.props.auth?.user?.plan?.price && bcv)"
+                                        >
+                                            Enviar C2P
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

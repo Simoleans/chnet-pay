@@ -29,6 +29,8 @@ class BncHelper
 
     public static function getBcvRatesCached(): ?array
     {
+       /*  $fallback = self::getBcvRateFromBNC();
+        return $fallback; */
         return Cache::remember('bnc_bcv_rate', now()->addMinutes(10), function () {
             // Intentar obtener la tasa desde el endpoint de pydolarve
             $primary = self::getBcvRateFromPydolarve();
@@ -48,15 +50,15 @@ class BncHelper
     private static function getBcvRateFromPydolarve(): ?array
     {
         try {
-            $response = Http::timeout(3)->get('https://pydolarve.org/api/v1/dollar?page=bcv');
+            $response = Http::timeout(3)->get('https://ve.dolarapi.com/v1/dolares/oficial');
 
             if ($response->ok()) {
                 $data = $response->json();
 
-                if (isset($data['monitors']['usd']['price']) && isset($data['monitors']['usd']['last_update'])) {
+                if (isset($data['promedio']) && isset($data['fechaActualizacion'])) {
                     return [
-                        'Rate' => floatval($data['monitors']['usd']['price']),
-                        'Date' => $data['monitors']['usd']['last_update'],
+                        'Rate' => floatval($data['promedio']),
+                        'Date' => $data['fechaActualizacion'],
                         'source' => 'pydolarve',
                     ];
                 } else {
@@ -76,19 +78,72 @@ class BncHelper
 
     public static function getBcvRateFromBNC(): ?array
     {
-        return Cache::remember('bnc_bcv_rate', now()->addMinutes(10), function () {
+        try {
+            $key = self::getWorkingKey();
+            $clientId = config('app.bnc.client_id');
+
+
+            $body = [
+                'ClientID' => $clientId,
+                'ChildClientID' => '',
+                'BranchID' => '',
+            ];
+
+            Log::info('BNC BCV: Enviando solicitud', ['client_id' => $clientId]);
+
+            $response = BncApiService::send('Services/BCVRates', $body);
+
+            //Log::info('BNC BCV: Respuesta recibida', ['status' => $response->status()]);
+
+            if (in_array($response->status(), [200, 202])) {
+                $json = $response->json();
+
+                if (!isset($json['value'])) {
+                    Log::error('BNC BCV: Respuesta sin campo value');
+                    return null;
+                }
+
+                $decrypted = BncCryptoHelper::decryptAES($json['value'], $key);
+
+                //Log::info('BNC BCV: Desencriptación exitosa', ['data' => $decrypted]);
+
+                if (isset($decrypted['PriceRateBCV']) && isset($decrypted['dtRate'])) {
+                    return [
+                        'Rate' => floatval($decrypted['PriceRateBCV']),
+                        'Date' => $decrypted['dtRate'],
+                        'source' => 'bnc',
+                    ];
+                } else {
+                    Log::error('BNC BCV: Estructura inesperada en respuesta desencriptada', ['data' => $decrypted]);
+                }
+            } else {
+                Log::error('BNC BCV: Error HTTP', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('BNC BCV: Excepción', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+        }
+
+        return null;
+        /* return Cache::remember('bnc_bcv_rate', now()->addMinutes(10), function () {
             $clientGuid = config('app.bnc.client_guid');
+
 
             if (!$clientGuid) {
                 Log::error('BNC BCV: ClientGUID no definido');
                 return null;
             }
 
+            Log::info('BNC BCV: ClientGUID', ['base_url' => config('app.bnc.base_url')]);
+
             try {
-                $response = Http::timeout(10)->post(config('app.bnc.base_url') . 'Services/BCVRates', [
-                    'ClientGUID' => $clientGuid,
-                    'Reference' => now()->format('YmdHis'),
-                ]);
+                $response = Http::timeout(10)->post(config('app.bnc.base_url') . 'Services/BCVRates');
 
                 if ($response->ok() && $response['status'] === 'OK') {
                     return [
@@ -108,48 +163,7 @@ class BncHelper
             }
 
             return null;
-        });
-    }
-
-    public static function getPositionHistory(string $account): ?array
-    {
-        try {
-            $key = self::getWorkingKey();
-            $clientGuid = config('app.bnc.client_guid');
-            $clientId = config('app.bnc.client_id'); // asegúrate de tener esto en tu .env
-
-            if (!$key) throw new \Exception('WorkingKey no disponible');
-
-            $body = [
-                'ClientID' => $clientId,
-                'AccountNumber' => $account,
-                'ChildClientID' => '',
-                'BranchID' => '',
-            ];
-
-            Log::info('BNC HISTORIAL: Enviando payload', ['client_id' => $clientId, 'account' => $account]);
-
-            $response = BncApiService::send('Position/History', $body);
-
-            Log::info('BNC HISTORIAL: Respuesta recibida', ['status' => $response->status()]);
-
-            if ($response->ok() || $response->status() === 202) {
-                $result = $response->json();
-                $decrypted = BncCryptoHelper::decryptAES($result['value'], $key);
-                Log::info('BNC HISTORIAL: Desencriptacion exitosa', ['records_count' => count($decrypted)]);
-                return $decrypted;
-            } else {
-                Log::error('BNC HISTORIAL: Error HTTP', ['status' => $response->status()]);
-            }
-        } catch (\Throwable $e) {
-            Log::error('BNC HISTORIAL: Excepcion', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
-            ]);
-        }
-
-        return null;
+        }); */
     }
 
     public static function validateOperationReference(string $reference, string $dateMovement, float $expectedAmount): ?array

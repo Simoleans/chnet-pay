@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup>
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
@@ -12,23 +12,12 @@ import QuickPaymentModal from '@/components/QuickPaymentModal.vue';
 import { ref, onMounted } from 'vue';
 import { useBanksStore } from '@/stores/banks';
 
-// Declaración de tipos para reCAPTCHA
-declare global {
-    interface Window {
-        grecaptcha: {
-            reset: (widgetId?: number) => void;
-            render: (container: string | Element, parameters: any) => number;
-        };
-        onCaptchaVerified: (response: string) => void;
-        onCaptchaExpired: () => void;
-    }
-}
-
-const props = defineProps<{
-    status?: string;
-    canResetPassword: boolean;
-    recaptchaSiteKey?: string;
-}>();
+const props = defineProps({
+    status: String,
+    canResetPassword: Boolean,
+    recaptchaSiteKey: String,
+    test: String,
+});
 
 const form = useForm({
     nationality: 'V',
@@ -59,11 +48,11 @@ onMounted(() => {
     }
 
     // Hacer las funciones disponibles globalmente para reCAPTCHA
-    (window as any).onCaptchaVerified = (response: string) => {
+    window.onCaptchaVerified = (response) => {
         form['g-recaptcha-response'] = response;
     };
 
-    (window as any).onCaptchaExpired = () => {
+    window.onCaptchaExpired = () => {
         form['g-recaptcha-response'] = '';
     };
 });
@@ -98,6 +87,7 @@ const submit = () => {
 
         <form @submit.prevent="submit" class="flex flex-col gap-6">
             <div class="grid gap-6">
+                <!-- <pre>{{ props }}</pre> -->
                 <div class="grid gap-2">
                     <Label for="nationality">Nacionalidad</Label>
                     <select
@@ -161,9 +151,9 @@ const submit = () => {
                         ⚠️ reCAPTCHA no configurado (Site Key no encontrada)
                     </div>
 
-                    <div v-if="props.recaptchaSiteKey" class="text-sm text-green-600 bg-green-100 p-2 rounded mb-2">
+                   <!--  <div v-if="props.recaptchaSiteKey" class="text-sm text-green-600 bg-green-100 p-2 rounded mb-2">
                         ✅ reCAPTCHA configurado: {{ props.recaptchaSiteKey.substring(0, 20) }}...
-                    </div>
+                    </div> -->
 
                     <div
                         v-if="props.recaptchaSiteKey"

@@ -5,14 +5,13 @@ use Inertia\Inertia;
 //use App\Http\Controllers\TestApiController;
 use App\Http\Controllers\{PlanController,UserController,ZoneController,PaymentController,ClientImportController};
 use App\Helpers\BncHelper;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 /* use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
  */
-Route::get('/', function () {
-    return Inertia::render('auth/Login');
-})->name('home');
+Route::get('/', [AuthenticatedSessionController::class, 'create'])->name('home');
 
 //Route::post('pay-fee', [TestApiController::class, 'testApi'])->name('pay-fee');
 

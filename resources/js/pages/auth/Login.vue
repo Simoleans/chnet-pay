@@ -155,8 +155,18 @@ const submit = () => {
                 </div>
 
                 <!-- reCAPTCHA -->
-                <div v-if="props.recaptchaSiteKey" class="flex flex-col items-center gap-2">
+                <div class="flex flex-col items-center gap-2">
+                    <!-- Debug: mostrar si la site key está presente -->
+                    <div v-if="!props.recaptchaSiteKey" class="text-sm text-yellow-600 bg-yellow-100 p-2 rounded">
+                        ⚠️ reCAPTCHA no configurado (Site Key no encontrada)
+                    </div>
+
+                    <div v-if="props.recaptchaSiteKey" class="text-sm text-green-600 bg-green-100 p-2 rounded mb-2">
+                        ✅ reCAPTCHA configurado: {{ props.recaptchaSiteKey.substring(0, 20) }}...
+                    </div>
+
                     <div
+                        v-if="props.recaptchaSiteKey"
                         ref="recaptchaRef"
                         class="g-recaptcha"
                         :data-sitekey="props.recaptchaSiteKey"

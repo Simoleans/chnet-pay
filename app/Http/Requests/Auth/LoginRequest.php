@@ -5,6 +5,7 @@ namespace App\Http\Requests\Auth;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -26,12 +27,45 @@ class LoginRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             'nationality' => ['required', 'string', 'in:V,E,J'],
             'id_number' => ['required', 'string'],
             'password' => ['required', 'string'],
         ];
 
+        // Solo validar captcha si está configurado
+        if (config('services.recaptcha.site_key') && config('services.recaptcha.secret_key')) {
+            $rules['g-recaptcha-response'] = ['required', function ($attribute, $value, $fail) {
+                $this->validateRecaptcha($value, $fail);
+            }];
+        }
+
+        return $rules;
+    }
+
+    /**
+     * Validate reCAPTCHA response
+     */
+    private function validateRecaptcha($value, $fail): void
+    {
+        $secretKey = config('services.recaptcha.secret_key');
+
+        if (empty($secretKey)) {
+            $fail('La configuración de reCAPTCHA no está disponible.');
+            return;
+        }
+
+        $response = Http::asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
+            'secret' => $secretKey,
+            'response' => $value,
+            'remoteip' => request()->ip(),
+        ]);
+
+        $result = $response->json();
+
+        if (!$result['success']) {
+            $fail('Por favor, complete el captcha correctamente.');
+        }
     }
 
     /**

@@ -9,12 +9,25 @@ import AuthBase from '@/layouts/AuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { LoaderCircle } from 'lucide-vue-next';
 import QuickPaymentModal from '@/components/QuickPaymentModal.vue';
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useBanksStore } from '@/stores/banks';
 
-defineProps<{
+// Declaración de tipos para reCAPTCHA
+declare global {
+    interface Window {
+        grecaptcha: {
+            reset: (widgetId?: number) => void;
+            render: (container: string | Element, parameters: any) => number;
+        };
+        onCaptchaVerified: (response: string) => void;
+        onCaptchaExpired: () => void;
+    }
+}
+
+const props = defineProps<{
     status?: string;
     canResetPassword: boolean;
+    recaptchaSiteKey?: string;
 }>();
 
 const form = useForm({
@@ -22,6 +35,7 @@ const form = useForm({
     id_number: '',
     password: '',
     remember: false,
+    'g-recaptcha-response': '',
 });
 
 // Estado para el modal de pago rápido
@@ -31,9 +45,45 @@ const showQuickPaymentModal = ref(false);
 const banksStore = useBanksStore();
 banksStore.loadBanks();
 
+// Variables para reCAPTCHA
+const recaptchaRef = ref(null);
+
+// Cargar script de reCAPTCHA
+onMounted(() => {
+    if (!document.querySelector('script[src*="recaptcha"]')) {
+        const script = document.createElement('script');
+        script.src = 'https://www.google.com/recaptcha/api.js';
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+    }
+
+    // Hacer las funciones disponibles globalmente para reCAPTCHA
+    (window as any).onCaptchaVerified = (response: string) => {
+        form['g-recaptcha-response'] = response;
+    };
+
+    (window as any).onCaptchaExpired = () => {
+        form['g-recaptcha-response'] = '';
+    };
+});
+
 const submit = () => {
+    // Verificar que el captcha esté completado solo si está habilitado
+    if (props.recaptchaSiteKey && !form['g-recaptcha-response']) {
+        alert('Por favor, completa el captcha antes de continuar.');
+        return;
+    }
+
     form.post(route('login'), {
-        onFinish: () => form.reset('password'),
+        onFinish: () => {
+            form.reset('password');
+            // Resetear captcha si está presente
+            if (props.recaptchaSiteKey && window.grecaptcha && recaptchaRef.value) {
+                window.grecaptcha.reset();
+                form['g-recaptcha-response'] = '';
+            }
+        },
     });
 };
 </script>
@@ -102,6 +152,18 @@ const submit = () => {
                         <Checkbox id="remember" v-model="form.remember" :tabindex="4" />
                         <span>Recordarme</span>
                     </Label>
+                </div>
+
+                <!-- reCAPTCHA -->
+                <div v-if="props.recaptchaSiteKey" class="flex flex-col items-center gap-2">
+                    <div
+                        ref="recaptchaRef"
+                        class="g-recaptcha"
+                        :data-sitekey="props.recaptchaSiteKey"
+                        data-callback="onCaptchaVerified"
+                        data-expired-callback="onCaptchaExpired"
+                    ></div>
+                    <InputError :message="form.errors['g-recaptcha-response']" />
                 </div>
 
                 <div class="space-y-3">

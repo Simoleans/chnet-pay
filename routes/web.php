@@ -84,6 +84,9 @@ Route::post('/api/bnc/send-c2p', [App\Http\Controllers\PaymentController::class,
 
 Route::get('/api/users/search/{code}', [App\Http\Controllers\UserController::class, 'searchByCode']);
 
+// Rutas de prueba para BNC API
+Route::get('/test-bnc/position-history', [App\Http\Controllers\BncTestController::class, 'testPositionHistory'])->name('test-bnc.position-history');
+Route::get('/test-bnc/info', [App\Http\Controllers\BncTestController::class, 'testBncInfo'])->name('test-bnc.info');
 
 Route::get('dashboard', function () {
     $user = \Illuminate\Support\Facades\Auth::user();

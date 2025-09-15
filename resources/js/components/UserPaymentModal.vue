@@ -464,43 +464,34 @@ const handleOpenChange = (open: boolean) => {
                                         <p class="text-xs text-muted-foreground">Formato: V o E seguido de números</p>
                                     </div>
 
-                                    <div class="space-y-1">
-                                        <label class="text-sm font-medium">Teléfono</label>
-                                        <Input v-model="c2pPhone" placeholder="58XXXXXXXXXX" class="w-full text-sm" />
-                                        <p class="text-xs text-muted-foreground">58 + 10 dígitos</p>
-                                    </div>
+
                                 </div>
 
                                 <!-- Columna derecha -->
                                 <div class="space-y-3">
                                     <div class="space-y-1">
-                                        <label class="text-sm font-medium">Monto (Bs)</label>
-                                        <Input
-                                            :model-value="$page.props.auth?.user?.plan?.price && bcv ? `${(parseFloat($page.props.auth.user.plan.price) * parseFloat(bcv)).toFixed(2)} Bs` : 'Calculando...'"
-                                            readonly
-                                            class="w-full font-semibold text-sm bg-muted"
-                                        />
-                                        <!-- <p class="text-xs text-muted-foreground">Calculado automáticamente</p> -->
+                                        <label class="text-sm font-medium flex items-center gap-2">Teléfono - <p class="text-xs text-muted-foreground">58 + 10 dígitos</p></label>
+                                        <Input v-model="c2pPhone" placeholder="58XXXXXXXXXX" class="w-full text-sm" />
                                     </div>
-
                                     <div class="space-y-1">
-                                        <label class="text-sm font-medium">Código SMS</label>
+                                        <label class="text-sm font-medium flex items-center gap-2">Código SMS - <p class="text-xs text-muted-foreground">Código enviado por tu banco</p></label>
                                         <Input v-model="c2pToken" placeholder="Código de verificación" class="w-full text-sm" />
-                                        <p class="text-xs text-muted-foreground">Código enviado por tu banco</p>
+
                                     </div>
 
-                                    <!-- Botón en la columna derecha para balance visual -->
-                                    <div class="mt-10">
-                                        <Button
-                                            @click="sendC2P"
-                                            size="sm"
-                                            class="w-full"
-                                            :disabled="!c2pToken || !c2pBankCode || !($page.props.auth?.user?.plan?.price && bcv)"
-                                        >
-                                            Enviar C2P
-                                        </Button>
-                                    </div>
                                 </div>
+                            </div>
+
+                            <!-- Botón centrado al final del formulario C2P -->
+                            <div class="mt-4">
+                                <Button
+                                    @click="sendC2P"
+                                    size="sm"
+                                    class="w-full"
+                                    :disabled="!c2pToken || !c2pBankCode || !($page.props.auth?.user?.plan?.price && bcv)"
+                                >
+                                    Enviar C2P
+                                </Button>
                             </div>
                         </div>
                     </div>

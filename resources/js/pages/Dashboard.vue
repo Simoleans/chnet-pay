@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref,computed } from 'vue';
 import PlaceholderPattern from '../components/PlaceholderPattern.vue';
 import ReportPaymentModal from '../components/ReportPaymentModal.vue';
 import UserPaymentModal from '../components/UserPaymentModal.vue';
@@ -24,6 +24,8 @@ const props = defineProps({
         default: () => []
     }
 });
+
+const page = usePage()
 
 
 const form = useForm({
@@ -67,6 +69,11 @@ const paymentColumns = [
     { key: 'created_at', label: 'Registrado' },
     { key: 'actions', label: 'Acciones' },
 ]
+
+const due = computed(() => {
+    return page.props.auth.user.due * parseFloat(bcv.value)
+})
+
 
 
 
@@ -159,12 +166,12 @@ const getValue = (item: any, key: string) => {
                                         {{ $page.props.auth.user.plan.mbps ? `${$page.props.auth.user.plan.mbps} Mbps` : '-' }}
                                     </p>
                                     <p class="text-sm text-gray-500">
-                                        <span class="font-medium">Precio:</span>
+                                        <span class="font-medium">Precioa pagar:</span>
                                         ${{ $page.props.auth.user.plan.price }}
                                     </p>
-                                    <p class="text-sm text-gray-500">
-                                        <span class="font-medium">Tipo:</span>
-                                        {{ $page.props.auth.user.plan.type }}
+                                    <p class="text-sm text-gray-500 font-bold" v-if="$page.props.auth.user.due > 0">
+                                        <span class="font-medium">Deuda:</span>
+                                        ${{ $page.props.auth.user.due }} - Bs. {{ due.toFixed(2) }}
                                     </p>
                                 </div>
                             </div>
@@ -213,6 +220,8 @@ const getValue = (item: any, key: string) => {
                     </div>
                 </div>
             </div>
+
+            <!-- <pre>{{ $page.props.auth.user }}</pre> -->
             <!-- Tabla de pagos para usuarios con role = 0 -->
             <div v-if="$page.props.auth.user.role === 0" class="flex-1 rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                 <div class="p-4">

@@ -404,4 +404,72 @@ class BncHelper
 
 
 
+    /**
+     * Obtiene el historial de posiciones de una cuenta
+     *
+     * @param string|null $clientId     ID del cliente (opcional, usa el de configuración si no se proporciona)
+     * @param string|null $accountNumber Número de cuenta (opcional, usa el de configuración si no se proporciona)
+     * @param string $childClientID     (Opcional)
+     * @param string $branchID          (Opcional)
+     * @return array|null               Respuesta desencriptada o null si falla
+     */
+    public static function getPositionHistory(
+        ?string $clientId = null,
+        ?string $accountNumber = null,
+        string $childClientID = '',
+        string $branchID = ''
+    ): ?array {
+        try {
+            $key = self::getWorkingKey();
+            $clientId = $clientId ?? config('app.bnc.client_id');
+            $accountNumber = $accountNumber ?? config('app.bnc.account');
+
+            if (!$clientId || !$accountNumber) {
+                Log::error('BNC POSITION HISTORY: ClientID o AccountNumber no disponibles');
+                return null;
+            }
+
+            $body = [
+                'ClientID' => $clientId,
+                'AccountNumber' => $accountNumber,
+                'ChildClientID' => $childClientID,
+                'BranchID' => $branchID,
+            ];
+
+            Log::info('BNC POSITION HISTORY: Enviando solicitud', [
+                'client_id' => $clientId,
+                'account' => $accountNumber
+            ]);
+
+            $response = BncApiService::send('Position/History', $body);
+
+            if (in_array($response->status(), [200, 202])) {
+                $json = $response->json();
+
+                if (!isset($json['value'])) {
+                    Log::error('BNC POSITION HISTORY: Respuesta sin campo value');
+                    return null;
+                }
+
+                $decrypted = BncCryptoHelper::decryptAES($json['value'], $key);
+                Log::info('BNC POSITION HISTORY: Consulta exitosa', ['data_count' => is_array($decrypted) ? count($decrypted) : 'no_array']);
+
+                return $decrypted;
+            }
+
+            Log::error('BNC POSITION HISTORY: Error HTTP', [
+                'status' => $response->status(),
+                'body' => $response->body()
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('BNC POSITION HISTORY: Excepción', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+        }
+
+        return null;
+    }
+
 }

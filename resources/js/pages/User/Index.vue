@@ -110,15 +110,8 @@
                                         {{ client.phone_mobile_verified ? 'Verificado' : 'No verificado' }}
                                     </span>
                                 </td> -->
-                                <td class="px-4 py-3 whitespace-nowrap">
+                                <!-- <td class="px-4 py-3 whitespace-nowrap">
                                     <div class="flex gap-2">
-                                        <!-- <button
-                                            v-if="client.link_mobile_login"
-                                            @click="openLink(client.link_mobile_login)"
-                                            class="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition text-sm"
-                                        >
-                                            Portal
-                                        </button> -->
                                         <button
                                             @click="viewWisproClient(client)"
                                             class="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition text-sm"
@@ -126,7 +119,7 @@
                                             Ver
                                         </button>
                                     </div>
-                                </td>
+                                </td> -->
                             </tr>
                         </tbody>
                     </table>
@@ -345,7 +338,7 @@ const wisproColumns = [
     { key: 'address', label: 'Dirección' },
     { key: 'zone_name', label: 'Zona' },
     //{ key: 'phone_mobile_verified', label: 'Verificado' },
-    { key: 'actions', label: 'Acciones' },
+    //{ key: 'actions', label: 'Acciones' },
 ]
 
 // Datos de clientes Wispro

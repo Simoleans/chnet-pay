@@ -9,7 +9,7 @@ import AuthBase from '@/layouts/AuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { LoaderCircle } from 'lucide-vue-next';
 import QuickPaymentModal from '@/components/QuickPaymentModal.vue';
-import { ref, onMounted, onUnmounted, nextTick, watchEffect } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { useBanksStore } from '@/stores/banks';
 
 const props = defineProps({
@@ -43,6 +43,9 @@ const recaptchaLoaded = ref(false);
 const renderRecaptcha = async () => {
     if (!props.recaptchaSiteKey || !recaptchaRef.value) return;
 
+    // Si ya está cargado, no hacer nada
+    if (recaptchaLoaded.value && recaptchaWidgetId.value !== null) return;
+
     // Esperar a que grecaptcha esté disponible
     let attempts = 0;
     while (!window.grecaptcha && attempts < 50) {
@@ -55,10 +58,21 @@ const renderRecaptcha = async () => {
         return;
     }
 
+    // Esperar a que el método render esté disponible
+    while (!window.grecaptcha.render && attempts < 50) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+    }
+
     try {
         // Limpiar widget anterior si existe
         if (recaptchaWidgetId.value !== null) {
             window.grecaptcha.reset(recaptchaWidgetId.value);
+        }
+
+        // Limpiar el contenido del div antes de renderizar
+        if (recaptchaRef.value) {
+            recaptchaRef.value.innerHTML = '';
         }
 
         // Renderizar nuevo widget
@@ -73,8 +87,10 @@ const renderRecaptcha = async () => {
         });
 
         recaptchaLoaded.value = true;
+        console.log('reCAPTCHA renderizado correctamente con ID:', recaptchaWidgetId.value);
     } catch (error) {
         console.error('Error al renderizar reCAPTCHA:', error);
+        recaptchaLoaded.value = false;
     }
 };
 
@@ -92,31 +108,55 @@ const cleanupRecaptcha = () => {
     form['g-recaptcha-response'] = '';
 };
 
+// Función para inicializar reCAPTCHA
+const initializeRecaptcha = async () => {
+    if (!props.recaptchaSiteKey) return;
+
+    // Limpiar estado anterior
+    cleanupRecaptcha();
+
+    // Esperar al siguiente tick
+    await nextTick();
+
+    // Si el script ya está cargado y grecaptcha está disponible, renderizar inmediatamente
+    if (window.grecaptcha && window.grecaptcha.render) {
+        renderRecaptcha();
+        return;
+    }
+
+    // Si no, esperar un poco y intentar de nuevo
+    setTimeout(() => {
+        renderRecaptcha();
+    }, 500);
+};
+
 // Cargar script de reCAPTCHA
 onMounted(async () => {
+    // Cargar script si no existe
     if (!document.querySelector('script[src*="recaptcha"]')) {
         const script = document.createElement('script');
         script.src = 'https://www.google.com/recaptcha/api.js';
         script.async = true;
         script.defer = true;
         document.head.appendChild(script);
+
+        // Esperar a que el script se cargue
+        await new Promise((resolve) => {
+            script.onload = resolve;
+            script.onerror = resolve; // Continuar incluso si hay error
+        });
     }
 
-    // Esperar al siguiente tick para asegurar que el DOM esté listo
-    await nextTick();
+    // Inicializar reCAPTCHA inmediatamente
+    initializeRecaptcha();
 
-    // Intentar renderizar reCAPTCHA
-    if (props.recaptchaSiteKey) {
-        renderRecaptcha();
-    }
-});
-
-// Observar cambios en recaptchaSiteKey para reinicializar
-watchEffect(async () => {
-    if (props.recaptchaSiteKey && recaptchaRef.value) {
-        await nextTick();
-        renderRecaptcha();
-    }
+    // Usar un timeout adicional para casos donde no se cargó a la primera
+    setTimeout(() => {
+        if (props.recaptchaSiteKey && (!recaptchaLoaded.value || recaptchaWidgetId.value === null)) {
+            console.log('Reintentando cargar reCAPTCHA...');
+            initializeRecaptcha();
+        }
+    }, 1000);
 });
 
 // Limpiar al desmontar

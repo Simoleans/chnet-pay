@@ -9,7 +9,7 @@ import AuthBase from '@/layouts/AuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { LoaderCircle } from 'lucide-vue-next';
 import QuickPaymentModal from '@/components/QuickPaymentModal.vue';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, watchEffect } from 'vue';
 import { useBanksStore } from '@/stores/banks';
 
 const props = defineProps({
@@ -36,9 +36,64 @@ banksStore.loadBanks();
 
 // Variables para reCAPTCHA
 const recaptchaRef = ref(null);
+const recaptchaWidgetId = ref(null);
+const recaptchaLoaded = ref(false);
+
+// Función para renderizar reCAPTCHA
+const renderRecaptcha = async () => {
+    if (!props.recaptchaSiteKey || !recaptchaRef.value) return;
+
+    // Esperar a que grecaptcha esté disponible
+    let attempts = 0;
+    while (!window.grecaptcha && attempts < 50) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+    }
+
+    if (!window.grecaptcha) {
+        console.error('reCAPTCHA no pudo cargar');
+        return;
+    }
+
+    try {
+        // Limpiar widget anterior si existe
+        if (recaptchaWidgetId.value !== null) {
+            window.grecaptcha.reset(recaptchaWidgetId.value);
+        }
+
+        // Renderizar nuevo widget
+        recaptchaWidgetId.value = window.grecaptcha.render(recaptchaRef.value, {
+            sitekey: props.recaptchaSiteKey,
+            callback: (response) => {
+                form['g-recaptcha-response'] = response;
+            },
+            'expired-callback': () => {
+                form['g-recaptcha-response'] = '';
+            }
+        });
+
+        recaptchaLoaded.value = true;
+    } catch (error) {
+        console.error('Error al renderizar reCAPTCHA:', error);
+    }
+};
+
+// Función para limpiar reCAPTCHA
+const cleanupRecaptcha = () => {
+    if (recaptchaWidgetId.value !== null && window.grecaptcha) {
+        try {
+            window.grecaptcha.reset(recaptchaWidgetId.value);
+        } catch (error) {
+            console.error('Error al limpiar reCAPTCHA:', error);
+        }
+    }
+    recaptchaWidgetId.value = null;
+    recaptchaLoaded.value = false;
+    form['g-recaptcha-response'] = '';
+};
 
 // Cargar script de reCAPTCHA
-onMounted(() => {
+onMounted(async () => {
     if (!document.querySelector('script[src*="recaptcha"]')) {
         const script = document.createElement('script');
         script.src = 'https://www.google.com/recaptcha/api.js';
@@ -47,14 +102,26 @@ onMounted(() => {
         document.head.appendChild(script);
     }
 
-    // Hacer las funciones disponibles globalmente para reCAPTCHA
-    window.onCaptchaVerified = (response) => {
-        form['g-recaptcha-response'] = response;
-    };
+    // Esperar al siguiente tick para asegurar que el DOM esté listo
+    await nextTick();
 
-    window.onCaptchaExpired = () => {
-        form['g-recaptcha-response'] = '';
-    };
+    // Intentar renderizar reCAPTCHA
+    if (props.recaptchaSiteKey) {
+        renderRecaptcha();
+    }
+});
+
+// Observar cambios en recaptchaSiteKey para reinicializar
+watchEffect(async () => {
+    if (props.recaptchaSiteKey && recaptchaRef.value) {
+        await nextTick();
+        renderRecaptcha();
+    }
+});
+
+// Limpiar al desmontar
+onUnmounted(() => {
+    cleanupRecaptcha();
 });
 
 const submit = () => {
@@ -68,9 +135,13 @@ const submit = () => {
         onFinish: () => {
             form.reset('password');
             // Resetear captcha si está presente
-            if (props.recaptchaSiteKey && window.grecaptcha && recaptchaRef.value) {
-                window.grecaptcha.reset();
-                form['g-recaptcha-response'] = '';
+            if (props.recaptchaSiteKey && recaptchaWidgetId.value !== null && window.grecaptcha) {
+                try {
+                    window.grecaptcha.reset(recaptchaWidgetId.value);
+                    form['g-recaptcha-response'] = '';
+                } catch (error) {
+                    console.error('Error al resetear reCAPTCHA:', error);
+                }
             }
         },
     });
@@ -159,9 +230,6 @@ const submit = () => {
                         v-if="props.recaptchaSiteKey"
                         ref="recaptchaRef"
                         class="g-recaptcha"
-                        :data-sitekey="props.recaptchaSiteKey"
-                        data-callback="onCaptchaVerified"
-                        data-expired-callback="onCaptchaExpired"
                     ></div>
                     <InputError :message="form.errors['g-recaptcha-response']" />
                 </div>

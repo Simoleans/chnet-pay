@@ -20,31 +20,31 @@ const mainNavItems: NavItem[] = [
         title: 'Planes',
         href: '/plans',
         icon: Package,
-        show: true
+        show: page.props.auth.user.role === 1
     },
     {
         title: 'Usuarios',
         href: '/users',
         icon: Users,
-        show: true
+        show: page.props.auth.user.role === 1
     },
-    {
+   /*  {
         title: 'Importar Usuarios',
         href: route('import-clients.index'),
         icon: Upload,
         show: true
-    },
+    }, */
     {
         title: 'Zonas',
         href: '/zones',
         icon: MapPin,
-        show: true
+        show: page.props.auth.user.role === 1
     },
     {
         title: 'Pagos',
         href: '/payments',
         icon: CreditCard,
-        show: true
+        show: page.props.auth.user.role === 1
     },
 ];
 

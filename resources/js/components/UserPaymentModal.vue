@@ -84,6 +84,17 @@ watch(() => props.open, (newVal) => {
     }
 });
 
+// Watcher para formatear la cédula automáticamente (eliminar guiones)
+watch(c2pId, (newVal: string) => {
+    if (newVal) {
+        // Eliminar guiones y formatear a VXXXX o EXXXX
+        const formatted = newVal.trim().toUpperCase().replace(/-/g, '');
+        if (formatted !== newVal) {
+            c2pId.value = formatted;
+        }
+    }
+});
+
 const resetStates = () => {
     paymentError.value = false;
     showReferenceInput.value = false;
@@ -124,12 +135,20 @@ const sendC2P = async () => {
         }
         c2pId.value = normalized;
 
-        // Validación de teléfono: 58 + 10 dígitos
-        const phoneDigits = c2pPhone.value.replace(/\D/g, '');
-        if (!/^58\d{10}$/.test(phoneDigits)) {
-            notify({ message: 'El teléfono debe tener formato 58XXXXXXXXXX (sin +, espacios ni guiones)', type: 'error', duration: 2500 });
+        // Validación de teléfono: 10 dígitos, luego agregamos el 58
+        let phoneDigits = c2pPhone.value.replace(/\D/g, '');
+
+        // Si comienza con 0, quitarlo (0412 -> 412)
+        if (phoneDigits.startsWith('0')) {
+            phoneDigits = phoneDigits.substring(1);
+        }
+
+        if (!/^\d{10}$/.test(phoneDigits)) {
+            notify({ message: `Teléfono inválido. Debe tener 10 dígitos (recibido: ${phoneDigits.length}). Ejemplo: 4120355541 o 04120355541`, type: 'error', duration: 3000 });
             return;
         }
+        // Agregar el prefijo 58 automáticamente
+        const phoneWithPrefix = '58' + phoneDigits;
 
         // Calcular monto exacto como en el otro modal
         const hasPrice = !!page.props.auth?.user?.plan?.price;
@@ -145,14 +164,16 @@ const sendC2P = async () => {
             token: c2pToken.value,
             amount: parseFloat(amountStr),
             debtor_id: c2pId.value,
-            debtor_phone: phoneDigits,
+            debtor_phone: phoneWithPrefix,
         });
 
         if (res.data?.success) {
             notify({ message: res.data.message || 'C2P enviado', type: 'success', duration: 2500 });
-            // Opcional: cerrar modal
             emit('update:open', false);
             resetStates();
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
         } else {
             notify({ message: res.data?.error || res.data?.message || 'No se pudo enviar C2P', type: 'error', duration: 3000 });
         }
@@ -277,6 +298,10 @@ const checkPayment = async () => {
                 });
                 resetStates();
                 emit('update:open', false);
+
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
             } else {
                 showReportLink.value = res.data.showReportLink;
                 notify({
@@ -470,11 +495,11 @@ const handleOpenChange = (open: boolean) => {
                                 <!-- Columna derecha -->
                                 <div class="space-y-3">
                                     <div class="space-y-1">
-                                        <label class="text-sm font-medium flex items-center gap-2">Teléfono - <p class="text-xs text-muted-foreground">58 + 10 dígitos</p></label>
-                                        <Input v-model="c2pPhone" placeholder="58XXXXXXXXXX" class="w-full text-sm" />
+                                        <label class="text-sm font-medium flex items-center gap-2">Teléfono - <p class="text-xs text-muted-foreground">10 dígitos (con o sin 0)</p></label>
+                                        <Input v-model="c2pPhone" placeholder="4120355541 o 04120355541" class="w-full text-sm" />
                                     </div>
                                     <div class="space-y-1">
-                                        <label class="text-sm font-medium flex items-center gap-2">Código SMS - <p class="text-xs text-muted-foreground">Código enviado por tu banco</p></label>
+                                        <label class="text-sm font-medium flex items-center gap-2">Token - <p class="text-xs text-muted-foreground">Código enviado por tu banco</p></label>
                                         <Input v-model="c2pToken" placeholder="Código de verificación" class="w-full text-sm" />
 
                                     </div>

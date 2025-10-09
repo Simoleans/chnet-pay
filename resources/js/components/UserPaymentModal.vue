@@ -325,15 +325,27 @@ const checkPayment = async () => {
 };
 
 const submitReference = async () => {
-    if (referenceNumber.value.trim()) {
-        await checkPayment();
-    } else {
+    const trimmedRef = referenceNumber.value.trim();
+
+    if (!trimmedRef) {
         notify({
-            message: 'Por favor ingrese un número de referencia válido',
+            message: 'Por favor ingrese los últimos 5 números de la referencia',
             type: 'error',
             duration: 2000,
         });
+        return;
     }
+
+    if (!/^\d{5}$/.test(trimmedRef)) {
+        notify({
+            message: 'La referencia debe tener exactamente 5 números',
+            type: 'error',
+            duration: 2000,
+        });
+        return;
+    }
+
+    await checkPayment();
 };
 
 const handleOpenChange = (open: boolean) => {
@@ -419,13 +431,17 @@ const handleOpenChange = (open: boolean) => {
 
                         <div v-if="showReferenceInput" class="space-y-4">
                             <div class="space-y-2">
-                                <label for="referenceNumber" class="text-sm font-medium">Número de referencia:</label>
+                                <label for="referenceNumber" class="text-sm font-medium">Últimos 5 números de la referencia:</label>
                                 <Input
                                     id="referenceNumber"
                                     v-model="referenceNumber"
-                                    placeholder="Ingrese el número de referencia del pago"
+                                    placeholder="Ingrese los últimos 5 números"
                                     class="w-full"
+                                    type="text"
+                                    maxlength="5"
+                                    pattern="[0-9]{5}"
                                 />
+                                <p class="text-xs text-muted-foreground">Solo se requieren los últimos 5 dígitos de la referencia</p>
                             </div>
 
                             <div class="space-y-2">
@@ -447,7 +463,7 @@ const handleOpenChange = (open: boolean) => {
                                 <Button
                                     @click="submitReference"
                                     size="sm"
-                                    :disabled="!referenceNumber.trim() || !paymentAmount || parseFloat(paymentAmount) <= 0"
+                                    :disabled="!referenceNumber.trim() || referenceNumber.trim().length < 4 || !paymentAmount || parseFloat(paymentAmount) <= 0"
                                     class="flex-1"
                                 >
                                     Verificar Pago

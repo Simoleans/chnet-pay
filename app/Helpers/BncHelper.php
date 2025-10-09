@@ -331,9 +331,11 @@ class BncHelper
                 'BranchID'        => $branchID,
             ];
 
-            Log::info('BNC C2P: Enviando pago', ['payload' => $body]);
+
 
             $response = BncApiService::send('MobPayment/SendC2P', $body);
+
+            Log::info('BNC C2P: Enviando pago', ['payload' => $body,'url' => 'MobPayment/SendC2P']);
 
             if (in_array($response->status(), [200, 202])) {
                 $json = $response->json();

@@ -21,7 +21,7 @@ class RefreshWorkingKey extends Command
         if (!$clientGuid || !$masterKey) {
             $message = 'Faltan las variables BNC_CLIENT_GUID o BNC_MASTER_KEY en el .env';
             $this->error($message);
-            Log::error("BNC LOGON ❌ $message");
+            Log::error("BNC LOGON  $message");
             return;
         }
 
@@ -40,7 +40,7 @@ class RefreshWorkingKey extends Command
         if (!isset($response['status']) || $response['status'] !== 'OK') {
             $message = 'La API del BNC devolvió un estado no exitoso.';
             $this->error($message);
-            Log::error("BNC LOGON ❌ $message — Status: {$response->status()} — Body: " . $response->body());
+            Log::error("BNC LOGON  $message — Status: {$response->status()} — Body: " . $response->body());
             return;
         }
 
@@ -48,7 +48,7 @@ class RefreshWorkingKey extends Command
         if (!isset($response['value'])) {
             $message = 'No se recibió el campo "value" en la respuesta.';
             $this->error($message);
-            Log::error("BNC LOGON ❌ $message — Respuesta: " . $response->body());
+            Log::error("BNC LOGON  $message — Respuesta: " . $response->body());
             return;
         }
 
@@ -69,7 +69,7 @@ class RefreshWorkingKey extends Command
         } else {
             $message = 'No se pudo desencriptar correctamente la WorkingKey.';
             $this->error($message);
-            Log::error("BNC LOGON ❌ $message — Encriptado recibido: " . $response['value']);
+            Log::error("BNC LOGON  $message — Encriptado recibido: " . $response['value']);
         }
     }
 }

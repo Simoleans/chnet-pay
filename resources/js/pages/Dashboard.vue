@@ -209,11 +209,11 @@ const getValue = (item: any, key: string) => {
                             <div class="space-y-1">
                                 <p class="text-sm text-gray-500">
                                     <span class="font-medium">Zona:</span>
-                                    {{ $page.props.auth.user.zone.name }}
+                                    {{ $page.props.auth.user?.zone?.name }}
                                 </p>
                                 <p class="text-sm text-gray-500">
                                     <span class="font-medium">Dirección:</span>
-                                    {{ $page.props.auth.user.address }}
+                                    {{ $page.props.auth.user?.address }}
                                 </p>
                             </div>
                         </div>

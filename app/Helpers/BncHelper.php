@@ -166,14 +166,14 @@ class BncHelper
         }); */
     }
 
-    public static function validateOperationReference(string $reference, string $dateMovement, float $expectedAmount): ?array
+    public static function validateOperationReference(string $reference, string $dateMovement, float $expectedAmount, string $bank, string $phoneNumber): ?array
     {
         try {
             $key = self::getWorkingKey();
             $clientId = config('app.bnc.client_id');
             $account = config('app.bnc.account');
 
-            $body = array_filter([
+            /* $body = array_filter([
                 'ClientID' => $clientId,
                 'AccountNumber' => $account,
                 'Reference' => $reference,
@@ -181,15 +181,26 @@ class BncHelper
                 'DateMovement' => $dateMovement,
                 'ChildClientID' => '',
                 'BranchID' => '',
+            ], fn($v) => !is_null($v)); */
+
+            $body = array_filter([
+                'ClientID' => $clientId,
+                'AccountNumber' => $account,
+                'Reference' => $reference,
+                'Amount' => $expectedAmount,
+                'RequestDate' => $dateMovement,
+                'BankCode' => $bank,
+                'PhoneNumber' => $phoneNumber,
+                'ChildClientID' => '',
+                'BranchID' => '',
             ], fn($v) => !is_null($v));
 
             Log::info('BNC VALIDACION REF: Enviando validacion', [
-                'reference' => $reference,
-                'amount' => $expectedAmount,
-                'date' => $dateMovement
+                'body' => $body
             ]);
 
-            $response = BncApiService::send('Position/Validate', $body);
+            //$response = BncApiService::send('Position/Validate', $body);
+            $response = BncApiService::send('Position/ValidateP2P', $body);
 
             if (in_array($response->status(), [200, 202])) {
                 $json = $response->json();

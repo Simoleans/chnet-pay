@@ -417,12 +417,16 @@ class PaymentController extends Controller
         // Validar los datos de entrada
         $request->validate([
             'reference' => 'required|string|max:255',
-            'amount' => 'required|numeric|min:0.01', // Monto en bolívares
+            'amount' => 'required|numeric|min:0.01',
+            'bank' => 'required|string',
+            'phone' => 'required|string',
         ]);
 
         $reference = $request->reference;
         $amountBs = $request->amount;
-        $currentDate = now()->format('Y-m-d'); // Usar fecha actual
+        $bank = $request->bank;
+        $phoneNumber = $request->phone;
+        $currentDate = now()->format('Y-m-d');
 
         // Validar que la referencia no exista previamente
         if (Payment::where('reference', $reference)->exists()) {
@@ -436,7 +440,9 @@ class PaymentController extends Controller
             $result = BncHelper::validateOperationReference(
                 $reference,
                 $currentDate,
-                $amountBs
+                $amountBs,
+                $bank,
+                $phoneNumber
             );
 
             if (!$result) {

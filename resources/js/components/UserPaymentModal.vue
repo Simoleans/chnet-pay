@@ -55,6 +55,9 @@ const showReferenceInput = ref(false);
 const referenceNumber = ref('');
 const paymentAmount = ref('');
 const showReportLink = ref(false);
+// Estados para validación manual
+const manualBankCode = ref('0191');
+const manualPhone = ref('');
 // Estados para C2P
 const showC2PSection = ref(false);
 const c2pBankCode = ref('');
@@ -101,6 +104,8 @@ const resetStates = () => {
     referenceNumber.value = '';
     paymentAmount.value = '';
     showReportLink.value = false;
+    manualBankCode.value = '0191';
+    manualPhone.value = '';
     showC2PSection.value = false;
 };
 
@@ -273,6 +278,16 @@ const checkPayment = async () => {
     showReportLink.value = false;
     showC2PSection.value = false;
 
+    // Cargar bancos si no están cargados
+    if (!banks.value || banks.value.length === 0) {
+        banksStore.loadBanks();
+    }
+
+    // Precargar teléfono del usuario si existe
+    if (page.props.auth?.user?.phone && !manualPhone.value) {
+        manualPhone.value = page.props.auth.user.phone;
+    }
+
     // Si no hay monto, usar el del plan
     if (!paymentAmount.value && bcv.value && page.props.auth?.user?.plan?.price) {
         paymentAmount.value = (parseFloat(page.props.auth.user.plan.price) * parseFloat(bcv.value)).toFixed(2);
@@ -285,7 +300,9 @@ const checkPayment = async () => {
 
             const res = await axios.post('/api/bnc/validate-and-store-payment', {
                 reference: referenceNumber.value,
-                amount: parseFloat(paymentAmount.value)
+                amount: parseFloat(paymentAmount.value),
+                bank: manualBankCode.value,
+                phone: manualPhone.value
             });
 
             console.log('LOG:: Respuesta de validación:', res.data);
@@ -430,40 +447,72 @@ const handleOpenChange = (open: boolean) => {
                         </Button>
 
                         <div v-if="showReferenceInput" class="space-y-4">
-                            <div class="space-y-2">
-                                <label for="referenceNumber" class="text-sm font-medium">Últimos 5 números de la referencia:</label>
-                                <Input
-                                    id="referenceNumber"
-                                    v-model="referenceNumber"
-                                    placeholder="Ingrese los últimos 5 números"
-                                    class="w-full"
-                                    type="text"
-                                    maxlength="5"
-                                    pattern="[0-9]{5}"
-                                />
-                                <p class="text-xs text-muted-foreground">Solo se requieren los últimos 5 dígitos de la referencia</p>
-                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <!-- Columna izquierda -->
+                                <div class="space-y-3">
+                                    <div class="space-y-2">
+                                        <label for="manualBankCode" class="text-sm font-medium">Banco emisor</label>
+                                        <select v-model="manualBankCode" id="manualBankCode" class="w-full border rounded-md p-2 bg-background text-sm">
+                                            <option value="" disabled>Seleccione un banco</option>
+                                            <option v-for="b in banks" :key="b.Code" :value="String(b.Code).padStart(4, '0')">
+                                                {{ String(b.Code).padStart(4, '0') }} - {{ b.Name }}
+                                            </option>
+                                        </select>
+                                        <p v-if="banksLoading" class="text-xs text-muted-foreground">Cargando bancos...</p>
+                                        <p v-if="banksError" class="text-xs text-red-500">{{ banksError }}</p>
+                                    </div>
 
-                            <div class="space-y-2">
-                                <label for="paymentAmount" class="text-sm font-medium">Monto pagado (Bs):</label>
-                                <Input
-                                    id="paymentAmount"
-                                    type="number"
-                                    v-model="paymentAmount"
-                                    :placeholder="bcv && $page.props.auth?.user?.plan?.price ?
-                                        `Monto sugerido: ${(parseFloat($page.props.auth.user.plan.price) * parseFloat(bcv)).toFixed(2)} Bs` :
-                                        'Ingrese el monto en bolívares'"
-                                    class="w-full"
-                                    step="0.01"
-                                    min="0"
-                                />
+                                    <div class="space-y-2">
+                                        <label for="manualPhone" class="text-sm font-medium">Teléfono</label>
+                                        <Input
+                                            id="manualPhone"
+                                            v-model="manualPhone"
+                                            placeholder="04120355541"
+                                            class="w-full text-sm"
+                                            type="text"
+                                        />
+                                        <p class="text-xs text-muted-foreground">Teléfono registrado en el pago móvil</p>
+                                    </div>
+                                </div>
+
+                                <!-- Columna derecha -->
+                                <div class="space-y-3">
+                                    <div class="space-y-2">
+                                        <label for="referenceNumber" class="text-sm font-medium">Últimos 5 números de la referencia</label>
+                                        <Input
+                                            id="referenceNumber"
+                                            v-model="referenceNumber"
+                                            placeholder="Ingrese los últimos 5 números"
+                                            class="w-full text-sm"
+                                            type="text"
+                                            maxlength="5"
+                                            pattern="[0-9]{5}"
+                                        />
+<!--                                         <p class="text-xs text-muted-foreground">Solo los últimos 5 dígitos</p> -->
+                                    </div>
+
+                                    <div class="space-y-2">
+                                        <label for="paymentAmount" class="text-sm font-medium">Monto pagado (Bs)</label>
+                                        <Input
+                                            id="paymentAmount"
+                                            type="number"
+                                            v-model="paymentAmount"
+                                            :placeholder="bcv && $page.props.auth?.user?.plan?.price ?
+                                                `Monto sugerido: ${(parseFloat($page.props.auth.user.plan.price) * parseFloat(bcv)).toFixed(2)} Bs` :
+                                                'Ingrese el monto en bolívares'"
+                                            class="w-full text-sm"
+                                            step="0.01"
+                                            min="0"
+                                        />
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="flex items-center justify-between gap-2">
                                 <Button
                                     @click="submitReference"
                                     size="sm"
-                                    :disabled="!referenceNumber.trim() || referenceNumber.trim().length < 4 || !paymentAmount || parseFloat(paymentAmount) <= 0"
+                                    :disabled="!referenceNumber.trim() || referenceNumber.trim().length < 4 || !paymentAmount || parseFloat(paymentAmount) <= 0 || !manualBankCode || !manualPhone.trim()"
                                     class="flex-1"
                                 >
                                     Verificar Pago

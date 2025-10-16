@@ -110,14 +110,24 @@ const resetStates = () => {
 };
 
 const openC2PSection = () => {
+    // Limpiar formulario de "Ya pagué" si estaba activo
+    if (showReferenceInput.value) {
+        referenceNumber.value = '';
+        paymentAmount.value = '';
+        manualPhone.value = '';
+        showReportLink.value = false;
+    }
+
     showC2PSection.value = true;
+    showReferenceInput.value = false;
+
     if (!banks.value || banks.value.length === 0) {
         banksStore.loadBanks();
     }
     // precargar datos del usuario
     c2pId.value = page.props.auth?.user?.id_number || '';
     //c2pPhone.value = page.props.auth?.user?.phone || '';
-    showReferenceInput.value = false;
+
     // cargar/actualizar BCV
     if (typeof (bcvStore as any).$reloadBcvAmount === 'function') {
         (bcvStore as any).$reloadBcvAmount();
@@ -272,6 +282,13 @@ const handleReportManually = () => {
 };
 
 const checkPayment = async () => {
+    // Limpiar formulario de C2P si estaba activo
+    if (showC2PSection.value) {
+        c2pToken.value = '';
+        c2pPhone.value = '';
+        c2pBankCode.value = banks.value && banks.value.length > 0 ? String(banks.value[0].Code || '') : '';
+    }
+
     paymentLoading.value = true;
     paymentError.value = false;
     showReferenceInput.value = true;
@@ -399,7 +416,8 @@ const handleOpenChange = (open: boolean) => {
                         </span>
                     </p>
 
-                    <div class="mt-3 space-y-2">
+                    <div class="mt-3 space-y-3">
+                        <!-- Botón copiar datos bancarios -->
                         <Button
                             @click="copyPaymentReference"
                             size="sm"
@@ -407,44 +425,52 @@ const handleOpenChange = (open: boolean) => {
                             :disabled="!bcv || !$page.props.auth.user?.plan?.price"
                             class="w-full"
                         >
-                            Copiar datos bancarios
+                            📋 Copiar datos bancarios
                         </Button>
 
-                        <!-- <Button
-                            @click="checkPayment"
-                            size="sm"
-                            :disabled="paymentLoading || !bcv || !$page.props.auth.user?.plan?.price"
-                            class="w-full"
-                        >
-                            {{ paymentLoading ? 'Verificando...' : 'Ya pagué' }}
-                        </Button> -->
-                        <Button
-                            @click="checkPayment"
-                            size="sm"
-                            :disabled="paymentLoading  || !bcv || !$page.props.auth.user?.plan?.price || showC2PSection"
-                            class="w-full"
-                        >
-                            {{ paymentLoading ? 'Verificando...' : 'Ya pagué' }}
-                        </Button>
+                        <!-- Botones principales en horizontal -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <Button
+                                @click="checkPayment"
+                                size="lg"
+                                :variant="showReferenceInput ? 'default' : 'secondary'"
+                                :disabled="paymentLoading || !bcv || !$page.props.auth.user?.plan?.price"
+                                :class="[
+                                    'w-full h-14 text-base font-semibold transition-all',
+                                    showReferenceInput
+                                        ? 'ring-2 ring-primary shadow-lg scale-105'
+                                        : 'border-2 border-muted-foreground/30 hover:border-primary/50 hover:scale-102'
+                                ]"
+                            >
+                                <span class="flex items-center justify-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                    </svg>
+                                    {{ paymentLoading ? 'Verificando...' : 'Reportar Pago Movil' }}
+                                </span>
+                            </Button>
 
-                        <!-- <Button
-                            @click="openC2PSection"
-                            size="sm"
-                            variant="outline"
-                            :disabled="!bcv || !$page.props.auth.user?.plan?.price"
-                            class="w-full"
-                        >
-                            Pagar C2P
-                        </Button> -->
-                        <Button
-                            @click="openC2PSection"
-                            size="sm"
-                            variant="outline"
-                            :disabled="!bcv || !$page.props.auth.user?.plan?.price"
-                            class="w-full"
-                        >
-                            Pagar C2P
-                        </Button>
+                            <Button
+                                @click="openC2PSection"
+                                size="lg"
+                                :variant="showC2PSection ? 'default' : 'secondary'"
+                                :disabled="!bcv || !$page.props.auth.user?.plan?.price"
+                                :class="[
+                                    'w-full h-14 text-base font-semibold transition-all',
+                                    showC2PSection
+                                        ? 'ring-2 ring-primary shadow-lg scale-105'
+                                        : 'border-2 border-muted-foreground/30 hover:border-primary/50 hover:scale-102'
+                                ]"
+                            >
+                                <span class="flex items-center justify-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
+                                        <path fill-rule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clip-rule="evenodd" />
+                                    </svg>
+                                    Pagar C2P
+                                </span>
+                            </Button>
+                        </div>
 
                         <div v-if="showReferenceInput" class="space-y-4">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">

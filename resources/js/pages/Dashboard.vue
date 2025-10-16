@@ -177,24 +177,23 @@ const getValue = (item: any, key: string) => {
                             </div>
                         </div>
                         <div class="mt-4" v-if="$page.props.auth.user.plan_id  && $page.props.auth.user.due > 0">
-                            <div class="flex gap-2">
-                                <Button
-                                    @click="openUserPaymentModal"
-                                    class="flex-1"
-                                    size="sm"
-                                >
-                                    Pagar Plan
-                                </Button>
+                            <Button
+                                @click="openUserPaymentModal"
+                                class="w-full"
+                                size="sm"
+                            >
+                                Pagar ahora
+                            </Button>
 
-                                <Button
-                                    @click="handleOpenReportModal"
-                                    class="flex-1"
-                                    size="sm"
-                                    variant="outline"
-                                >
-                                    Reportar pago
-                                </Button>
-                        </div>
+                            <!-- Botón de reportar pago comentado para simplificar la interfaz -->
+                            <!-- <Button
+                                @click="handleOpenReportModal"
+                                class="flex-1"
+                                size="sm"
+                                variant="outline"
+                            >
+                                Reportar pago
+                            </Button> -->
                         </div>
                     </div>
                 </div>

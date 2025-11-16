@@ -1,13 +1,13 @@
 <template>
     <Dialog v-model:open="isOpen">
         <DialogTrigger as-child>
-            <Button variant="default" @click="isOpen = true">Crear Usuario</Button>
+            <Button variant="default" @click="isOpen = true">Crear Trabajador</Button>
         </DialogTrigger>
         <DialogContent class="max-w-2xl">
             <DialogHeader class="space-y-3">
-                <DialogTitle>Crear Nuevo Usuario</DialogTitle>
+                <DialogTitle>Crear Nuevo Trabajador</DialogTitle>
                 <DialogDescription>
-                    Por favor, ingresa los datos del nuevo usuario.
+                    Crea un nuevo trabajador/administrador del sistema.
                 </DialogDescription>
             </DialogHeader>
 
@@ -53,7 +53,6 @@
                             class="w-full p-2 border rounded-md"
                             required
                         >
-                            <option value="">Selecciona nacionalidad</option>
                             <option value="V">V - Venezolano</option>
                             <option value="E">E - Extranjero</option>
                         </select>
@@ -66,17 +65,6 @@
                             id="id_number"
                             v-model="form.id_number"
                             placeholder="12345678"
-                            required
-                        />
-                    </div>
-
-                    <div class="space-y-2">
-                        <Label for="code">Código</Label>
-                        <Input
-                            type="text"
-                            id="code"
-                            v-model="form.code"
-                            placeholder="000001"
                             required
                         />
                     </div>
@@ -102,60 +90,6 @@
                             placeholder="Ingrese la dirección completa"
                         ></textarea>
                     </div>
-
-                    <div class="space-y-2">
-                        <Label for="zone_id">Zona</Label>
-                        <select
-                            id="zone_id"
-                            v-model="form.zone_id"
-                            class="w-full p-2 border rounded-md"
-                        >
-                            <option value="">Selecciona una zona</option>
-                            <option v-for="zone in zones" :key="zone.id" :value="zone.id">
-                                {{ zone.name }}
-                            </option>
-                        </select>
-                    </div>
-
-                    <div class="space-y-2">
-                        <Label for="plan_id">Plan</Label>
-                        <select
-                            id="plan_id"
-                            v-model="form.plan_id"
-                            class="w-full p-2 border rounded-md"
-                        >
-                            <option value="">Selecciona un plan</option>
-                            <option v-for="plan in plans" :key="plan.id" :value="plan.id">
-                                {{ plan.name }} - ${{ plan.price }}
-                            </option>
-                        </select>
-                    </div>
-
-                    <div class="space-y-2">
-                        <Label for="role">Rol</Label>
-                        <select
-                            id="role"
-                            v-model="form.role"
-                            class="w-full p-2 border rounded-md"
-                            required
-                        >
-                            <option value="">Selecciona un rol</option>
-                            <option value="0">Usuario</option>
-                            <option value="1">Administrador</option>
-                        </select>
-                    </div>
-
-                    <div class="space-y-2">
-                        <Label for="status">Estado</Label>
-                        <select
-                            id="status"
-                            v-model="form.status"
-                            class="w-full p-2 border rounded-md"
-                        >
-                            <option value="1">Activo</option>
-                            <option value="0">Inactivo</option>
-                        </select>
-                    </div>
                 </div>
 
                 <DialogFooter class="gap-2">
@@ -163,7 +97,7 @@
                         <Button variant="secondary" @click="closeModal">Cancelar</Button>
                     </DialogClose>
                     <Button variant="default" type="submit" :disabled="form.processing">
-                        Crear Usuario
+                        Crear Trabajador
                     </Button>
                 </DialogFooter>
             </form>
@@ -179,11 +113,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ref } from 'vue'
 
-const props = defineProps({
-    zones: Array,
-    plans: Array,
-})
-
 const isOpen = ref(false)
 
 const form = useForm({
@@ -191,14 +120,11 @@ const form = useForm({
     email: '',
     phone: '',
     address: '',
-    zone_id: '',
-    code: '',
-    nationality: '',
+    nationality: 'V', // Por defecto venezolano
     id_number: '',
-    plan_id: '',
     password: '',
-    status: '1',
-    role: ''
+    role: 1, // Por defecto admin/trabajador
+    status: true // Por defecto activo
 })
 
 const closeModal = () => {

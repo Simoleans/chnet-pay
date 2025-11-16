@@ -34,12 +34,12 @@ const mainNavItems: NavItem[] = [
         icon: Upload,
         show: true
     }, */
-    {
+/*     {
         title: 'Zonas',
         href: '/zones',
         icon: MapPin,
         show: page.props.auth.user.role === 1
-    },
+    }, */
     {
         title: 'Pagos',
         href: '/payments',

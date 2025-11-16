@@ -3,18 +3,41 @@
 namespace App\Http\Controllers;
 
 use App\Models\Plan;
+use App\Services\WisproApiService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class PlanController extends Controller
 {
+    protected $wisproApi;
+
+    public function __construct(WisproApiService $wisproApi)
+    {
+        $this->wisproApi = $wisproApi;
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
+        // Obtener planes desde la API de Wispro
+        $response = $this->wisproApi->getPlans(1, 100); // Obtener todos los planes
+
+        $plans = [];
+        if ($response['success'] && isset($response['data']['data'])) {
+            // Mapear solo los datos necesarios: id, name, price
+            $plans = collect($response['data']['data'])->map(function ($plan) {
+                return [
+                    'id' => $plan['id'],
+                    'name' => $plan['name'],
+                    'price' => (float) $plan['price']
+                ];
+            })->toArray();
+        }
+
         return Inertia::render('Plans/Index', [
-            'plans' => Plan::active()->get()
+            'plans' => $plans
         ], [
             'title' => 'Lista de Planes'
         ]);

@@ -130,11 +130,56 @@ class WisproApiService
     }
 
     /**
+     * Obtener lista de planes con paginación
+     *
+     * @param int $page Número de página (por defecto: 1)
+     * @param int $perPage Registros por página (por defecto: 20)
+     *
+     * Retorna la estructura completa de la API incluyendo meta y data
+     */
+    public function getPlans($page = 1, $perPage = 20)
+    {
+        try {
+            // Construir parámetros de paginación validados
+            $paginationParams = $this->buildPaginationParams($page, $perPage);
+
+            $response = Http::withHeaders($this->getHeaders())
+                ->get($this->baseUrl . '/plans', $paginationParams);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'data' => $response->json()
+                ];
+            }
+
+            return [
+                'success' => false,
+                'error' => 'Error en la respuesta de la API: ' . $response->status(),
+                'message' => $response->json()['message'] ?? 'Error desconocido'
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Error en WisproApiService::getPlans: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Error de conexión con la API',
+                'message' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
      * Obtener clientes con filtros adicionales y paginación
      *
-     * @param array $filters Filtros adicionales (search, zone, etc.)
+     * @param array $filters Filtros adicionales (custom_id_eq, search, zone, etc.)
      * @param int $page Número de página
      * @param int $perPage Registros por página
+     *
+     * Ejemplos de uso:
+     * - Buscar por abonado: getClientsWithFilters(['custom_id_eq' => '12345'])
+     * - Buscar por zona: getClientsWithFilters(['zone' => 'Centro'])
+     * - Múltiples filtros: getClientsWithFilters(['custom_id_eq' => '12345', 'zone' => 'Centro'])
      */
     public function getClientsWithFilters($filters = [], $page = 1, $perPage = 20)
     {
@@ -145,8 +190,10 @@ class WisproApiService
             // Combinar filtros con paginación
             $params = array_merge($filters, $paginationParams);
 
+
             $response = Http::withHeaders($this->getHeaders())
                 ->get($this->baseUrl . '/clients', $params);
+
 
             if ($response->successful()) {
                 return [
@@ -243,6 +290,46 @@ class WisproApiService
     }
 
     /**
+     * Actualizar cliente en Wispro
+     *
+     * @param string $clientId ID del cliente en Wispro
+     * @param array $data Datos a actualizar (name, email, street, phone, etc.)
+     *
+     * Endpoint: PUT /clients/{client_id}?name=valor&email=valor&street=valor
+     */
+    public function updateClient($clientId, $data = [])
+    {
+        try {
+            // Construir URL con query parameters
+            $endpoint = '/clients/' . $clientId;
+
+            $response = Http::withHeaders($this->getHeaders())
+                ->put($this->baseUrl . $endpoint, $data);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'data' => $response->json()
+                ];
+            }
+
+            return [
+                'success' => false,
+                'error' => 'Error en la respuesta de la API: ' . $response->status(),
+                'message' => $response->json()['message'] ?? 'Error desconocido'
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Error en WisproApiService::updateClient: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Error de conexión con la API',
+                'message' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
      * Método genérico para hacer peticiones PUT
      */
     public function put($endpoint, $data = [])
@@ -298,6 +385,118 @@ class WisproApiService
 
         } catch (\Exception $e) {
             Log::error('Error en WisproApiService::delete: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Error de conexión con la API',
+                'message' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Obtener contratos de un cliente
+     *
+     * @param string $clientId ID del cliente en Wispro
+     * @return array
+     */
+    public function getClientContracts($clientId)
+    {
+        try {
+            $endpoint = '/contracts';
+            $response = Http::withHeaders($this->getHeaders())
+                ->get($this->baseUrl . $endpoint, [
+                    'client_id_eq' => $clientId
+                ]);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'data' => $response->json()
+                ];
+            }
+
+            return [
+                'success' => false,
+                'error' => 'Error en la respuesta de la API: ' . $response->status()
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Error en WisproApiService::getClientContracts: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Error de conexión con la API',
+                'message' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Obtener un plan específico por su ID
+     *
+     * @param string $planId ID del plan en Wispro
+     * @return array
+     */
+    public function getPlanById($planId)
+    {
+        try {
+            $endpoint = '/plans/' . $planId;
+            $response = Http::withHeaders($this->getHeaders())
+                ->get($this->baseUrl . $endpoint);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'data' => $response->json()
+                ];
+            }
+
+            return [
+                'success' => false,
+                'error' => 'Error en la respuesta de la API: ' . $response->status()
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Error en WisproApiService::getPlanById: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Error de conexión con la API',
+                'message' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Obtener contratos filtrados por estado
+     *
+     * @param string $state Estado del contrato (enabled, disabled, degraded, alerted)
+     * @param int $page Número de página
+     * @param int $perPage Registros por página
+     * @return array
+     */
+    public function getContractsByState($state, $page = 1, $perPage = 20)
+    {
+        try {
+            $params = $this->buildPaginationParams($page, $perPage);
+            $params['state_eq'] = $state;
+
+            $endpoint = '/contracts';
+            $response = Http::withHeaders($this->getHeaders())
+                ->get($this->baseUrl . $endpoint, $params);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'data' => $response->json()
+                ];
+            }
+
+            return [
+                'success' => false,
+                'error' => 'Error en la respuesta de la API: ' . $response->status()
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Error en WisproApiService::getContractsByState: ' . $e->getMessage());
             return [
                 'success' => false,
                 'error' => 'Error de conexión con la API',

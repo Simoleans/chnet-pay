@@ -46,7 +46,9 @@ class HandleInertiaRequests extends Middleware
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'imgHome' => 'img/inicio.jpg',
             'auth' => [
-                'user' => $request->user() ? User::with('zone', 'plan', 'invoices')->find($request->user()->id) : null,
+                'user' => $request->user(),
+                'isAdmin' => $request->user() ? $request->user()->role === 1 : false,
+                'isClient' => $request->user() ? $request->user()->role === 0 : false,
             ],
             'ziggy' => [
                 ...(new Ziggy)->toArray(),

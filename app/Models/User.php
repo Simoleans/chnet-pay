@@ -26,10 +26,10 @@ class User extends Authenticatable
         'password',
         'phone',
         'address',
-        'zone_id',
+        'zone',
         'code',
         'id_number',
-        'plan_id',
+        'id_wispro', // ID del cliente en Wispro
         'status',
         'role',
         'credit_balance',
@@ -38,6 +38,14 @@ class User extends Authenticatable
     protected $casts = [
         'status' => 'boolean',
         'role' => 'integer',
+    ];
+
+    /**
+     * Valores por defecto para atributos
+     */
+    protected $attributes = [
+        'role' => 1, // Por defecto es admin/trabajador
+        'status' => true, // Por defecto activo
     ];
 
     //append due
@@ -64,16 +72,6 @@ class User extends Authenticatable
     public function scopeNotAdmin($query)
     {
         return $query->where('role', '!=', 1);
-    }
-
-    public function zone()
-    {
-        return $this->belongsTo(Zone::class);
-    }
-
-    public function plan()
-    {
-        return $this->belongsTo(Plan::class);
     }
 
     public function invoices()
@@ -115,16 +113,9 @@ class User extends Authenticatable
         $currentPeriod = Carbon::now()->startOfMonth();
 
         $invoice = $this->invoices()
-            ->with(['plan', 'payments'])
+            ->with(['payments'])
             ->where('period', $currentPeriod)
             ->first();
-
-        if (!$this->plan) {
-            return [
-                'invoice_exists' => false,
-                'error' => 'El usuario no tiene plan asignado.'
-            ];
-        }
 
         if (!$invoice) {
             $previous_unpaid = $this->invoices()
@@ -132,14 +123,10 @@ class User extends Authenticatable
                 ->where('period', '<', $currentPeriod)
                 ->sum(DB::raw('amount_due - amount_paid'));
 
-            $total_due = $this->plan->price + $previous_unpaid;
-
             return [
                 'invoice_exists' => false,
-                'plan_name' => $this->plan->name,
-                'plan_price' => $this->plan->price,
                 'debt' => $previous_unpaid,
-                'total_due' => $total_due,
+                'total_due' => $previous_unpaid,
             ];
         }
 
@@ -151,7 +138,6 @@ class User extends Authenticatable
             'amount_due' => $invoice->amount_due,
             'amount_paid' => $invoice->amount_paid,
             'pending_amount' => $invoice->amount_due - $invoice->amount_paid,
-            'plan' => $this->plan ? $this->plan->only(['id', 'name', 'price', 'mbps', 'type']) : null,
             'payments' => $invoice->payments->map(function ($p) {
                 return [
                     'amount' => $p->amount,
@@ -171,8 +157,7 @@ class User extends Authenticatable
      */
     public static function searchByCode(string $code): ?array
     {
-        $user = self::with(['plan', 'zone'])
-            ->where('code', $code)
+        $user = self::where('code', $code)
             ->where('status', true)
             ->first();
 
@@ -189,16 +174,27 @@ class User extends Authenticatable
             'email' => $user->email,
             'phone' => $user->phone,
             'address' => $user->address,
-            'zone' => $user->zone?->name,
-            'plan' => $user->plan ? [
-                'name' => $user->plan->name,
-                'price' => $user->plan->price,
-                'mbps' => $user->plan->mbps,
-                'type' => $user->plan->type,
-            ] : null,
+            'zone' => $user->zone, // Ahora es un campo de texto directo
+            'plan' => null, // Ya no hay relación con planes locales
             'credit_balance' => $user->credit_balance ?? 0, // En bolívares
             'total_debt' => $user->due,
             'invoice_data' => $invoiceData,
         ];
+    }
+
+    /**
+     * Busca un usuario local por su ID de Wispro
+     */
+    public static function findByWisproId(string $wisproId): ?self
+    {
+        return self::where('id_wispro', $wisproId)->first();
+    }
+
+    /**
+     * Verifica si un cliente de Wispro existe en BD local
+     */
+    public static function existsInLocal(string $wisproId): bool
+    {
+        return self::where('id_wispro', $wisproId)->exists();
     }
 }

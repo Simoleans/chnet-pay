@@ -27,12 +27,12 @@ class SyncWisproClients implements ShouldQueue
     /**
      * Número de reintentos permitidos
      */
-    public $tries = 3;
+    public $tries = 12;
 
     /**
      * Tiempo máximo de ejecución en segundos (15 minutos)
      */
-    public $timeout = 900;
+    public $timeout = 3600;
 
     /**
      * Registros por página a solicitar de Wispro

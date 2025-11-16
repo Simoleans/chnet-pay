@@ -37,7 +37,7 @@ class SyncWisproClients implements ShouldQueue
     /**
      * Registros por página a solicitar de Wispro
      */
-    protected $perPage = 100;
+    protected $perPage = 45;
 
     /**
      * Create a new job instance.

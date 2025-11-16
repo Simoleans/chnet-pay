@@ -138,6 +138,7 @@ class SyncWisproClients implements ShouldQueue
                 DB::beginTransaction();
 
                 $idNumber = $client['national_identification_number'] ?? null;
+                $email = $client['email'] ?? ($idNumber ? $idNumber . '@sincronizado.local' : null);
 
                 // Saltar si no tiene número de identificación
                 if (!$idNumber) {
@@ -146,30 +147,39 @@ class SyncWisproClients implements ShouldQueue
                     continue;
                 }
 
-                // Buscar usuario existente por id_wispro o por id_number
+                // Buscar usuario existente por id_wispro, id_number o email
+                // IMPORTANTE: Buscar en orden de prioridad para evitar duplicados
                 $existingUser = User::where('id_wispro', $client['id'])
                     ->orWhere(function($query) use ($idNumber) {
                         $query->where('id_number', 'like', '%' . $idNumber);
                               //->orWhereLike('id_number', '%' . $idNumber . '%');
                               //->orWhere('id_number', 'E-' . $idNumber);
                     })
+                    ->orWhere('email', $email)
                     ->first();
 
                 if ($existingUser) {
-                    // Actualizar solo: zona, dirección, email y nombre
+                    // Actualizar: zona, dirección, email, nombre y id_wispro
                     // NO actualiza: code, id_number, status, role, password
-                    $existingUser->update([
+                    $updateData = [
                         'name' => $client['name'] ?? 'Sin nombre',
-                        'email' => $client['email'] ?? $idNumber . '@sincronizado.local',
+                        'email' => $email,
                         'address' => $client['address'] ?? null,
                         'zone' => $client['zone_name'] ?? null,
-                    ]);
+                    ];
+
+                    // Si no tiene id_wispro, agregarlo
+                    if (!$existingUser->id_wispro) {
+                        $updateData['id_wispro'] = $client['id'];
+                    }
+
+                    $existingUser->update($updateData);
                     $updated++;
                 } else {
                     // Crear nuevo usuario con todos los datos
                     User::create([
                         'name' => $client['name'] ?? 'Sin nombre',
-                        'email' => $client['email'] ?? $idNumber . '@sincronizado.local',
+                        'email' => $email,
                         'phone' => $client['phone_mobile'] ?? null,
                         'address' => $client['address'] ?? null,
                         'zone' => $client['zone_name'] ?? null,

@@ -33,11 +33,13 @@ class User extends Authenticatable
         'status',
         'role',
         'credit_balance',
+        'synced_at', // Última sincronización con Wispro
     ];
 
     protected $casts = [
         'status' => 'boolean',
         'role' => 'integer',
+        'synced_at' => 'datetime',
     ];
 
     /**

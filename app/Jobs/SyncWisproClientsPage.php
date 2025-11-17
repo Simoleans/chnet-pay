@@ -78,38 +78,41 @@ class SyncWisproClientsPage implements ShouldQueue
                     continue;
                 }
 
+                $code = $client['custom_id'] ?? 'WIS-' . $client['national_identification_number'];
+
+                // Buscar solo por identificadores únicos e inmutables
                 $existingUser = User::where('id_wispro', $client['id'])
-                    ->orWhere(function ($query) use ($idNumber) {
-                        $query->where('id_number', 'like', '%' . $idNumber);
-                    })
-                    ->orWhere('email', $email)
+                    ->orWhere('code', $code)
+                    ->orWhere('id_number', 'V-' . $idNumber)
                     ->first();
 
                 if ($existingUser) {
-                    $updateData = [
-                        'name'    => $client['name'] ?? 'Sin nombre',
-                        'email'   => $email,
-                        'address' => $client['address'] ?? null,
-                        'zone'    => $client['zone_name'] ?? null,
-                    ];
-
-                    /* if (!$existingUser->id_wispro) {
-                        $updateData['id_wispro'] = $client['id'];
-                    } */
-
-                    $existingUser->update($updateData);
+                    // UPDATE: Actualizar todos los campos que pueden cambiar en Wispro
+                    $existingUser->update([
+                        'name'      => $client['name'] ?? 'Sin nombre',
+                        'email'     => $email, // ✅ El email puede cambiar en Wispro
+                        'phone'     => $client['phone_mobile'] ?? null,
+                        'address'   => $client['address'] ?? null,
+                        'zone'      => $client['zone_name'] ?? null,
+                        'code'      => $code,
+                        'id_wispro' => $client['id'], // Por si no lo tenía antes
+                        'synced_at' => now(), // Marca última sincronización
+                        'status'    => true, // Asegura que esté activo
+                    ]);
                     $updated++;
                 } else {
+                    // CREATE: Nuevo usuario desde Wispro
                     User::create([
                         'name'      => $client['name'] ?? 'Sin nombre',
                         'email'     => $email,
                         'phone'     => $client['phone_mobile'] ?? null,
                         'address'   => $client['address'] ?? null,
                         'zone'      => $client['zone_name'] ?? null,
-                        'code'      => $client['custom_id'] ?? 'WIS-' . $client['id'],
+                        'code'      => $code,
                         'id_number' => 'V-' . $idNumber,
                         'id_wispro' => $client['id'],
                         'password'  => bcrypt($idNumber),
+                        'synced_at' => now(), // Marca creación
                         'status'    => true,
                         'role'      => 0,
                     ]);

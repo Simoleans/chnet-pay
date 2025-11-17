@@ -586,7 +586,7 @@ class UserController extends Controller
             // Despachar el job
             SyncWisproClients::dispatch();
 
-            Log::info("🚀 Job de sincronización despachado por usuario: " . Auth::user()->name);
+            //Log::info("🚀 Job de sincronización despachado por usuario: " . Auth::user()->name);
 
             return response()->json([
                 'success' => true,

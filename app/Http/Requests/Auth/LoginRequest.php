@@ -12,6 +12,10 @@ use Illuminate\Validation\ValidationException;
 
 class LoginRequest extends FormRequest
 {
+    // Tipos de identificación
+    private const ID_TYPE_ABONADO = 0;
+    private const ID_TYPE_CEDULA_RIF = 1;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -28,10 +32,15 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
-            'nationality' => ['required', 'string', 'in:V,E,J'],
-            'id_number' => ['required', 'string'],
+            'id_type' => ['required', 'integer', 'in:0,1'],
+            'id_number' => ['required', 'numeric'],
             'password' => ['required', 'string'],
         ];
+
+        // Solo validar nacionalidad si es cédula/RIF
+        if (request()->input('id_type') == self::ID_TYPE_CEDULA_RIF) {
+            $rules['nationality'] = ['required', 'string', 'in:V,E,J'];
+        }
 
         // Solo validar captcha si está configurado
         if (config('services.recaptcha.site_key') && config('services.recaptcha.secret_key')) {
@@ -77,21 +86,37 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        // Concatenar nacionalidad con el número de cédula
-        $credentials = [
-            'id_number' => $this->validated()['nationality'] . '-' . $this->validated()['id_number'],
-            'password' => $this->validated()['password']
-        ];
+        $idNumber = $this->validated()['id_number'];
+        $password = $this->validated()['password'];
+        $idType = $this->validated()['id_type'];
 
-        if (! Auth::attempt($credentials, !empty($this->remember))) {
-            RateLimiter::hit($this->throttleKey());
+        // Construir credenciales según el tipo de identificación usando match expression
+        $credentials = match ($idType) {
+            self::ID_TYPE_ABONADO => [
+                'code' => $idNumber,
+                'password' => $password
+            ],
+            self::ID_TYPE_CEDULA_RIF => [
+                'id_number' => $this->validated()['nationality'] . '-' . $idNumber,
+                'password' => $password
+            ],
+            default => throw ValidationException::withMessages([
+                'id_type' => 'Tipo de identificación no válido',
+            ])
+        };
 
-            throw ValidationException::withMessages([
-                'id_number' => trans('auth.failed'),
-            ]);
+        // Intentar autenticación con las credenciales construidas
+        if (Auth::attempt($credentials, !empty($this->remember))) {
+            RateLimiter::clear($this->throttleKey());
+            return;
         }
 
-        RateLimiter::clear($this->throttleKey());
+        // Si falla, registrar intento fallido
+        RateLimiter::hit($this->throttleKey());
+
+        throw ValidationException::withMessages([
+            'id_number' => 'Credenciales incorrectas',
+        ]);
     }
 
     /**
@@ -122,6 +147,8 @@ class LoginRequest extends FormRequest
      */
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
+        /** @var string $idNumber */
+        $idNumber = $this->validated()['id_number'] ?? '';
+        return Str::transliterate(Str::lower($idNumber).'|'.request()->ip());
     }
 }

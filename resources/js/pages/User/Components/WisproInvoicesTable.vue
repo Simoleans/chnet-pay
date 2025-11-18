@@ -145,7 +145,7 @@ const getInvoiceStateClass = (state: string) => {
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap text-sm">
                             <Button
-                                v-if="invoice.state === 'pending'"
+                                v-if="invoice.state === 'pending' && $page.props.auth.user.role === 0"
                                 @click="openPaymentModal"
                                 size="sm"
                                 class="bg-green-600 hover:bg-green-700"

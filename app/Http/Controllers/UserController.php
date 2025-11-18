@@ -33,10 +33,8 @@ class UserController extends Controller
         // Filtro de búsqueda local (solo para tab de Sistema)
         $localSearch = $request->get('local_search', '');
         if (!empty($localSearch)) {
-            $queryClients->where(function ($q) use ($localSearch) {
-                $q->where('code', 'like', '%' . $localSearch . '%')
+            $queryClients->where('code', 'like', '%' . $localSearch . '%')
                   ->orWhere('id_number', 'like', '%' . $localSearch . '%');
-            });
         }
 
         $users = $queryClients->orderBy('id','desc')->paginate(10)->appends($request->query());
@@ -237,6 +235,9 @@ class UserController extends Controller
             }
         }
 
+        // Obtener factura de Wispro si el usuario tiene código
+        $wisproInvoice = $this->getWisproInvoice($user->code);
+
         return Inertia::render('User/Show', [
             'user' => $user,
             'payments' => $payments,
@@ -245,6 +246,7 @@ class UserController extends Controller
             'plan' => $plan,
             'isWispro' => false,
             'existsInLocal' => true,
+            'wisproInvoice' => $wisproInvoice,
         ]);
     }
 
@@ -337,6 +339,9 @@ class UserController extends Controller
                 ];
             }
 
+            // Obtener factura de Wispro por custom_id
+            $wisproInvoice = $this->getWisproInvoice($wisproClient['custom_id'] ?? null);
+
             return Inertia::render('User/Show', [
                 'user' => $wisproClient,
                 'localUser' => $localUser,
@@ -346,6 +351,7 @@ class UserController extends Controller
                 'plan' => $plan,
                 'isWispro' => true,
                 'existsInLocal' => $existsInLocal,
+                'wisproInvoice' => $wisproInvoice,
             ]);
 
         } catch (\Exception $e) {
@@ -600,6 +606,41 @@ class UserController extends Controller
                 'message' => 'Error al iniciar sincronización: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Obtener la factura de Wispro por código del cliente (custom_id o code)
+     *
+     * @param string|null $customId Código del cliente
+     * @return array|null Datos de la factura o null si no existe
+     */
+    private function getWisproInvoice(?string $customId): ?array
+    {
+        if (!$customId) {
+            return null;
+        }
+
+        $invoicesResponse = $this->wisproApiService->getInvoicesByCustomId($customId);
+
+        if (!$invoicesResponse['success'] || empty($invoicesResponse['data']['data'])) {
+            return null;
+        }
+
+        // Obtener la primera factura (la más reciente)
+        $invoice = $invoicesResponse['data']['data'][0];
+
+        return [
+            'id' => $invoice['id'],
+            'invoice_number' => $invoice['invoice_number'] ?? 'N/A',
+            'client_name' => $invoice['client_name'] ?? 'N/A',
+            'client_address' => $invoice['client_address'] ?? 'N/A',
+            'first_due_date' => $invoice['first_due_date'] ?? null,
+            'second_due_date' => $invoice['second_due_date'] ?? null,
+            'state' => $invoice['state'] ?? 'pending',
+            'amount' => $invoice['amount'] ?? 0,
+            'from' => $invoice['from'] ?? null,
+            'to' => $invoice['to'] ?? null,
+        ];
     }
 
 }

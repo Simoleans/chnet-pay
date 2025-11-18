@@ -504,4 +504,44 @@ class WisproApiService
             ];
         }
     }
+
+    /**
+     * Obtener facturas de un cliente por su código personalizado (custom_id)
+     *
+     * @param string $customId Código del cliente (custom_id)
+     * @param int $page Número de página
+     * @param int $perPage Registros por página
+     * @return array
+     */
+    public function getInvoicesByCustomId($customId, $page = 1, $perPage = 20)
+    {
+        try {
+            $params = $this->buildPaginationParams($page, $perPage);
+            $params['client_custom_id_eq'] = $customId;
+
+            $endpoint = '/invoicing/invoices';
+            $response = Http::withHeaders($this->getHeaders())
+                ->get($this->baseUrl . $endpoint, $params);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'data' => $response->json()
+                ];
+            }
+
+            return [
+                'success' => false,
+                'error' => 'Error en la respuesta de la API: ' . $response->status()
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Error en WisproApiService::getInvoicesByCustomId: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Error de conexión con la API',
+                'message' => $e->getMessage()
+            ];
+        }
+    }
 }

@@ -181,6 +181,90 @@
                 </div>
             </div>
 
+            <!-- Factura de Wispro -->
+            <div v-if="wisproInvoice" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                <h2 class="text-lg font-semibold mb-4">🧾 Factura de Wispro</h2>
+
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Información del Cliente -->
+                        <div>
+                            <h3 class="text-sm font-semibold text-gray-700 mb-2">Información del Cliente</h3>
+                            <div class="space-y-1">
+                                <p class="text-sm">
+                                    <span class="text-gray-500">Nombre:</span>
+                                    <span class="font-medium">{{ wisproInvoice.client_name }}</span>
+                                </p>
+                                <p class="text-sm">
+                                    <span class="text-gray-500">Dirección:</span>
+                                    <span class="font-medium">{{ wisproInvoice.client_address }}</span>
+                                </p>
+                                <p class="text-sm">
+                                    <span class="text-gray-500">Factura #:</span>
+                                    <span class="font-medium">{{ wisproInvoice.invoice_number }}</span>
+                                </p>
+                                <p v-if="wisproInvoice.from && wisproInvoice.to" class="text-sm">
+                                    <span class="text-gray-500">Período:</span>
+                                    <span class="font-medium">{{ formatDate(wisproInvoice.from) }} - {{ formatDate(wisproInvoice.to) }}</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Información de Pago -->
+                        <div>
+                            <h3 class="text-sm font-semibold text-gray-700 mb-2">Información de Pago</h3>
+                            <div class="space-y-2">
+                                <div v-if="wisproInvoice.first_due_date">
+                                    <p class="text-sm text-gray-500">Primera Fecha de Vencimiento</p>
+                                    <p class="font-medium">{{ formatDate(wisproInvoice.first_due_date) }}</p>
+                                </div>
+                                <div v-if="wisproInvoice.second_due_date">
+                                    <p class="text-sm text-gray-500">Segunda Fecha de Vencimiento</p>
+                                    <p class="font-medium">{{ formatDate(wisproInvoice.second_due_date) }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Estado</p>
+                                    <span :class="[
+                                        'px-2 py-1 text-xs rounded font-semibold',
+                                        getInvoiceStateClass(wisproInvoice.state)
+                                    ]">
+                                        {{ getInvoiceStateLabel(wisproInvoice.state) }}
+                                    </span>
+                                </div>
+                                <div class="pt-2">
+                                    <p class="text-sm text-gray-500">Monto</p>
+                                    <p class="font-medium text-2xl text-green-600">
+                                        ${{ formatPrice(wisproInvoice.amount) }} USD
+                                    </p>
+                                    <p v-if="bcvStore.bcv" class="font-medium text-lg text-blue-600">
+                                        Bs. {{ formatPriceBs(wisproInvoice.amount) }}
+                                    </p>
+                                    <p v-if="bcvStore.date" class="text-xs text-gray-400">
+                                        Tasa BCV: {{ bcvStore.bcv }} ({{ bcvStore.date }})
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mensaje si no hay factura de Wispro -->
+            <div v-else-if="isWispro || (!isWispro && user.code)" class="bg-blue-50 border-l-4 border-blue-400 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-blue-700">
+                            Este cliente aún no tiene factura disponible en Wispro.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Tablas de Pagos y Facturas (solo si existe en local o es cliente local) -->
             <div v-if="!isWispro || existsInLocal" class="space-y-4">
                 <!-- Tabla de Pagos -->
@@ -310,6 +394,7 @@ interface Props {
     plan?: any
     isWispro: boolean
     existsInLocal: boolean
+    wisproInvoice?: any
 }
 
 const props = defineProps<Props>()
@@ -421,6 +506,32 @@ const getStateLabel = (state: string) => {
         'disabled': '❌ Deshabilitado'
     }
     return stateLabels[state] || state
+}
+
+const getInvoiceStateLabel = (state: string) => {
+    const stateLabels: { [key: string]: string } = {
+        'draft': 'Borrador',
+        'authorizing': 'Autorizando',
+        'authorizing_error': 'Error de Autorización',
+        'pending': 'Pendiente de Pago',
+        'paid': 'Pagada',
+        'void': 'Anulada',
+        'issuing': 'Emitiendo'
+    }
+    return stateLabels[state] || state
+}
+
+const getInvoiceStateClass = (state: string) => {
+    const stateClasses: { [key: string]: string } = {
+        'draft': 'bg-gray-100 text-gray-800',
+        'authorizing': 'bg-blue-100 text-blue-800',
+        'authorizing_error': 'bg-red-100 text-red-800',
+        'pending': 'bg-yellow-100 text-yellow-800',
+        'paid': 'bg-green-100 text-green-800',
+        'void': 'bg-red-100 text-red-800',
+        'issuing': 'bg-blue-100 text-blue-800'
+    }
+    return stateClasses[state] || 'bg-gray-100 text-gray-800'
 }
 
 const getMapUrl = () => {

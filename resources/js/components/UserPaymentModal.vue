@@ -24,6 +24,10 @@ import { Input } from '@/components/ui/input';
 
 interface Props {
     open?: boolean;
+    userPlan?: {
+        name: string;
+        price: number;
+    } | null;
 }
 
 interface Emits {
@@ -33,6 +37,7 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
     open: false,
+    userPlan: null,
 });
 
 const emit = defineEmits<Emits>();
@@ -66,8 +71,8 @@ const c2pId = ref('');
 const c2pPhone = ref('');
 
 const suggestedAmountBs = computed(() => {
-    if (bcv.value && page.props.auth?.user?.plan?.price) {
-        return (parseFloat(page.props.auth.user.plan.price) * parseFloat(bcv.value)).toFixed(2);
+    if (bcv.value && props.userPlan?.price) {
+        return (parseFloat(String(props.userPlan.price)) * parseFloat(bcv.value)).toFixed(2);
     }
     return '';
 });
@@ -165,14 +170,14 @@ const sendC2P = async () => {
         // Agregar el prefijo 58 automáticamente
         const phoneWithPrefix = '58' + phoneDigits;
 
-        // Calcular monto exacto como en el otro modal
-        const hasPrice = !!page.props.auth?.user?.plan?.price;
+        // Calcular monto exacto desde el plan de Wispro
+        const hasPrice = !!props.userPlan?.price;
         const hasBcv = bcv.value !== null && bcv.value !== undefined;
         if (!hasPrice || !hasBcv) {
             notify({ message: 'No se pudo calcular el monto. Verifique su plan o la tasa BCV.', type: 'error', duration: 2500 });
             return;
         }
-        const amountStr = (parseFloat(page.props.auth.user.plan.price) * parseFloat(String(bcv.value))).toFixed(2);
+        const amountStr = (parseFloat(String(props.userPlan.price)) * parseFloat(String(bcv.value))).toFixed(2);
 
         const res = await axios.post('/api/bnc/send-c2p', {
             debtor_bank_code: parseInt(c2pBankCode.value, 10),
@@ -199,10 +204,10 @@ const sendC2P = async () => {
 };
 
 const copyPaymentReference = async () => {
-    console.log('Intentando copiar...', { bcv: bcv.value, user: page.props.auth?.user });
+    console.log('Intentando copiar...', { bcv: bcv.value, userPlan: props.userPlan });
 
-    if (bcv.value && page.props.auth?.user?.plan?.price) {
-        const total = (parseFloat(page.props.auth.user.plan.price) * parseFloat(bcv.value)).toFixed(2);
+    if (bcv.value && props.userPlan?.price) {
+        const total = (parseFloat(String(props.userPlan.price)) * parseFloat(bcv.value)).toFixed(2);
 
         // Formato mejorado de los datos bancarios
         const bankingData = `📧 CHNET - Datos para Pago Movil
@@ -268,6 +273,7 @@ const copyPaymentReference = async () => {
             alert(`No se pudo copiar automáticamente. Copia estos datos manualmente:\n\n${bankingData}`);
         }
     } else {
+        console.error('Faltan datos:', { bcv: bcv.value, userPlan: props.userPlan });
         notify({
             message: '❌ No hay datos disponibles para copiar. Verifica que tengas un plan asignado y que la tasa BCV esté cargada.',
             type: 'error',
@@ -305,9 +311,9 @@ const checkPayment = async () => {
         manualPhone.value = page.props.auth.user.phone;
     }
 
-    // Si no hay monto, usar el del plan
-    if (!paymentAmount.value && bcv.value && page.props.auth?.user?.plan?.price) {
-        paymentAmount.value = (parseFloat(page.props.auth.user.plan.price) * parseFloat(bcv.value)).toFixed(2);
+    // Precargar monto exacto del plan calculado con BCV
+    if (bcv.value && props.userPlan?.price) {
+        paymentAmount.value = (parseFloat(String(props.userPlan.price)) * parseFloat(bcv.value)).toFixed(2);
     }
 
     try {
@@ -402,19 +408,32 @@ const handleOpenChange = (open: boolean) => {
             <div class="space-y-4">
                 <input type="hidden" :value="$page.props.auth.user?.id" />
 
-                <div class="space-y-2">
+                <div class="space-y-3">
                     <p class="font-medium">🏦 Banco Nacional de Crédito</p>
                     <p class="text-sm"><span class="font-medium">👤 RIF:</span> J-12569785-7</p>
                     <p class="text-sm"><span class="font-medium">📞 Teléfono:</span> 0412-0355541</p>
-                    <p class="text-sm">
-                        <span class="font-medium">💰 Monto a pagar: </span>
-                        <span class="text-lg font-bold">
-                            {{ bcv && $page.props.auth.user?.plan?.price ?
-                                `${(parseFloat($page.props.auth.user.plan.price) * parseFloat(bcv)).toFixed(2)} Bs` :
-                                'Calculando...'
-                            }}
-                        </span>
-                    </p>
+
+                    <!-- Monto a pagar destacado -->
+                    <div class="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-2 border-green-200 dark:border-green-800 rounded-lg p-4 mt-3">
+                        <div class="flex flex-col items-center justify-center space-y-2">
+                            <p class="text-sm font-medium text-gray-700 dark:text-gray-300">💰 Monto Exacto a Pagar</p>
+                            <div v-if="bcv && userPlan?.price" class="text-center">
+                                <p class="text-4xl font-bold text-green-600 dark:text-green-400">
+                                    {{ (parseFloat(String(userPlan.price)) * parseFloat(bcv)).toFixed(2) }} Bs
+                                </p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    (${{ parseFloat(String(userPlan.price)).toFixed(2) }} USD × {{ parseFloat(bcv).toFixed(2) }} Bs)
+                                </p>
+                                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1 font-medium">
+                                    Tasa BCV del día
+                                </p>
+                            </div>
+                            <div v-else class="text-center">
+                                <p class="text-lg text-gray-500">Calculando monto...</p>
+                                <p class="text-xs text-gray-400">Cargando tasa BCV o plan</p>
+                            </div>
+                        </div>
+                    </div>
 
                     <div class="mt-3 space-y-3">
                         <!-- Botón copiar datos bancarios -->
@@ -422,7 +441,7 @@ const handleOpenChange = (open: boolean) => {
                             @click="copyPaymentReference"
                             size="sm"
                             variant="outline"
-                            :disabled="!bcv || !$page.props.auth.user?.plan?.price"
+                            :disabled="!bcv || !userPlan?.price"
                             class="w-full"
                         >
                             📋 Copiar datos bancarios
@@ -434,7 +453,7 @@ const handleOpenChange = (open: boolean) => {
                                 @click="checkPayment"
                                 size="lg"
                                 :variant="showReferenceInput ? 'default' : 'secondary'"
-                                :disabled="paymentLoading || !bcv || !$page.props.auth.user?.plan?.price"
+                                :disabled="paymentLoading || !bcv || !userPlan?.price"
                                 :class="[
                                     'w-full h-14 text-base font-semibold transition-all',
                                     showReferenceInput
@@ -454,7 +473,7 @@ const handleOpenChange = (open: boolean) => {
                                 @click="openC2PSection"
                                 size="lg"
                                 :variant="showC2PSection ? 'default' : 'secondary'"
-                                :disabled="!bcv || !$page.props.auth.user?.plan?.price"
+                                :disabled="!bcv || !userPlan?.price"
                                 :class="[
                                     'w-full h-14 text-base font-semibold transition-all',
                                     showC2PSection
@@ -521,15 +540,19 @@ const handleOpenChange = (open: boolean) => {
                                         <label for="paymentAmount" class="text-sm font-medium">Monto pagado (Bs)</label>
                                         <Input
                                             id="paymentAmount"
-                                            type="number"
+                                            type="text"
                                             v-model="paymentAmount"
-                                            :placeholder="bcv && $page.props.auth?.user?.plan?.price ?
-                                                `Monto sugerido: ${(parseFloat($page.props.auth.user.plan.price) * parseFloat(bcv)).toFixed(2)} Bs` :
-                                                'Ingrese el monto en bolívares'"
-                                            class="w-full text-sm"
-                                            step="0.01"
-                                            min="0"
+                                            :placeholder="bcv && userPlan?.price ?
+                                                `Monto exacto: ${(parseFloat(String(userPlan.price)) * parseFloat(bcv)).toFixed(2)} Bs` :
+                                                'Calculando...'"
+                                            class="w-full font-bold bg-green-50 dark:bg-green-950/10 border-green-300 dark:border-green-700 text-center text-lg cursor-not-allowed"
+                                            readonly
                                         />
+                                        <div class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-2">
+                                            <p class="text-xs text-yellow-800 dark:text-yellow-300 font-medium">
+                                                ⚠️ Este es el monto EXACTO de tu factura. Asegúrate de pagar exactamente este monto para evitar rechazos.
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -604,7 +627,7 @@ const handleOpenChange = (open: boolean) => {
                                     @click="sendC2P"
                                     size="sm"
                                     class="w-full"
-                                    :disabled="!c2pToken || !c2pBankCode || !($page.props.auth?.user?.plan?.price && bcv)"
+                                    :disabled="!c2pToken || !c2pBankCode || !(userPlan?.price && bcv)"
                                 >
                                     Enviar C2P
                                 </Button>

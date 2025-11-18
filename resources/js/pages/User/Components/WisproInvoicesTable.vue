@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { useBcvStore } from '@/stores/bcv'
+import { Button } from '@/components/ui/button'
 
 interface Props {
     invoices: any[]
 }
 
 const props = defineProps<Props>()
+const emit = defineEmits(['openPaymentModal'])
 const bcvStore = useBcvStore()
+
+const openPaymentModal = () => {
+    emit('openPaymentModal')
+}
 
 const formatDate = (dateString: string) => {
     if (!dateString) return '-'
@@ -58,8 +64,8 @@ const getInvoiceStateClass = (state: string) => {
 
 <template>
     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-        <h2 class="text-lg font-semibold mb-4">🧾 Facturas de Wispro</h2>
-        
+        <h2 class="text-lg font-semibold mb-4">Mis Facturas</h2>
+
         <div v-if="invoices && invoices.length > 0" class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50 dark:bg-gray-700">
@@ -87,6 +93,9 @@ const getInvoiceStateClass = (state: string) => {
                         </th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                             Monto Bs
+                        </th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Acciones
                         </th>
                     </tr>
                 </thead>
@@ -134,10 +143,21 @@ const getInvoiceStateClass = (state: string) => {
                             </div>
                             <span v-else class="text-gray-400">-</span>
                         </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm">
+                            <Button
+                                v-if="invoice.state === 'pending'"
+                                @click="openPaymentModal"
+                                size="sm"
+                                class="bg-green-600 hover:bg-green-700"
+                            >
+                                💰 Pagar
+                            </Button>
+                            <span v-else class="text-xs text-gray-500">-</span>
+                        </td>
                     </tr>
                 </tbody>
             </table>
-            
+
             <div v-if="bcvStore.date" class="mt-3 text-xs text-gray-400 text-right">
                 Tasa BCV: {{ bcvStore.bcv }} ({{ bcvStore.date }})
             </div>

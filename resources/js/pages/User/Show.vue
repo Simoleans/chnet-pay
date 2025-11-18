@@ -181,75 +181,95 @@
                 </div>
             </div>
 
-            <!-- Factura de Wispro -->
-            <div v-if="wisproInvoice" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                <h2 class="text-lg font-semibold mb-4">🧾 Factura de Wispro</h2>
+            <!-- Facturas de Wispro -->
+            <div v-if="wisproInvoices && wisproInvoices.length > 0" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                <h2 class="text-lg font-semibold mb-4">🧾 Facturas de Wispro</h2>
 
-                <div class="border border-gray-200 rounded-lg p-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- Información del Cliente -->
-                        <div>
-                            <h3 class="text-sm font-semibold text-gray-700 mb-2">Información del Cliente</h3>
-                            <div class="space-y-1">
-                                <p class="text-sm">
-                                    <span class="text-gray-500">Nombre:</span>
-                                    <span class="font-medium">{{ wisproInvoice.client_name }}</span>
-                                </p>
-                                <p class="text-sm">
-                                    <span class="text-gray-500">Dirección:</span>
-                                    <span class="font-medium">{{ wisproInvoice.client_address }}</span>
-                                </p>
-                                <p class="text-sm">
-                                    <span class="text-gray-500">Factura #:</span>
-                                    <span class="font-medium">{{ wisproInvoice.invoice_number }}</span>
-                                </p>
-                                <p v-if="wisproInvoice.from && wisproInvoice.to" class="text-sm">
-                                    <span class="text-gray-500">Período:</span>
-                                    <span class="font-medium">{{ formatDate(wisproInvoice.from) }} - {{ formatDate(wisproInvoice.to) }}</span>
-                                </p>
-                            </div>
-                        </div>
-
-                        <!-- Información de Pago -->
-                        <div>
-                            <h3 class="text-sm font-semibold text-gray-700 mb-2">Información de Pago</h3>
-                            <div class="space-y-2">
-                                <div v-if="wisproInvoice.first_due_date">
-                                    <p class="text-sm text-gray-500">Primera Fecha de Vencimiento</p>
-                                    <p class="font-medium">{{ formatDate(wisproInvoice.first_due_date) }}</p>
-                                </div>
-                                <div v-if="wisproInvoice.second_due_date">
-                                    <p class="text-sm text-gray-500">Segunda Fecha de Vencimiento</p>
-                                    <p class="font-medium">{{ formatDate(wisproInvoice.second_due_date) }}</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500">Estado</p>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    Factura #
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    Cliente
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    Período
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    1ra Vencimiento
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    2da Vencimiento
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    Estado
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    Monto USD
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    Monto Bs
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            <tr v-for="invoice in wisproInvoices" :key="invoice.id" class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                                    {{ invoice.invoice_number }}
+                                </td>
+                                <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                                    <div class="font-medium">{{ invoice.client_name }}</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ invoice.client_address }}</div>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                                    <div v-if="invoice.from && invoice.to">
+                                        {{ formatDate(invoice.from) }}
+                                        <br>
+                                        <span class="text-xs text-gray-500">hasta</span>
+                                        <br>
+                                        {{ formatDate(invoice.to) }}
+                                    </div>
+                                    <span v-else class="text-gray-400">-</span>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                                    <span v-if="invoice.first_due_date">{{ formatDate(invoice.first_due_date) }}</span>
+                                    <span v-else class="text-gray-400">-</span>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                                    <span v-if="invoice.second_due_date">{{ formatDate(invoice.second_due_date) }}</span>
+                                    <span v-else class="text-gray-400">-</span>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm">
                                     <span :class="[
                                         'px-2 py-1 text-xs rounded font-semibold',
-                                        getInvoiceStateClass(wisproInvoice.state)
+                                        getInvoiceStateClass(invoice.state)
                                     ]">
-                                        {{ getInvoiceStateLabel(wisproInvoice.state) }}
+                                        {{ getInvoiceStateLabel(invoice.state) }}
                                     </span>
-                                </div>
-                                <div class="pt-2">
-                                    <p class="text-sm text-gray-500">Monto</p>
-                                    <p class="font-medium text-2xl text-green-600">
-                                        ${{ formatPrice(wisproInvoice.amount) }} USD
-                                    </p>
-                                    <p v-if="bcvStore.bcv" class="font-medium text-lg text-blue-600">
-                                        Bs. {{ formatPriceBs(wisproInvoice.amount) }}
-                                    </p>
-                                    <p v-if="bcvStore.date" class="text-xs text-gray-400">
-                                        Tasa BCV: {{ bcvStore.bcv }} ({{ bcvStore.date }})
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-green-600">
+                                    ${{ formatPrice(invoice.amount) }}
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-blue-600">
+                                    <div v-if="bcvStore.bcv">
+                                        Bs. {{ formatPriceBs(invoice.amount) }}
+                                    </div>
+                                    <span v-else class="text-gray-400">-</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div v-if="bcvStore.date" class="mt-3 text-xs text-gray-400 text-right">
+                        Tasa BCV: {{ bcvStore.bcv }} ({{ bcvStore.date }})
                     </div>
                 </div>
             </div>
 
-            <!-- Mensaje si no hay factura de Wispro -->
+            <!-- Mensaje si no hay facturas de Wispro -->
             <div v-else-if="isWispro || (!isWispro && user.code)" class="bg-blue-50 border-l-4 border-blue-400 p-4">
                 <div class="flex">
                     <div class="flex-shrink-0">
@@ -259,7 +279,7 @@
                     </div>
                     <div class="ml-3">
                         <p class="text-sm text-blue-700">
-                            Este cliente aún no tiene factura disponible en Wispro.
+                            Este cliente aún no tiene facturas disponibles en Wispro.
                         </p>
                     </div>
                 </div>
@@ -394,7 +414,7 @@ interface Props {
     plan?: any
     isWispro: boolean
     existsInLocal: boolean
-    wisproInvoice?: any
+    wisproInvoices?: any[]
 }
 
 const props = defineProps<Props>()

@@ -157,218 +157,21 @@
                 </div>
             </div>
 
+            <!-- Facturas de Wispro (ARRIBA DEL MAPA) -->
+            <WisproInvoicesTable
+                v-if="(isWispro || (!isWispro && user.code)) && wisproInvoices"
+                :invoices="wisproInvoices"
+            />
+
             <!-- Mapa de Ubicación -->
-            <div v-if="contract && contract.latitude && contract.longitude" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                <h2 class="text-lg font-semibold mb-4">📍 Ubicación</h2>
-                <div class="w-full h-96 rounded-lg overflow-hidden">
-                    <iframe
-                        :src="getMapUrl()"
-                        width="100%"
-                        height="100%"
-                        frameborder="0"
-                        style="border:0"
-                    ></iframe>
-                </div>
-                <div class="mt-2 text-sm text-gray-500">
-                    Coordenadas: {{ contract.latitude }}, {{ contract.longitude }}
-                    <a
-                        :href="`https://www.google.com/maps?q=${contract.latitude},${contract.longitude}`"
-                        target="_blank"
-                        class="ml-2 text-blue-600 hover:underline"
-                    >
-                        Ver en Google Maps →
-                    </a>
-                </div>
-            </div>
+            <LocationMap :contract="contract" />
 
-            <!-- Facturas de Wispro -->
-            <div v-if="wisproInvoices && wisproInvoices.length > 0" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                <h2 class="text-lg font-semibold mb-4">🧾 Facturas de Wispro</h2>
-
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50 dark:bg-gray-700">
-                            <tr>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Factura #
-                                </th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Cliente
-                                </th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Período
-                                </th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    1ra Vencimiento
-                                </th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    2da Vencimiento
-                                </th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Estado
-                                </th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Monto USD
-                                </th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                    Monto Bs
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                            <tr v-for="invoice in wisproInvoices" :key="invoice.id" class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                                    {{ invoice.invoice_number }}
-                                </td>
-                                <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                                    <div class="font-medium">{{ invoice.client_name }}</div>
-                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ invoice.client_address }}</div>
-                                </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                                    <div v-if="invoice.from && invoice.to">
-                                        {{ formatDate(invoice.from) }}
-                                        <br>
-                                        <span class="text-xs text-gray-500">hasta</span>
-                                        <br>
-                                        {{ formatDate(invoice.to) }}
-                                    </div>
-                                    <span v-else class="text-gray-400">-</span>
-                                </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                                    <span v-if="invoice.first_due_date">{{ formatDate(invoice.first_due_date) }}</span>
-                                    <span v-else class="text-gray-400">-</span>
-                                </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                                    <span v-if="invoice.second_due_date">{{ formatDate(invoice.second_due_date) }}</span>
-                                    <span v-else class="text-gray-400">-</span>
-                                </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm">
-                                    <span :class="[
-                                        'px-2 py-1 text-xs rounded font-semibold',
-                                        getInvoiceStateClass(invoice.state)
-                                    ]">
-                                        {{ getInvoiceStateLabel(invoice.state) }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-green-600">
-                                    ${{ formatPrice(invoice.amount) }}
-                                </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-blue-600">
-                                    <div v-if="bcvStore.bcv">
-                                        Bs. {{ formatPriceBs(invoice.amount) }}
-                                    </div>
-                                    <span v-else class="text-gray-400">-</span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <div v-if="bcvStore.date" class="mt-3 text-xs text-gray-400 text-right">
-                        Tasa BCV: {{ bcvStore.bcv }} ({{ bcvStore.date }})
-                    </div>
-                </div>
-            </div>
-
-            <!-- Mensaje si no hay facturas de Wispro -->
-            <div v-else-if="isWispro || (!isWispro && user.code)" class="bg-blue-50 border-l-4 border-blue-400 p-4">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-                        </svg>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm text-blue-700">
-                            Este cliente aún no tiene facturas disponibles en Wispro.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tablas de Pagos y Facturas (solo si existe en local o es cliente local) -->
-            <div v-if="!isWispro || existsInLocal" class="space-y-4">
-                <!-- Tabla de Pagos -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                    <h2 class="text-lg font-semibold mb-4">Historial de Pagos</h2>
-
-                    <div v-if="payments && payments.length > 0" class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50 dark:bg-gray-700">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Referencia</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Monto</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Banco</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                <tr v-for="payment in payments" :key="payment.id">
-                                    <td class="px-4 py-3">{{ payment.reference }}</td>
-                                    <td class="px-4 py-3">${{ payment.amount }}</td>
-                                    <td class="px-4 py-3">{{ payment.payment_date }}</td>
-                                    <td class="px-4 py-3">{{ payment.bank }}</td>
-                                    <td class="px-4 py-3">
-                                        <span :class="[
-                                            'px-2 py-1 text-xs rounded',
-                                            payment.verify_payments ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                                        ]">
-                                            {{ payment.verify_payments ? 'Verificado' : 'Pendiente' }}
-                                        </span>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div v-else class="text-center py-8 text-gray-500">
-                        No hay pagos registrados
-                    </div>
-                </div>
-
-                <!-- Tabla de Facturas -->
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                    <h2 class="text-lg font-semibold mb-4">Historial de Facturas</h2>
-
-                    <div v-if="invoices && invoices.length > 0" class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50 dark:bg-gray-700">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Código</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Período</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Monto Total</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pagado</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                <tr v-for="invoice in invoices" :key="invoice.id">
-                                    <td class="px-4 py-3">{{ invoice.code }}</td>
-                                    <td class="px-4 py-3">{{ invoice.period }}</td>
-                                    <td class="px-4 py-3">${{ invoice.amount_due }}</td>
-                                    <td class="px-4 py-3">${{ invoice.amount_paid }}</td>
-                                    <td class="px-4 py-3">
-                                        <span :class="[
-                                            'px-2 py-1 text-xs rounded',
-                                            invoice.status === 'paid' ? 'bg-green-100 text-green-800' :
-                                            invoice.status === 'partial' ? 'bg-yellow-100 text-yellow-800' :
-                                            'bg-red-100 text-red-800'
-                                        ]">
-                                            {{
-                                                invoice.status === 'paid' ? 'Pagado' :
-                                                invoice.status === 'partial' ? 'Parcial' :
-                                                'Pendiente'
-                                            }}
-                                        </span>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div v-else class="text-center py-8 text-gray-500">
-                        No hay facturas registradas
-                    </div>
-                </div>
-            </div>
+            <!-- Historial de Pagos y Facturas (solo si existe en local o es cliente local) -->
+            <PaymentsInvoicesHistory
+                v-if="!isWispro || existsInLocal"
+                :payments="payments"
+                :invoices="invoices"
+            />
 
             <!-- Mensaje si es Wispro y NO está en local -->
             <div v-if="isWispro && !existsInLocal" class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
@@ -403,6 +206,9 @@ import { Head, router, usePage } from '@inertiajs/vue3'
 import { Button } from '@/components/ui/button'
 import { ref, computed } from 'vue'
 import EditUser from './Components/EditUser.vue'
+import WisproInvoicesTable from './Components/WisproInvoicesTable.vue'
+import LocationMap from './Components/LocationMap.vue'
+import PaymentsInvoicesHistory from './Components/PaymentsInvoicesHistory.vue'
 import { useBcvStore } from '@/stores/bcv'
 
 interface Props {
@@ -526,50 +332,6 @@ const getStateLabel = (state: string) => {
         'disabled': '❌ Deshabilitado'
     }
     return stateLabels[state] || state
-}
-
-const getInvoiceStateLabel = (state: string) => {
-    const stateLabels: { [key: string]: string } = {
-        'draft': 'Borrador',
-        'authorizing': 'Autorizando',
-        'authorizing_error': 'Error de Autorización',
-        'pending': 'Pendiente de Pago',
-        'paid': 'Pagada',
-        'void': 'Anulada',
-        'issuing': 'Emitiendo'
-    }
-    return stateLabels[state] || state
-}
-
-const getInvoiceStateClass = (state: string) => {
-    const stateClasses: { [key: string]: string } = {
-        'draft': 'bg-gray-100 text-gray-800',
-        'authorizing': 'bg-blue-100 text-blue-800',
-        'authorizing_error': 'bg-red-100 text-red-800',
-        'pending': 'bg-yellow-100 text-yellow-800',
-        'paid': 'bg-green-100 text-green-800',
-        'void': 'bg-red-100 text-red-800',
-        'issuing': 'bg-blue-100 text-blue-800'
-    }
-    return stateClasses[state] || 'bg-gray-100 text-gray-800'
-}
-
-const getMapUrl = () => {
-    if (!props.contract || !props.contract.latitude || !props.contract.longitude) {
-        return ''
-    }
-
-    const lat = parseFloat(props.contract.latitude)
-    const lng = parseFloat(props.contract.longitude)
-    const delta = 0.01
-
-    const minLng = lng - delta
-    const minLat = lat - delta
-    const maxLng = lng + delta
-    const maxLat = lat + delta
-
-    // bbox format: minLng,minLat,maxLng,maxLat
-    return `https://www.openstreetmap.org/export/embed.html?bbox=${minLng},${minLat},${maxLng},${maxLat}&layer=mapnik&marker=${lat},${lng}`
 }
 </script>
 

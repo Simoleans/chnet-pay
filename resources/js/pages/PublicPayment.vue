@@ -26,6 +26,13 @@ const { getBankOptions } = banksStore;
 
 const imageFile = ref<File | null>(null);
 
+
+const calculateTotalAmount = computed(() => {
+    if (!props.user || !bcv.value) return '';
+    const totalDebtUSD = props.user.total_debt;
+    return (totalDebtUSD * parseFloat(bcv.value)).toFixed(2);
+});
+
 const paymentForm = useForm({
     user_id: props.user?.id || '',
     reference: '',
@@ -33,16 +40,11 @@ const paymentForm = useForm({
     id_number: '',
     bank: '',
     phone: '',
-    amount: '',
+    amount: calculateTotalAmount.value,
     payment_date: '',
     image: null as File | null,
 });
 
-const calculateTotalAmount = computed(() => {
-    if (!props.user || !bcv.value) return '';
-    const totalDebtUSD = props.user.total_debt;
-    return (totalDebtUSD * parseFloat(bcv.value)).toFixed(2);
-});
 
 const handleImageUpload = (event: Event) => {
     const target = event.target as HTMLInputElement;
@@ -273,10 +275,11 @@ const reloadBcvRate = async () => {
                                     id="amount"
                                     type="number"
                                     step="0.01"
+                                    readonly
                                     v-model="paymentForm.amount"
                                     :placeholder="`Monto sugerido: ${calculateTotalAmount}`"
                                     :disabled="paymentForm.processing"
-                                    class="text-lg font-semibold"
+                                    class="text-lg font-semibold cursor-not-allowed bg-gray-200"
                                 />
                                 <p class="text-xs text-gray-500">
                                     Monto sugerido: {{ calculateTotalAmount }} Bs

@@ -53,7 +53,8 @@ Route::post('/import-clients', [ClientImportController::class, 'import'])->name(
 
 
 Route::get('/api/bnc/history', function (Request $request) {
-    $account = $request->query('account');
+    //$account = $request->query('account');
+    $account = '01910001482101010049';
 
     if (!$account) {
         return response()->json([

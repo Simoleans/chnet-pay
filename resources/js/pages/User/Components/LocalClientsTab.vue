@@ -11,7 +11,7 @@
                 v-model="localSearch"
                 @input="submitLocalSearch"
                 type="text"
-                placeholder="Buscar por código o cédula..."
+                placeholder="Buscar por código|cédula|nombre|email..."
                 class="flex-1 p-2 border rounded-md dark:text-black"
             />
             <Button

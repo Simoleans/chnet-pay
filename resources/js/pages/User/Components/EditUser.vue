@@ -1,12 +1,13 @@
 <template>
     <Dialog v-model:open="isOpen">
         <DialogTrigger as-child>
-            <button
+            <Button
                 @click="openModal"
-                class="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition text-sm"
+                :class="buttonClass"
+                :variant="buttonVariant"
             >
-                Editar
-            </button>
+                {{ buttonText }}
+            </Button>
         </DialogTrigger>
         <DialogContent class="max-w-xl">
             <DialogHeader class="space-y-3">
@@ -101,6 +102,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ref, computed } from 'vue'
+import { useNotifications } from '@/composables/useNotifications'
 
 interface User {
     id: number
@@ -113,8 +115,16 @@ interface User {
 
 const props = defineProps<{
     userData: User
+    buttonText?: string
+    buttonVariant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'link' | 'destructive'
+    buttonClass?: string
 }>()
 
+const buttonText = computed(() => props.buttonText || 'Editar')
+const buttonVariant = computed(() => props.buttonVariant || 'default')
+const buttonClass = computed(() => props.buttonClass || 'bg-green-600 hover:bg-green-700')
+
+const { notify } = useNotifications()
 const isOpen = ref(false)
 
 // Detectar si es un cliente de Wispro (tiene id_wispro)
@@ -148,11 +158,45 @@ const closeModal = () => {
 const submitForm = () => {
     // Usar la ruta update-client que maneja tanto locales como Wispro
     form.put(route('users.update-client', props.userData.id), {
-        onSuccess: () => {
+        preserveScroll: true,
+        onSuccess: (page) => {
+            // Verificar si hay un mensaje de éxito en el flash
+            const successMessage = page.props?.flash?.success
+            
+            if (successMessage) {
+                notify({
+                    message: successMessage,
+                    type: 'success',
+                    duration: 4000,
+                })
+            } else {
+                // Mensaje personalizado según el tipo de cliente
+                if (isWisproClient.value) {
+                    notify({
+                        message: '✅ Cliente actualizado exitosamente en el sistema y sincronizado con Wispro',
+                        type: 'success',
+                        duration: 4000,
+                    })
+                } else {
+                    notify({
+                        message: '✅ Cliente actualizado exitosamente en el sistema',
+                        type: 'success',
+                        duration: 3000,
+                    })
+                }
+            }
             closeModal()
         },
         onError: (errors) => {
             console.error('Error al actualizar:', errors)
+            
+            // Mostrar mensaje de error
+            const errorMessage = errors.wispro || errors.error || 'Error al actualizar el cliente'
+            notify({
+                message: `❌ ${errorMessage}`,
+                type: 'error',
+                duration: 4000,
+            })
         }
     })
 }

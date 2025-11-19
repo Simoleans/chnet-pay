@@ -34,7 +34,9 @@ class UserController extends Controller
         $localSearch = $request->get('local_search', '');
         if (!empty($localSearch)) {
             $queryClients->where('code', 'like', '%' . $localSearch . '%')
-                  ->orWhere('id_number', 'like', '%' . $localSearch . '%');
+                  ->orWhere('id_number', 'like', '%' . $localSearch . '%')
+                  ->orWhere('name', 'like', '%' . $localSearch . '%')
+                  ->orWhere('email', 'like', '%' . $localSearch . '%');
         }
 
         $users = $queryClients->orderBy('id','desc')->paginate(10)->appends($request->query());
@@ -496,6 +498,7 @@ class UserController extends Controller
             }
 
             // Si el usuario tiene id_wispro, actualizar en Wispro API
+            $updatedInWispro = false;
             if ($user->id_wispro) {
                 $wisproData = [
                     'name' => $request->name,
@@ -511,12 +514,19 @@ class UserController extends Controller
                         'wispro' => 'Error al actualizar en Wispro: ' . ($wisproResponse['message'] ?? 'Error desconocido')
                     ]);
                 }
+
+                $updatedInWispro = true;
             }
 
             // Actualizar en la base de datos local
             $user->update($updateData);
 
-            return redirect()->route('users.index')->with('success', 'Cliente actualizado exitosamente.');
+            // Mensaje según si se actualizó en Wispro o no
+            $successMessage = $updatedInWispro
+                ? 'Cliente actualizado exitosamente en el sistema y sincronizado con Wispro.'
+                : 'Cliente actualizado exitosamente en el sistema.';
+
+            return back()->with('success', $successMessage);
 
         } catch (\Exception $e) {
             Log::error('Error al actualizar cliente: ' . $e->getMessage());

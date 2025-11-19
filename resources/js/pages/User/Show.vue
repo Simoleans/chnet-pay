@@ -39,13 +39,13 @@
                     </template>
 
                     <!-- Cliente Local - Mostrar modal de edición completo -->
-                    <Button
+                    <EditUser
                         v-else
-                        @click="openEditModal"
-                        class="bg-green-600 hover:bg-green-700"
-                    >
-                        ✏️ Editar Cliente
-                    </Button>
+                        :userData="user"
+                        button-text="✏️ Editar Cliente"
+                        button-variant="default"
+                        button-class="bg-green-600 hover:bg-green-700"
+                    />
                 </div>
             </div>
 
@@ -190,13 +190,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- Modal de Edición (solo para clientes locales) -->
-        <EditUser
-            v-if="!isWispro && showEditModal"
-            :userData="user"
-            ref="editUserRef"
-        />
     </AppLayout>
 </template>
 
@@ -231,8 +224,6 @@ const bcvStore = useBcvStore()
 
 const isSyncing = ref(false)
 const isUpdating = ref(false)
-const showEditModal = ref(false)
-const editUserRef = ref(null)
 
 const goBack = () => {
     router.visit(route('users.index'))
@@ -289,16 +280,6 @@ Esta acción actualizará tanto Wispro como la base de datos local.`
             isUpdating.value = false
         }
     })
-}
-
-const openEditModal = () => {
-    // Solo para clientes locales
-    if (!props.isWispro) {
-        showEditModal.value = true
-        if (editUserRef.value) {
-            (editUserRef.value as any).openModal()
-        }
-    }
 }
 
 // Funciones de formateo

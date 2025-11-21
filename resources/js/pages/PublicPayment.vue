@@ -11,6 +11,7 @@ import { storeToRefs } from 'pinia';
 interface Props {
     user: any;
     error: string | null;
+    wisproInvoices?: any[];
 }
 
 const props = defineProps<Props>();
@@ -26,11 +27,23 @@ const { getBankOptions } = banksStore;
 
 const imageFile = ref<File | null>(null);
 
+// Obtener facturas pendientes
+const pendingInvoices = computed(() => {
+    if (!props.wisproInvoices) return [];
+    return props.wisproInvoices.filter((invoice: any) => invoice.state === 'pending');
+});
+
+// Calcular total de facturas pendientes
+const totalPendingAmount = computed(() => {
+    if (!pendingInvoices.value.length) return 0;
+    return pendingInvoices.value.reduce((sum: number, invoice: any) => sum + invoice.amount, 0);
+});
 
 const calculateTotalAmount = computed(() => {
-    if (!props.user || !bcv.value) return '';
-    const totalDebtUSD = props.user.total_debt;
-    return (totalDebtUSD * parseFloat(bcv.value)).toFixed(2);
+    if (!bcv.value) return '';
+    // Si hay facturas pendientes, usar ese monto. Si no, usar total_debt del usuario
+    const totalUSD = pendingInvoices.value.length > 0 ? totalPendingAmount.value : (props.user?.total_debt || 0);
+    return (totalUSD * parseFloat(bcv.value)).toFixed(2);
 });
 
 const paymentForm = useForm({
@@ -82,19 +95,30 @@ const resetForm = () => {
 const reloadBcvRate = async () => {
     await bcvStore.$reloadBcvAmount();
 };
+
+// Formatear precio
+const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(price);
+};
 </script>
 
 <template>
     <Head title="Pagar Servicio" />
 
-    <div class="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4">
+    <div class="min-h-screen py-8 px-4" style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);">
         <div class="max-w-3xl mx-auto">
-            <!-- Header -->
+            <!-- Header con Logo -->
             <div class="text-center mb-8">
-                <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                <div class="flex justify-center mb-4">
+                    <img src="/img/logo.png" alt="CHNET Logo" class="h-24 w-auto" />
+                </div>
+                <!-- <h1 class="text-4xl font-bold text-white mb-2">
                     💳 Pagar Servicio CHNET
-                </h1>
-                <p class="text-gray-600 dark:text-gray-400">
+                </h1> -->
+                <p class="text-gray-300">
                     Realiza tu pago de forma rápida y segura
                 </p>
             </div>
@@ -114,9 +138,9 @@ const reloadBcvRate = async () => {
             </div>
 
             <!-- Main Content -->
-            <div v-if="user" class="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden">
+            <div v-if="user" class="bg-white rounded-xl shadow-2xl overflow-hidden">
                 <!-- Client Info Card -->
-                <div class="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white">
+                <div class="p-6 text-white" style="background: linear-gradient(135deg, #0fe20f 0%, #0cb00c 100%);">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-2xl font-bold">Información del Cliente</h2>
                         <div class="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
@@ -139,20 +163,47 @@ const reloadBcvRate = async () => {
                         </div>
                         <div>
                             <p class="text-sm opacity-90">Deuda Total</p>
-                            <p :class="['text-2xl font-bold', user.total_debt > 0 ? 'text-yellow-300' : 'text-green-300']">
-                                ${{ user.total_debt }}
-                                <span v-if="bcv" class="text-sm">({{ (user.total_debt * parseFloat(bcv)).toFixed(2) }} Bs)</span>
+                            <p :class="['text-2xl font-bold', totalPendingAmount > 0 ? 'text-yellow-300' : 'text-white']">
+                                ${{ formatPrice(totalPendingAmount) }}
+                                <span v-if="bcv" class="text-sm">({{ (totalPendingAmount * parseFloat(bcv)).toFixed(2) }} Bs)</span>
                             </p>
                         </div>
                     </div>
                 </div>
 
+                <!-- Estado de Facturas -->
+                <div class="p-6 bg-gray-50 border-b">
+                    <h3 class="text-lg font-semibold mb-3 text-gray-900">
+                        📋 Estado de Facturación
+                    </h3>
+                    <div v-if="pendingInvoices.length > 0" class="flex items-center gap-2 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <svg class="w-6 h-6 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                        <div class="flex-1">
+                            <p class="text-base font-semibold text-yellow-800">
+                                {{ pendingInvoices.length }} {{ pendingInvoices.length === 1 ? 'factura pendiente' : 'facturas pendientes' }}
+                            </p>
+                            <p class="text-sm text-yellow-700">Por favor, realiza el pago lo antes posible</p>
+                        </div>
+                    </div>
+                    <div v-else class="flex items-center gap-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                        <svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                        </svg>
+                        <div class="flex-1">
+                            <p class="text-base font-semibold text-green-800">Sin facturas pendientes</p>
+                            <p class="text-sm text-green-700">¡Todo al día!</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- BCV Rate Card -->
-                <div class="p-6 bg-gray-50 dark:bg-gray-900 border-b">
+                <div class="p-6 bg-gray-50 border-b">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm text-gray-600 dark:text-gray-400">Tasa BCV</p>
-                            <p class="text-2xl font-bold text-gray-900 dark:text-white">
+                            <p class="text-sm text-gray-600">Tasa BCV</p>
+                            <p class="text-2xl font-bold text-gray-900">
                                 {{ bcv ? `${bcv} Bs` : 'Cargando...' }}
                             </p>
                         </div>
@@ -162,12 +213,33 @@ const reloadBcvRate = async () => {
                     </div>
                 </div>
 
-                <!-- Payment Info Card -->
-                <div class="p-6 bg-blue-50 dark:bg-blue-950/30">
-                    <h3 class="font-semibold text-lg mb-3 text-blue-900 dark:text-blue-100">
+                <!-- Mensaje si NO hay facturas pendientes -->
+                <div v-if="pendingInvoices.length === 0" class="p-6">
+                    <div class="bg-green-50 border-l-4 border-green-400 p-4 rounded-lg">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <svg class="h-6 w-6 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-semibold text-green-800">
+                                    ✅ No tienes facturas pendientes de pago
+                                </p>
+                                <p class="text-xs text-green-700 mt-1">
+                                    Todas tus facturas están al día
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Info Card - Solo si hay facturas pendientes -->
+                <div v-if="pendingInvoices.length > 0" class="p-6 border-b" style="background-color: rgba(15, 226, 15, 0.1);">
+                    <h3 class="font-semibold text-lg mb-3 text-gray-900">
                         🏦 Datos para Pago Móvil:
                     </h3>
-                    <div class="space-y-2 text-sm text-blue-800 dark:text-blue-200">
+                    <div class="space-y-2 text-sm text-gray-800">
                         <div class="flex items-center gap-2">
                             <span class="font-semibold">Banco:</span>
                             <span>Nacional de Crédito (0191)</span>
@@ -180,22 +252,21 @@ const reloadBcvRate = async () => {
                             <span class="font-semibold">Teléfono:</span>
                             <span>0412-0355541</span>
                         </div>
+                        <div class="mt-4 p-3 bg-white rounded-lg border-2 border-green-500">
+                            <p class="text-xs text-gray-600 mb-1">Monto Total a Pagar:</p>
+                            <p class="text-2xl font-bold" style="color: #0fe20f;">
+                                Bs. {{ calculateTotalAmount }}
+                            </p>
+                            <p class="text-sm text-gray-600 mt-1">
+                                (${{ formatPrice(totalPendingAmount) }} USD × Bs. {{ bcv }})
+                            </p>
+                        </div>
                     </div>
                 </div>
 
-                <!-- No Debt Message -->
-                <div v-if="user.total_debt <= 0" class="p-6 bg-green-50 dark:bg-green-950/30 text-center">
-                    <div class="text-green-600 dark:text-green-400 text-xl font-semibold mb-2">
-                        ✅ No tienes deuda pendiente
-                    </div>
-                    <p class="text-green-600 dark:text-green-500">
-                        Estás al día con tus pagos
-                    </p>
-                </div>
-
-                <!-- Payment Form -->
-                <div v-if="user.total_debt > 0" class="p-6 space-y-6">
-                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">
+                <!-- Payment Form - Solo si hay facturas pendientes -->
+                <div v-if="pendingInvoices.length > 0" class="p-6 space-y-6">
+                    <h3 class="text-xl font-bold text-gray-900 mb-4">
                         Registrar Pago
                     </h3>
 
@@ -340,7 +411,7 @@ const reloadBcvRate = async () => {
             </div>
 
             <!-- Footer -->
-            <div class="text-center mt-8 text-sm text-gray-600 dark:text-gray-400">
+            <div class="text-center mt-8 text-sm text-gray-400">
                 <p>© 2025 CHNET - Todos los derechos reservados</p>
                 <p class="mt-1">¿Necesitas ayuda? Contacta al soporte técnico</p>
             </div>

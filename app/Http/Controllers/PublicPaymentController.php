@@ -4,12 +4,20 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Payment;
+use App\Services\WisproApiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class PublicPaymentController extends Controller
 {
+    protected $wisproApi;
+
+    public function __construct(WisproApiService $wisproApi)
+    {
+        $this->wisproApi = $wisproApi;
+    }
+
     /**
      * Mostrar la página de pago público para un cliente específico
      */
@@ -22,20 +30,37 @@ class PublicPaymentController extends Controller
             if (!$userData) {
                 return Inertia::render('PublicPayment', [
                     'user' => null,
-                    'error' => 'No se encontró ningún cliente con ese código'
+                    'error' => 'No se encontró ningún cliente con ese código',
+                    'wisproInvoices' => []
                 ]);
+            }
+
+            // Obtener facturas de Wispro si el usuario tiene código
+            $wisproInvoices = [];
+            if (isset($userData['code']) && !empty($userData['code'])) {
+                $invoicesResponse = $this->wisproApi->getInvoicesByCustomId($userData['code'], 1, 100);
+
+                if ($invoicesResponse['success'] && isset($invoicesResponse['data']['data'])) {
+                    $wisproInvoices = $invoicesResponse['data']['data'];
+                    Log::info('Facturas de Wispro obtenidas', [
+                        'code' => $userData['code'],
+                        'count' => count($wisproInvoices)
+                    ]);
+                }
             }
 
             return Inertia::render('PublicPayment', [
                 'user' => $userData,
-                'error' => null
+                'error' => null,
+                'wisproInvoices' => $wisproInvoices
             ]);
 
         } catch (\Exception $e) {
             Log::error('Error en pago público: ' . $e->getMessage());
             return Inertia::render('PublicPayment', [
                 'user' => null,
-                'error' => 'Error al cargar la información del cliente'
+                'error' => 'Error al cargar la información del cliente',
+                'wisproInvoices' => []
             ]);
         }
     }

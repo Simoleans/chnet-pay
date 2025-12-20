@@ -29,6 +29,8 @@ class RefreshWorkingKey extends Command
         $value = BncCryptoHelper::encryptAES($payload, $masterKey);
         $validation = BncCryptoHelper::encryptSHA256($payload);
 
+        Log::info('BNC LOGON: Enviando peticion', ['payload' => $payload,'value' => $value,'validation' => $validation,'url' => config('app.bnc.base_url') . 'Auth/LogOn']);
+
         $response = Http::post(config('app.bnc.base_url') . 'Auth/LogOn', [
             'ClientGUID' => $clientGuid,
             'Reference' => now()->format('YmdHis'),

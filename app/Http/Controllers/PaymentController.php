@@ -6,10 +6,13 @@ use App\Models\Payment;
 use App\Helpers\BncHelper;
 use App\Helpers\BncLogger;
 use App\Exports\PaymentsExport;
+use App\Services\WisproApiService;
+use App\Http\Requests\SendC2PRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use App\Models\User;
 
 class PaymentController extends Controller
 {
@@ -97,7 +100,7 @@ class PaymentController extends Controller
         try {
             // Si viene user_id, usar ese usuario; si no, usar el autenticado (si existe)
             if ($request->has('user_id')) {
-                $user = \App\Models\User::findOrFail($request->user_id);
+                $user = User::findOrFail($request->user_id);
             } elseif (Auth::check()) {
                 $user = Auth::user();
             } else {
@@ -335,7 +338,7 @@ class PaymentController extends Controller
             $remainingPaymentBs = $remainingPayment * $bcvRate;
             $currentCreditBs = $user->credit_balance ?? 0;
             $finalCreditBalance = $currentCreditBs + $remainingPaymentBs;
-            \App\Models\User::where('id', $user->id)->update(['credit_balance' => $finalCreditBalance]);
+            User::where('id', $user->id)->update(['credit_balance' => $finalCreditBalance]);
         }
 
         return $appliedInvoices;
@@ -563,7 +566,7 @@ class PaymentController extends Controller
             $remainingPaymentBs = $remainingPayment * $bcvRate; // Convertir a bolívares
             $currentCreditBs = $user->credit_balance ?? 0; // Ya está en bolívares
             $finalCreditBalance = $currentCreditBs + $remainingPaymentBs;
-            \App\Models\User::where('id', $user->id)->update(['credit_balance' => $finalCreditBalance]);
+            User::where('id', $user->id)->update(['credit_balance' => $finalCreditBalance]);
 
             // Preparar mensaje de respuesta
             $message = 'Pago verificado y procesado exitosamente. ';
@@ -637,8 +640,9 @@ class PaymentController extends Controller
     /**
      * Envía un pago C2P usando el helper BncHelper::sendC2PPayment
      */
-    public function sendC2P(Request $request)
+    public function sendC2P(SendC2PRequest $request)
     {
+        //dd($request->all());
         try {
             $user = Auth::user();
             if (!$user) {
@@ -648,73 +652,61 @@ class PaymentController extends Controller
                 ], 401);
             }
 
-            $validated = $request->validate([
-                'debtor_bank_code' => 'required|integer',
-                'token' => 'required|string|max:255',
-                'amount' => 'required|numeric|min:0.01', // en bolívares
-                'debtor_id' => ['required','string','max:20','regex:/^[VEve]-?[0-9]+$/'],
-                'debtor_phone' => ['required','string','max:20'],
-            ]);
+            $debtorPhoneDigits = $request->debtor_phone;
+            $normalizedId = $request->debtor_id;
 
+            Log::info('request', ['request' => $request->all()]);
+
+            // Obtener el terminal desde la configuración
             $terminal = config('app.bnc.terminal');
             if (empty($terminal)) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Terminal BNC no configurado'
+                    'error' => 'Terminal BNC no configurado. Contacte al administrador.'
                 ], 500);
             }
 
-            // Normalizar teléfono a solo dígitos y validar formato internacional venezolano 58 + 10 dígitos
-            $debtorPhoneDigits = preg_replace('/\D/', '', (string) $validated['debtor_phone']);
-            if (!preg_match('/^58\d{10}$/', $debtorPhoneDigits)) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Formato de teléfono inválido. Use 58XXXXXXXXXX (sin +, espacios ni guiones)'
-                ], 422);
-            }
-
-            // Normalizar cédula a mayúsculas y sin guiones/puntos
-            $normalizedId = strtoupper(preg_replace('/[^VE0-9]/', '', $validated['debtor_id']));
-            // Validación final por seguridad: debe iniciar con V o E seguido solo de dígitos
-            if (!preg_match('/^[VE][0-9]+$/', $normalizedId)) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Formato de cédula inválido. Debe ser V00000000 o E00000000'
-                ], 422);
-            }
-
             $result = BncHelper::sendC2PPayment(
-                (int) $validated['debtor_bank_code'],
+                $request->debtor_bank_code,
                 $debtorPhoneDigits,
                 $normalizedId,
-                (float) $validated['amount'],
-                (string) $validated['token'],
+                (float) $request->amount,
+                (string) $request->token,
                 (string) $terminal
             );
 
-            /* $result = [
-                'error' => false,
-                'message' => 'Pago C2P procesado exitosamente',
-            ]; */
+            Log::info('SEND C2P: ResultadoXXX', ['result' => $result]);
 
-            // Manejo de error estructurado desde el helper
-            if (!$result || (is_array($result) && isset($result['error']) && $result['error'] === true)) {
-                $friendlyMessage = 'No se pudo procesar el pago C2P';
-                if (is_array($result)) {
-                    // Priorizar mensaje desencriptado si trae un texto legible
-                    if (isset($result['decrypted']) && is_array($result['decrypted']) && isset($result['decrypted']['message'])) {
-                        $friendlyMessage = $result['decrypted']['message'];
-                    } elseif (isset($result['message'])) {
-                        $friendlyMessage = $result['message'];
-                    }
-                }
+            // Si no hay resultado, retornar error
+            if (!$result) {
                 return response()->json([
                     'success' => false,
-                    'message' => $friendlyMessage,
+                    'message' => 'No se pudo procesar el pago C2P',
                 ], 409);
             }
 
-            // ✅ C2P exitoso - Registrar el pago automáticamente
+            // Validar que el status sea OK
+            if (!isset($result['status']) || $result['status'] !== 'OK') {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message'] ?? 'El pago no fue aprobado por el banco',
+                ], 409);
+            }
+
+            Log::info('SEND C2P: Resultado', ['result' => $result]);
+
+            // Obtener la referencia del value desencriptado
+            $decrypted = $result['decrypted'] ?? null;
+            if (!$decrypted || !isset($decrypted['Reference'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pudo obtener la referencia del pago',
+                ], 500);
+            }
+
+            $reference = $decrypted['Reference'];
+
+            // C2P exitoso - Registrar el pago automáticamente
             $bcvData = BncHelper::getBcvRatesCached();
             $bcvRate = $bcvData['Rate'] ?? null;
 
@@ -726,14 +718,8 @@ class PaymentController extends Controller
             }
 
             // Convertir el monto de bolívares a dólares
-            $amountInUSD = $validated['amount'] / $bcvRate;
+            $amountInUSD = $request->amount / $bcvRate;
             $currentDate = now()->format('Y-m-d');
-
-            // Generar referencia única para el pago C2P (puedes usar datos del result si vienen)
-            $reference = 'C2P-' . now()->format('YmdHis') . '-' . $user->id;
-            if (is_array($result) && isset($result['reference'])) {
-                $reference = $result['reference'];
-            }
 
             // Crear el pago marcado como verificado (C2P validado automáticamente por el banco)
             $payment = Payment::create([
@@ -742,104 +728,62 @@ class PaymentController extends Controller
                 'invoice_id' => null,
                 'amount' => $amountInUSD,
                 'id_number' => $normalizedId,
-                'bank' => str_pad($validated['debtor_bank_code'], 4, '0', STR_PAD_LEFT),
+                'bank' => str_pad($request->debtor_bank_code, 4, '0', STR_PAD_LEFT),
                 'phone' => $debtorPhoneDigits,
                 'payment_date' => $currentDate,
                 'verify_payments' => true, // Marcado como verificado (C2P validado por BNC)
             ]);
 
-            // Aplicar el pago a facturas pendientes
-            $remainingPayment = $amountInUSD;
-            $appliedInvoices = [];
+            // Registrar el pago en Wispro SIEMPRE que el C2P fue exitoso (si vienen los datos necesarios)
+            if ($result['status'] === 'OK') {
+                try {
+                    $paymentDate = now()->format('c'); // Formato ISO8601
+                    $wisproApiService = new WisproApiService();
+                    $wisproPaymentResponse = $wisproApiService->registerPayment(
+                        [$request->invoice_id],
+                        $request->client_id,
+                        $paymentDate
+                    );
 
-            $invoices = $user->invoices()
-                ->where('status', '!=', 'paid')
-                ->orderBy('period')
-                ->get();
-
-            if ($invoices->count() > 0) {
-                foreach ($invoices as $invoice) {
-                    $remaining = $invoice->amount_due - $invoice->amount_paid;
-
-                    if ($remaining <= 0) continue;
-
-                    if ($remainingPayment > 0) {
-                        $paymentToApply = min($remaining, $remainingPayment);
-
-                        if ($paymentToApply > 0) {
-                            // Crear nuevo registro de pago asociado a la factura
-                            Payment::create([
-                                'reference' => $reference . ' (Aplicado a Factura)',
-                                'user_id' => $user->id,
-                                'invoice_id' => $invoice->id,
-                                'amount' => $paymentToApply,
-                                'id_number' => $normalizedId,
-                                'bank' => str_pad($validated['debtor_bank_code'], 4, '0', STR_PAD_LEFT),
-                                'phone' => $debtorPhoneDigits,
-                                'payment_date' => $currentDate,
-                                'verify_payments' => true,
-                            ]);
-
-                            $invoice->amount_paid += $paymentToApply;
-                            $remainingPayment -= $paymentToApply;
-
-                            // Actualizar estado de la factura
-                            $amountDiff = abs($invoice->amount_paid - $invoice->amount_due);
-                            if ($amountDiff < 0.01 || $invoice->amount_paid >= $invoice->amount_due) {
-                                $invoice->amount_paid = $invoice->amount_due;
-                                $invoice->status = 'paid';
-                            } elseif ($invoice->amount_paid > 0) {
-                                $invoice->status = 'partial';
-                            }
-
-                            $invoice->save();
-
-                            $appliedInvoices[] = [
-                                'id' => $invoice->id,
-                                'period' => $invoice->period ? $invoice->period->format('Y-m') : null,
-                                'applied_amount_usd' => $paymentToApply,
-                                'applied_amount_bs' => $paymentToApply * $bcvRate,
-                                'status' => $invoice->status,
-                            ];
-                        }
+                    if ($wisproPaymentResponse['success']) {
+                        Log::info('SEND C2P: Pago registrado exitosamente en Wispro', [
+                            'invoice_id' => $request->invoice_id,
+                            'client_id' => $request->client_id,
+                            'response' => $wisproPaymentResponse['data']
+                        ]);
+                    } else {
+                        Log::error('SEND C2P: Error al registrar pago en Wispro', [
+                            'invoice_id' => $request->invoice_id,
+                            'client_id' => $request->client_id,
+                            'error' => $wisproPaymentResponse['error'] ?? 'Error desconocido',
+                            'message' => $wisproPaymentResponse['message'] ?? null
+                        ]);
                     }
-
-                    if ($remainingPayment <= 0) break;
+                } catch (\Exception $e) {
+                    Log::error('SEND C2P: Excepción al registrar pago en Wispro', [
+                        'message' => $e->getMessage()
+                    ]);
                 }
             }
 
-            // Actualizar crédito del usuario si sobra dinero (en bolívares)
-            if ($remainingPayment > 0) {
-                $remainingPaymentBs = $remainingPayment * $bcvRate;
-                $currentCreditBs = $user->credit_balance ?? 0;
-                $finalCreditBalance = $currentCreditBs + $remainingPaymentBs;
-                \App\Models\User::where('id', $user->id)->update(['credit_balance' => $finalCreditBalance]);
-            }
-
             // Preparar mensaje de respuesta
-            $message = 'Pago C2P procesado exitosamente. ';
-            if (count($appliedInvoices) > 0) {
-                $message .= 'Aplicado a ' . count($appliedInvoices) . ' factura(s). ';
-            }
-            if ($remainingPayment > 0) {
-                $remainingPaymentBs = $remainingPayment * $bcvRate;
-                $message .= 'Crédito disponible: Bs. ' . number_format($remainingPaymentBs, 2);
-            }
+            $message = 'Pago C2P procesado exitosamente.';
 
             return response()->json([
                 'success' => true,
                 'message' => $message,
                 'data' => [
                     'payment_id' => $payment->id,
-                    'applied_invoices' => $appliedInvoices,
-                    'remaining_credit' => $remainingPayment,
+                    'amount_usd' => $amountInUSD,
                     'verified' => true,
-                    'bank_response' => $result,
+                    'bank_response' => $decrypted,
                 ]
             ]);
         } catch (\Throwable $e) {
-            BncLogger::error('SEND C2P: Excepción', [
+            Log::error('SEND C2P: Excepción', [
                 'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
             ]);
             return response()->json([
                 'success' => false,

@@ -10,8 +10,8 @@ const props = defineProps<Props>()
 const emit = defineEmits(['openPaymentModal'])
 const bcvStore = useBcvStore()
 
-const openPaymentModal = () => {
-    emit('openPaymentModal')
+const openPaymentModal = (invoice: any) => {
+    emit('openPaymentModal', invoice)
 }
 
 const formatDate = (dateString: string) => {
@@ -146,7 +146,7 @@ const getInvoiceStateClass = (state: string) => {
                         <td class="px-4 py-3 whitespace-nowrap text-sm">
                             <Button
                                 v-if="invoice.state === 'pending' && $page.props.auth.user.role === 0"
-                                @click="openPaymentModal"
+                                @click="openPaymentModal(invoice)"
                                 size="sm"
                                 class="bg-green-600 hover:bg-green-700"
                             >

@@ -61,6 +61,12 @@ class HandleInertiaRequests extends Middleware
                'success' => fn () => $request->session()->get('success'),
                'error' => fn () => $request->session()->get('error'),
             ],
+            'paymentMobile' => [
+                'name' => env('PM_NAME', ''),
+                'banco' => env('PM_BANCO', ''),
+                'tlf' => env('PM_TLF', ''),
+                'rif' => env('PM_RIF', ''),
+            ],
 
         ];
     }

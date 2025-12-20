@@ -544,4 +544,49 @@ class WisproApiService
             ];
         }
     }
+
+    /**
+     * Registrar un pago en Wispro
+     *
+     * @param array $invoiceIds Array de IDs de facturas (UUIDs) a las que se aplica el pago
+     * @param string $clientId ID del cliente en Wispro (UUID)
+     * @param string $paymentDate Fecha del pago en formato ISO8601 (ej: 2025-01-15T10:30:00+00:00)
+     * @return array
+     */
+    public function registerPayment(array $invoiceIds, string $clientId, string $paymentDate)
+    {
+        try {
+            $endpoint = '/invoicing/payments';
+
+            $data = [
+                'invoice_ids' => $invoiceIds,
+                'client_id' => $clientId,
+                'payment_date' => $paymentDate,
+            ];
+
+            $response = Http::withHeaders($this->getHeaders())
+                ->post($this->baseUrl . $endpoint, $data);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'data' => $response->json()
+                ];
+            }
+
+            return [
+                'success' => false,
+                'error' => 'Error en la respuesta de la API: ' . $response->status(),
+                'message' => $response->json()['message'] ?? 'Error desconocido'
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Error en WisproApiService::registerPayment: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Error de conexión con la API',
+                'message' => $e->getMessage()
+            ];
+        }
+    }
 }

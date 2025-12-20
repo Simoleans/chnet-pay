@@ -5,7 +5,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\Http;
 use App\Helpers\BncCryptoHelper;
 use App\Helpers\BncHelper;
-//use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Log;
 
 class BncApiService
 {
@@ -28,6 +28,8 @@ class BncApiService
         ];
 
         //Log::info('BNC API SERVICE 📤 Enviando (desencriptado): ' . json_encode($payload,JSON_PRETTY_PRINT));
+
+        Log::info('BNC API SERVICE: Enviando peticion', ['payload' => $payload,'url' => config('app.bnc.base_url') . $endpoint]);
 
         return Http::post(config('app.bnc.base_url') . $endpoint, $payload);
     }

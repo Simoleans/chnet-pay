@@ -308,7 +308,7 @@ class BncHelper
 /**
      * Envía un pago C2P (Comercio a Persona) al endpoint MobPayment/SendC2P
      *
-     * @param int $debtorBankCode      Código del banco emisor (por ejemplo, 191)
+     * @param string $debtorBankCode   Código del banco emisor (por ejemplo, "0134", "0191")
      * @param string $debtorCellPhone  Teléfono móvil del emisor (formato internacional sin "+", ej: 584241234567)
      * @param string $debtorID         Cédula o RIF del emisor (ej: V12345678)
      * @param float $amount            Monto del pago
@@ -319,7 +319,7 @@ class BncHelper
      * @return array|null              Respuesta desencriptada o null si falla
      */
     public static function sendC2PPayment(
-        int $debtorBankCode,
+        string $debtorBankCode,
         string $debtorCellPhone,
         string $debtorID,
         float $amount,
@@ -348,8 +348,12 @@ class BncHelper
 
             Log::info('BNC C2P: Enviando pago', ['payload' => $body,'url' => 'MobPayment/SendC2P']);
 
+            Log::info('BNC C2P: Respuesta recibida', ['response' => $response->json(),'status' => $response->status()]);
+
             if (in_array($response->status(), [200, 202])) {
                 $json = $response->json();
+
+                Log::info('BNC C2P: Respuesta recibida SIN DESENCRIPTAR', ['response' => $json,'status' => $response->status()]);
 
                 if (!isset($json['value'])) {
                     Log::error('BNC C2P: Respuesta sin campo value');
@@ -357,53 +361,25 @@ class BncHelper
                 }
 
                 $decrypted = BncCryptoHelper::decryptAES($json['value'], $key);
-                Log::info('BNC C2P: Pago exitoso', ['result' => $decrypted]);
+                Log::info('BNC C2P: Value desencriptado', ['decrypted' => $decrypted]);
 
-                return $decrypted;
+                // Devolver status, message y el value desencriptado
+                return [
+                    'status' => $json['status'] ?? null,
+                    'message' => $json['message'] ?? null,
+                    'decrypted' => $decrypted
+                ];
             }
 
-            // Log detallado del error
-            $rawBody = $response->body();
-            $json = null;
-            $decryptedError = null;
-            try {
-                $json = $response->json();
-                if (is_array($json) && isset($json['value'])) {
-                    $decryptedError = BncCryptoHelper::decryptAES($json['value'], $key);
-                }
-            } catch (\Throwable $e) {
-                // ignorar errores de parseo
-            }
-
-            Log::error('BNC C2P: Error HTTP', [
-                'status' => $response->status(),
-                'body' => $rawBody,
-                'json' => $json,
-                'decrypted' => $decryptedError,
-            ]);
-
-            // Retornar estructura de error para que el controlador pueda propagar el mensaje
-            return [
-                'error' => true,
-                'status' => $response->status(),
-                'message' => is_array($json) && isset($json['message']) ? $json['message'] : 'Error procesando C2P',
-                'decrypted' => $decryptedError,
-            ];
+            return null;
         } catch (\Throwable $e) {
             Log::error('BNC C2P: Excepción', [
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine()
             ]);
-            return [
-                'error' => true,
-                'status' => 500,
-                'message' => 'Excepción al enviar C2P: ' . $e->getMessage(),
-                'decrypted' => null,
-            ];
+            return null;
         }
-
-        return null;
     }
 
 

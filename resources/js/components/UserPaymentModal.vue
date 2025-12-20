@@ -28,6 +28,12 @@ interface Props {
         name: string;
         price: number;
     } | null;
+    selectedInvoice?: {
+        id: number;
+        amount: number;
+        invoice_number?: string;
+        client_id?: number | string;
+    } | null;
 }
 
 interface Emits {
@@ -38,12 +44,28 @@ interface Emits {
 const props = withDefaults(defineProps<Props>(), {
     open: false,
     userPlan: null,
+    selectedInvoice: null,
 });
 
 const emit = defineEmits<Emits>();
 
 // Usar usePage para acceder a los datos del usuario
 const page = usePage();
+
+// Obtener datos de pago móvil desde las props compartidas
+const paymentMobile = computed(() => {
+    return (page.props.paymentMobile as {
+        name?: string;
+        banco?: string;
+        tlf?: string;
+        rif?: string;
+    } | undefined) || {};
+});
+
+const paymentMobileName = computed(() => paymentMobile.value.name);
+const paymentMobileBanco = computed(() => paymentMobile.value.banco);
+const paymentMobileTlf = computed(() => paymentMobile.value.tlf);
+const paymentMobileRif = computed(() => paymentMobile.value.rif);
 
 // Usar el store de BCV
 const bcvStore = useBcvStore();
@@ -65,14 +87,17 @@ const manualBankCode = ref('0191');
 const manualPhone = ref('');
 // Estados para C2P
 const showC2PSection = ref(false);
+const c2pLoading = ref(false);
 const c2pBankCode = ref('');
 const c2pToken = ref('');
 const c2pId = ref('');
 const c2pPhone = ref('');
 
 const suggestedAmountBs = computed(() => {
-    if (bcv.value && props.userPlan?.price) {
-        return (parseFloat(String(props.userPlan.price)) * parseFloat(bcv.value)).toFixed(2);
+    // Usar factura si existe, sino usar plan
+    const amountToPay = props.selectedInvoice?.amount || props.userPlan?.price;
+    if (bcv.value && amountToPay) {
+        return (parseFloat(String(amountToPay)) * parseFloat(bcv.value)).toFixed(2);
     }
     return '';
 });
@@ -105,6 +130,8 @@ watch(c2pId, (newVal: string) => {
 
 const resetStates = () => {
     paymentError.value = false;
+    paymentLoading.value = false;
+    c2pLoading.value = false;
     showReferenceInput.value = false;
     referenceNumber.value = '';
     paymentAmount.value = '';
@@ -112,6 +139,7 @@ const resetStates = () => {
     manualBankCode.value = '0191';
     manualPhone.value = '';
     showC2PSection.value = false;
+    // No resetear selectedInvoice aquí, se maneja desde el componente padre
 };
 
 const openC2PSection = () => {
@@ -140,9 +168,11 @@ const openC2PSection = () => {
 };
 
 const sendC2P = async () => {
+    c2pLoading.value = true;
     try {
         if (!c2pBankCode.value || !c2pToken.value || !c2pId.value || !c2pPhone.value) {
             notify({ message: 'Complete los datos del C2P', type: 'error', duration: 2000 });
+            c2pLoading.value = false;
             return;
         }
 
@@ -151,6 +181,7 @@ const sendC2P = async () => {
         const normalized = c2pId.value.trim().toUpperCase().replace(/[^VE0-9]/g, '');
         if (!idPattern.test(normalized)) {
             notify({ message: 'La cédula debe ser en formato V00000000 o E00000000', type: 'error', duration: 2500 });
+            c2pLoading.value = false;
             return;
         }
         c2pId.value = normalized;
@@ -165,27 +196,54 @@ const sendC2P = async () => {
 
         if (!/^\d{10}$/.test(phoneDigits)) {
             notify({ message: `Teléfono inválido. Debe tener 10 dígitos (recibido: ${phoneDigits.length}). Ejemplo: 4120355541 o 04120355541`, type: 'error', duration: 3000 });
+            c2pLoading.value = false;
             return;
         }
         // Agregar el prefijo 58 automáticamente
         const phoneWithPrefix = '58' + phoneDigits;
 
-        // Calcular monto exacto desde el plan de Wispro
-        const hasPrice = !!props.userPlan?.price;
-        const hasBcv = bcv.value !== null && bcv.value !== undefined;
-        if (!hasPrice || !hasBcv) {
-            notify({ message: 'No se pudo calcular el monto. Verifique su plan o la tasa BCV.', type: 'error', duration: 2500 });
+        // Calcular monto exacto: usar factura si existe, sino usar plan
+        let amountToPay = 0;
+        if (props.selectedInvoice?.amount) {
+            amountToPay = props.selectedInvoice.amount;
+        } else if (props.userPlan?.price) {
+            amountToPay = props.userPlan.price;
+        } else {
+            notify({ message: 'No se pudo calcular el monto. Verifique su factura o plan.', type: 'error', duration: 2500 });
+            c2pLoading.value = false;
             return;
         }
-        const amountStr = (parseFloat(String(props.userPlan.price)) * parseFloat(String(bcv.value))).toFixed(2);
 
-        const res = await axios.post('/api/bnc/send-c2p', {
-            debtor_bank_code: parseInt(c2pBankCode.value, 10),
+        const hasBcv = bcv.value !== null && bcv.value !== undefined;
+        if (!hasBcv) {
+            notify({ message: 'No se pudo obtener la tasa BCV.', type: 'error', duration: 2500 });
+            c2pLoading.value = false;
+            return;
+        }
+        const amountStr = (parseFloat(String(amountToPay)) * parseFloat(String(bcv.value))).toFixed(2);
+
+        // Preparar payload con invoice_id y client_id si están disponibles
+        const payload: any = {
+            debtor_bank_code: c2pBankCode.value,
             token: c2pToken.value,
             amount: parseFloat(amountStr),
             debtor_id: c2pId.value,
             debtor_phone: phoneWithPrefix,
-        });
+        };
+
+        // Agregar invoice_id y client_id si la factura está seleccionada
+        if (props.selectedInvoice?.id) {
+            payload.invoice_id = props.selectedInvoice.id;
+        }
+        // Intentar obtener client_id de la factura o del usuario
+        if (props.selectedInvoice?.client_id) {
+            payload.client_id = props.selectedInvoice.client_id;
+        } else if (page.props.auth?.user?.id_wispro) {
+            // Si no viene en la factura, usar el id_wispro del usuario
+            payload.client_id = page.props.auth.user.id_wispro;
+        }
+
+        const res = await axios.post('/api/bnc/send-c2p', payload);
 
         if (res.data?.success) {
             notify({ message: res.data.message || 'C2P enviado', type: 'success', duration: 2500 });
@@ -193,13 +251,15 @@ const sendC2P = async () => {
             resetStates();
             setTimeout(() => {
                 window.location.reload();
-            }, 1500);
+            }, 2500);
         } else {
             notify({ message: res.data?.error || res.data?.message || 'No se pudo enviar C2P', type: 'error', duration: 3000 });
         }
     } catch (e: any) {
         const msg = e?.response?.data?.message ?? e?.response?.data?.error ?? e?.message ?? 'Error al enviar C2P';
-        notify({ message: msg, type: 'error', duration: 3000 });
+        notify({ message: msg, type: 'error', duration: 3500 });
+    } finally {
+        c2pLoading.value = false;
     }
 };
 
@@ -209,12 +269,18 @@ const copyPaymentReference = async () => {
     if (bcv.value && props.userPlan?.price) {
         const total = (parseFloat(String(props.userPlan.price)) * parseFloat(bcv.value)).toFixed(2);
 
-        // Formato mejorado de los datos bancarios
-        const bankingData = `📧 CHNET - Datos para Pago Movil
+        // Obtener datos de pago móvil desde las props compartidas
+        const banco = paymentMobileBanco.value;
+        const rif = paymentMobileRif.value;
+        const tlf = paymentMobileTlf.value;
+        const name = paymentMobileName.value;
 
-            Banco: 0191
-            RIF: J125697857
-            Teléfono: 04120355541
+        // Formato mejorado de los datos bancarios
+        const bankingData = `📧 ${name} - Datos para Pago Movil
+
+            Banco: ${banco}
+            RIF: ${rif}
+            Teléfono: ${tlf}
             Monto: ${total} Bs`;
 
         console.log('Datos a copiar:', bankingData);
@@ -311,9 +377,10 @@ const checkPayment = async () => {
         manualPhone.value = page.props.auth.user.phone;
     }
 
-    // Precargar monto exacto del plan calculado con BCV
-    if (bcv.value && props.userPlan?.price) {
-        paymentAmount.value = (parseFloat(String(props.userPlan.price)) * parseFloat(bcv.value)).toFixed(2);
+    // Precargar monto exacto: usar factura si existe, sino usar plan
+    const amountToPay = props.selectedInvoice?.amount || props.userPlan?.price;
+    if (bcv.value && amountToPay) {
+        paymentAmount.value = (parseFloat(String(amountToPay)) * parseFloat(bcv.value)).toFixed(2);
     }
 
     try {
@@ -409,23 +476,23 @@ const handleOpenChange = (open: boolean) => {
                 <input type="hidden" :value="$page.props.auth.user?.id" />
 
                 <div class="space-y-3">
-                    <p class="font-medium">🏦 Banco Nacional de Crédito</p>
-                    <p class="text-sm"><span class="font-medium">👤 RIF:</span> J-12569785-7</p>
-                    <p class="text-sm"><span class="font-medium">📞 Teléfono:</span> 0412-0355541</p>
+                    <p class="font-medium">🏦 {{ paymentMobileName }}</p>
+                    <p class="text-sm"><span class="font-medium">👤 RIF:</span> {{ paymentMobileRif }}</p>
+                    <p class="text-sm"><span class="font-medium">📞 Teléfono:</span> {{ paymentMobileTlf }}</p>
 
                     <!-- Monto a pagar destacado -->
                     <div class="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-2 border-green-200 dark:border-green-800 rounded-lg p-4 mt-3">
                         <div class="flex flex-col items-center justify-center space-y-2">
                             <p class="text-sm font-medium text-gray-700 dark:text-gray-300">💰 Monto Exacto a Pagar</p>
-                            <div v-if="bcv && userPlan?.price" class="text-center">
+                            <div v-if="bcv && (selectedInvoice?.amount || userPlan?.price)" class="text-center">
                                 <p class="text-4xl font-bold text-green-600 dark:text-green-400">
-                                    {{ (parseFloat(String(userPlan.price)) * parseFloat(bcv)).toFixed(2) }} Bs
+                                    {{ suggestedAmountBs }} Bs
                                 </p>
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    (${{ parseFloat(String(userPlan.price)).toFixed(2) }} USD × {{ parseFloat(bcv).toFixed(2) }} Bs)
+                                    (${{ parseFloat(String(selectedInvoice?.amount || userPlan?.price || 0)).toFixed(2) }} USD × {{ parseFloat(bcv).toFixed(2) }} Bs)
                                 </p>
                                 <p class="text-xs text-gray-600 dark:text-gray-400 mt-1 font-medium">
-                                    Tasa BCV del día
+                                    {{ selectedInvoice ? 'Monto de la factura' : 'Tasa BCV del día' }}
                                 </p>
                             </div>
                             <div v-else class="text-center">
@@ -542,8 +609,8 @@ const handleOpenChange = (open: boolean) => {
                                             id="paymentAmount"
                                             type="text"
                                             v-model="paymentAmount"
-                                            :placeholder="bcv && userPlan?.price ?
-                                                `Monto exacto: ${(parseFloat(String(userPlan.price)) * parseFloat(bcv)).toFixed(2)} Bs` :
+                                            :placeholder="bcv && (selectedInvoice?.amount || userPlan?.price) ?
+                                                `Monto exacto: ${suggestedAmountBs} Bs` :
                                                 'Calculando...'"
                                             class="w-full font-bold bg-green-50 dark:bg-green-950/10 border-green-300 dark:border-green-700 text-center text-lg cursor-not-allowed"
                                             readonly
@@ -561,10 +628,11 @@ const handleOpenChange = (open: boolean) => {
                                 <Button
                                     @click="submitReference"
                                     size="sm"
-                                    :disabled="!referenceNumber.trim() || referenceNumber.trim().length < 4 || !paymentAmount || parseFloat(paymentAmount) <= 0 || !manualBankCode || !manualPhone.trim()"
+                                    :disabled="paymentLoading || !referenceNumber.trim() || referenceNumber.trim().length < 4 || !paymentAmount || parseFloat(paymentAmount) <= 0 || !manualBankCode || !manualPhone.trim()"
                                     class="flex-1"
                                 >
-                                    Verificar Pago
+                                    <span v-if="paymentLoading">Verificando...</span>
+                                    <span v-else>Verificar Pago</span>
                                 </Button>
                                 <Button
                                     v-if="showReportLink"
@@ -627,9 +695,10 @@ const handleOpenChange = (open: boolean) => {
                                     @click="sendC2P"
                                     size="sm"
                                     class="w-full"
-                                    :disabled="!c2pToken || !c2pBankCode || !(userPlan?.price && bcv)"
+                                    :disabled="c2pLoading || !c2pToken || !c2pBankCode || !c2pId || !c2pPhone || !(userPlan?.price && bcv)"
                                 >
-                                    Enviar C2P
+                                    <span v-if="c2pLoading">Enviando C2P...</span>
+                                    <span v-else>Enviar C2P</span>
                                 </Button>
                             </div>
                         </div>

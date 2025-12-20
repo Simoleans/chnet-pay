@@ -7,11 +7,13 @@ export const useBanksStore = defineStore('banks', () => {
     const loading = ref(false)
     const error = ref(null)
 
+    const excludedCodes = ['0001', '0002', '0003','0008']
+
     const loadBanks = async (retryCount = 0) => {
-        const maxRetries = 2 // Máximo 2 reintentos adicionales
+        const maxRetries = 2
 
         if (banks.value.length > 0) {
-            return // Ya están cargados
+            return
         }
 
         loading.value = true
@@ -21,7 +23,9 @@ export const useBanksStore = defineStore('banks', () => {
             const response = await axios.get('/api/banks')
 
             if (response.data.success) {
-                banks.value = response.data.data
+                banks.value = response.data.data.filter(
+                    bank => !excludedCodes.includes(bank.Code)
+                )
                 console.log('Bancos cargados exitosamente')
             } else {
                 throw new Error(response.data.message || 'Error al cargar bancos')
@@ -42,7 +46,6 @@ export const useBanksStore = defineStore('banks', () => {
                 console.error('Error final loading banks después de todos los reintentos:', errorMessage)
             }
         } finally {
-            // Solo cambiar loading a false si no vamos a reintentar
             if (retryCount >= maxRetries || banks.value.length > 0) {
                 loading.value = false
             }
@@ -62,7 +65,6 @@ export const useBanksStore = defineStore('banks', () => {
     }
 
     const reloadBanks = async () => {
-        // Forzar recarga limpiando los bancos existentes
         banks.value = []
         return loadBanks()
     }

@@ -98,6 +98,7 @@ const showPaymentDetailsModal = ref(false)
 const showReceiptModal = ref(false)
 const showPendingInvoiceAlert = ref(props.show_pending_invoice_alert || false)
 const selectedPayment = ref<any>(null)
+const selectedInvoice = ref<any>(null)
 
 // Funciones para manejar los modales
 const handleOpenReportModal = () => {
@@ -117,7 +118,8 @@ const viewReceipt = (payment: any) => {
     }
 }
 
-const openPaymentModal = () => {
+const openPaymentModal = (invoice?: any) => {
+    selectedInvoice.value = invoice || null
     showUserPaymentModal.value = true
 }
 
@@ -187,6 +189,7 @@ const openPaymentModal = () => {
         <UserPaymentModal
             v-model:open="showUserPaymentModal"
             :user-plan="user_plan"
+            :selected-invoice="selectedInvoice"
             @openReportModal="handleOpenReportModal"
         />
 

@@ -32,8 +32,16 @@ Route::post('/users/wispro/{wisproId}/sync', [UserController::class, 'syncSingle
 //zones
 Route::resource('zones', ZoneController::class)->middleware(['auth', 'admin']);
 
-//payments - Solo administradores
-Route::resource('payments', PaymentController::class)->middleware(['auth', 'admin']);
+//payments - index, show, edit, update, destroy solo para administradores
+Route::resource('payments', PaymentController::class)
+    ->except(['store'])
+    ->middleware(['auth', 'admin']);
+
+// Permite a todos los usuarios autenticados guardar pagos
+Route::post('/payments', [PaymentController::class, 'store'])
+    ->middleware(['auth'])
+    ->name('payments.store');
+
 Route::patch('/payments/{payment}/verify', [PaymentController::class, 'toggleVerification'])->middleware(['auth', 'admin'])->name('payments.toggle-verification');
 Route::get('/payments-export', [PaymentController::class, 'export'])->middleware(['auth', 'admin'])->name('payments.export');
 
@@ -54,7 +62,7 @@ Route::post('/import-clients', [ClientImportController::class, 'import'])->name(
 
 Route::get('/api/bnc/history', function (Request $request) {
     //$account = $request->query('account');
-    $account = '01910001482101010049';
+    $account = config('app.bnc.account');
 
     if (!$account) {
         return response()->json([
@@ -65,7 +73,7 @@ Route::get('/api/bnc/history', function (Request $request) {
     }
 
     try {
-        $data = BncHelper::getPositionHistory($account);
+        $data = BncHelper::getPositionHistory(null, $account);
 
         return response()->json([
             'success' => true,

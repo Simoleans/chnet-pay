@@ -166,7 +166,7 @@ class BncHelper
         }); */
     }
 
-    public static function validateOperationReference(string $reference, string $dateMovement, float $expectedAmount, string $bank, string $phoneNumber): ?array
+    public static function validateOperationReference(string $reference, string $dateMovement, float $expectedAmount, int $bank, string $phoneNumber): ?array
     {
         try {
             $key = self::getWorkingKey();
@@ -183,7 +183,7 @@ class BncHelper
                 'BranchID' => '',
             ], fn($v) => !is_null($v)); */
 
-            $body = array_filter([
+            $body = [
                 'ClientID' => $clientId,
                 'AccountNumber' => $account,
                 'Reference' => $reference,
@@ -193,7 +193,7 @@ class BncHelper
                 'PhoneNumber' => $phoneNumber,
                 'ChildClientID' => '',
                 'BranchID' => '',
-            ], fn($v) => !is_null($v));
+            ];
 
             Log::info('BNC VALIDACION REF: Enviando validacion', [
                 'body' => $body
@@ -202,8 +202,12 @@ class BncHelper
             //$response = BncApiService::send('Position/Validate', $body);
             $response = BncApiService::send('Position/ValidateP2P', $body);
 
-            if (in_array($response->status(), [200, 202])) {
+            Log::info('BNC VALIDACION REF: Respuesta recibidaxXXXX', ['response' => $response->json(),'status' => $response->status()]);
+
+            if ($response->ok() || $response->status() === 202) {
                 $json = $response->json();
+
+                Log::info('BNC VALIDACION REF: Respuesta recibida', ['response' => $json]);
 
                 if (!isset($json['value'])) {
                     Log::error('BNC VALIDACION REF: Respuesta sin campo value');
@@ -213,7 +217,12 @@ class BncHelper
                 $decrypted = BncCryptoHelper::decryptAES($json['value'], $key);
                 Log::info('BNC VALIDACION REF: Validacion exitosa', ['result' => $decrypted]);
 
-                return $decrypted;
+                // Devolver status, message y el value desencriptado
+                return [
+                    'status' => $json['status'] ?? null,
+                    'message' => $json['message'] ?? null,
+                    'decrypted' => $decrypted
+                ];
             }
 
             Log::error('BNC VALIDACION REF: Error HTTP', ['status' => $response->status()]);
@@ -257,21 +266,10 @@ class BncHelper
                 'BranchID' => '',
             ];
 
-            Log::info('BNC BANCOS: Payload preparado', ['client_id' => $clientId]);
-
-            // Paso 4: Verificar dependencias de cifrado
-            if (!class_exists('App\Helpers\BncCryptoHelper')) {
-                Log::error('BNC BANCOS: BncCryptoHelper no encontrado');
-                throw new \Exception('BncCryptoHelper no encontrado');
-            }
-
-            if (!class_exists('phpseclib3\Crypt\AES')) {
-                Log::error('BNC BANCOS: phpseclib3 no instalado');
-                throw new \Exception('phpseclib3 no está instalado - ejecutar composer install');
-            }
+            //Log::info('BNC BANCOS: Payload preparado', ['client_id' => $clientId]);
 
             // Paso 5: Enviar petición
-            Log::info('BNC BANCOS: Enviando peticion a BNC API');
+            //Log::info('BNC BANCOS: Enviando peticion a BNC API');
             $response = BncApiService::send('Services/Banks', $body);
 
             Log::info('BNC BANCOS: Respuesta recibida', ['status' => $response->status()]);
@@ -424,6 +422,7 @@ class BncHelper
                 'ChildClientID' => $childClientID,
                 'BranchID' => $branchID,
             ];
+
 
             Log::info('BNC POSITION HISTORY: Enviando solicitud', [
                 'client_id' => $clientId,

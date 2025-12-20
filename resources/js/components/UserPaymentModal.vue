@@ -81,6 +81,7 @@ const paymentError = ref(false);
 const showReferenceInput = ref(false);
 const referenceNumber = ref('');
 const paymentAmount = ref('');
+const paymentDate = ref('');
 const showReportLink = ref(false);
 // Estados para validación manual
 const manualBankCode = ref('0191');
@@ -135,6 +136,7 @@ const resetStates = () => {
     showReferenceInput.value = false;
     referenceNumber.value = '';
     paymentAmount.value = '';
+    paymentDate.value = '';
     showReportLink.value = false;
     manualBankCode.value = '0191';
     manualPhone.value = '';
@@ -147,6 +149,7 @@ const openC2PSection = () => {
     if (showReferenceInput.value) {
         referenceNumber.value = '';
         paymentAmount.value = '';
+        paymentDate.value = '';
         manualPhone.value = '';
         showReportLink.value = false;
     }
@@ -377,6 +380,11 @@ const checkPayment = async () => {
         manualPhone.value = page.props.auth.user.phone;
     }
 
+    // Precargar fecha actual
+    if (!paymentDate.value) {
+        paymentDate.value = new Date().toISOString().split('T')[0];
+    }
+
     // Precargar monto exacto: usar factura si existe, sino usar plan
     const amountToPay = props.selectedInvoice?.amount || props.userPlan?.price;
     if (bcv.value && amountToPay) {
@@ -388,12 +396,28 @@ const checkPayment = async () => {
             console.log('LOG:: Validando referencia:', referenceNumber.value);
             console.log('LOG:: Monto esperado:', paymentAmount.value);
 
-            const res = await axios.post('/api/bnc/validate-and-store-payment', {
+            // Preparar payload con invoice_id y client_id si están disponibles
+            const payload: any = {
                 reference: referenceNumber.value,
                 amount: parseFloat(paymentAmount.value),
                 bank: manualBankCode.value,
-                phone: manualPhone.value
-            });
+                phone: manualPhone.value,
+                payment_date: paymentDate.value
+            };
+
+            // Agregar invoice_id y client_id si la factura está seleccionada
+            if (props.selectedInvoice?.id) {
+                payload.invoice_id = props.selectedInvoice.id;
+            }
+            // Intentar obtener client_id de la factura o del usuario
+            if (props.selectedInvoice?.client_id) {
+                payload.client_id = props.selectedInvoice.client_id;
+            } else if (page.props.auth?.user?.id_wispro) {
+                // Si no viene en la factura, usar el id_wispro del usuario
+                payload.client_id = page.props.auth.user.id_wispro;
+            }
+
+            const res = await axios.post('/api/bnc/validate-and-store-payment', payload);
 
             console.log('LOG:: Respuesta de validación:', res.data);
 
@@ -460,6 +484,16 @@ const handleOpenChange = (open: boolean) => {
     if (!open) {
         resetStates();
     }
+};
+
+const setToday = () => {
+    paymentDate.value = new Date().toISOString().split('T')[0];
+};
+
+const setYesterday = () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    paymentDate.value = yesterday.toISOString().split('T')[0];
 };
 </script>
 
@@ -585,6 +619,36 @@ const handleOpenChange = (open: boolean) => {
                                         />
                                         <p class="text-xs text-muted-foreground">Teléfono registrado en el pago móvil</p>
                                     </div>
+
+                                    <div class="space-y-2">
+                                        <label for="paymentDate" class="text-sm font-medium">Fecha del pago</label>
+                                        <Input
+                                            id="paymentDate"
+                                            v-model="paymentDate"
+                                            type="date"
+                                            class="w-full text-sm"
+                                        />
+                                        <div class="flex gap-2">
+                                            <Button
+                                                @click="setToday"
+                                                size="sm"
+                                                variant="outline"
+                                                type="button"
+                                                class="flex-1 text-xs"
+                                            >
+                                                Hoy
+                                            </Button>
+                                            <Button
+                                                @click="setYesterday"
+                                                size="sm"
+                                                variant="outline"
+                                                type="button"
+                                                class="flex-1 text-xs"
+                                            >
+                                                Ayer
+                                            </Button>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- Columna derecha -->
@@ -628,7 +692,7 @@ const handleOpenChange = (open: boolean) => {
                                 <Button
                                     @click="submitReference"
                                     size="sm"
-                                    :disabled="paymentLoading || !referenceNumber.trim() || referenceNumber.trim().length < 4 || !paymentAmount || parseFloat(paymentAmount) <= 0 || !manualBankCode || !manualPhone.trim()"
+                                    :disabled="paymentLoading || !referenceNumber.trim() || referenceNumber.trim().length < 4 || !paymentAmount || parseFloat(paymentAmount) <= 0 || !manualBankCode || !manualPhone.trim() || !paymentDate"
                                     class="flex-1"
                                 >
                                     <span v-if="paymentLoading">Verificando...</span>

@@ -8,6 +8,7 @@ use App\Helpers\BncLogger;
 use App\Exports\PaymentsExport;
 use App\Services\WisproApiService;
 use App\Http\Requests\SendC2PRequest;
+use App\Http\Requests\ValidatePaymentRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -406,43 +407,32 @@ class PaymentController extends Controller
     /**
      * Valida una referencia de pago y la almacena si es exitosa
      */
-    public function validateAndStorePayment(Request $request)
+    public function validateAndStorePayment(ValidatePaymentRequest $request)
     {
+        Log::info('VALIDATE AND STORE PAYMENT: Request', ['request' => $request->all()]);
         try {
             $user = Auth::user();
-            if (!$user) {
+
+            $reference = $request->reference;
+            $amountBs = $request->amount;
+            $bank = $request->bank;
+            $phoneNumber = $request->phone;
+
+            // Convertir la fecha al formato ISO 8601 requerido por el banco (Y-m-d\TH:i:s)
+            $paymentDate = date('Y-m-d\TH:i:s', strtotime($request->payment_date));
+
+            // Validar que la referencia no exista previamente
+            if (Payment::where('reference', $reference)->exists()) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Usuario no autenticado'
-                ], 401);
+                    'error' => 'Esta referencia de pago ya ha sido registrada anteriormente.'
+                ], 422);
             }
 
-        // Validar los datos de entrada
-        $request->validate([
-            'reference' => 'required|string|max:255',
-            'amount' => 'required|numeric|min:0.01',
-            'bank' => 'required|string',
-            'phone' => 'required|string',
-        ]);
-
-        $reference = $request->reference;
-        $amountBs = $request->amount;
-        $bank = $request->bank;
-        $phoneNumber = $request->phone;
-        $currentDate = now()->format('Y-m-d');
-
-        // Validar que la referencia no exista previamente
-        if (Payment::where('reference', $reference)->exists()) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Esta referencia de pago ya ha sido registrada anteriormente.'
-            ], 422);
-        }
-
-        // Validar la referencia con el banco
+            // Validar la referencia con el banco
             $result = BncHelper::validateOperationReference(
                 $reference,
-                $currentDate,
+                $paymentDate,
                 $amountBs,
                 $bank,
                 $phoneNumber
@@ -456,8 +446,27 @@ class PaymentController extends Controller
                 ]);
             }
 
+            // Validar que el status sea OK
+            if (!isset($result['status']) || $result['status'] !== 'OK') {
+                return response()->json([
+                    'success' => false,
+                    'showReportLink' => true,
+                    'message' => $result['message'] ?? 'No se pudo validar el pago con el banco. ¿Desea reportar su pago manualmente?'
+                ]);
+            }
+
+            // Obtener datos desencriptados
+            $decrypted = $result['decrypted'] ?? null;
+            if (!$decrypted) {
+                return response()->json([
+                    'success' => false,
+                    'showReportLink' => true,
+                    'message' => 'No se pudo obtener la información del pago. ¿Desea reportar su pago manualmente?'
+                ]);
+            }
+
             // Validar si el movimiento existe
-            if (!$result['MovementExists']) {
+            if (!isset($decrypted['MovementExists']) || !$decrypted['MovementExists']) {
                 return response()->json([
                     'success' => false,
                     'showReportLink' => true,
@@ -466,7 +475,7 @@ class PaymentController extends Controller
             }
 
             // Validar que el monto sea correcto (con un margen de error de 0.01)
-            $amountDiff = abs($result['Amount'] - $amountBs);
+            $amountDiff = abs(($decrypted['Amount'] ?? 0) - $amountBs);
             if ($amountDiff > 0.01) {
                 return response()->json([
                     'success' => false,
@@ -489,101 +498,61 @@ class PaymentController extends Controller
             // Convertir el monto de bolívares a dólares
             $amountInUSD = $amountBs / $bcvRate;
 
-            // Crear el pago marcado como verificado (este método sí verifica automáticamente)
+            // Crear el pago marcado como verificado
             $payment = Payment::create([
                 'reference' => $reference,
                 'user_id' => $user->id,
-                'invoice_id' => null,
+                'invoice_wispro' => $request->invoice_id,
                 'amount' => $amountInUSD,
                 'id_number' => $user->id_number ?? 'V-00000000',
-                'bank' => '0191', // BNC
-                'phone' => $user->phone ?? '0000-0000000',
-                'payment_date' => $currentDate,
+                'bank' => $bank,
+                'phone' => $phoneNumber,
+                'payment_date' => $request->payment_date, // Guardar en formato Y-m-d para la BD
                 'verify_payments' => true, // Marcado como verificado (validación automática BNC)
             ]);
 
-            // Aplicar el pago a facturas pendientes (misma lógica que en store)
-            $remainingPayment = $amountInUSD;
-            $appliedInvoices = [];
+            // Registrar el pago en Wispro SIEMPRE que la validación fue exitosa (si vienen los datos necesarios)
+            if ($result['status'] === 'OK') {
+                try {
+                    $paymentDate = now()->format('c'); // Formato ISO8601
+                    $wisproApiService = new WisproApiService();
+                    $wisproPaymentResponse = $wisproApiService->registerPayment(
+                        $request->invoice_id,
+                        $request->client_id,
+                        $paymentDate,
+                        $amountInUSD
+                    );
 
-            $invoices = $user->invoices()
-                ->where('status', '!=', 'paid')
-                ->orderBy('period')
-                ->get();
-
-            if ($invoices->count() > 0) {
-                foreach ($invoices as $invoice) {
-                    $remaining = $invoice->amount_due - $invoice->amount_paid;
-
-                    if ($remaining <= 0) continue;
-
-                    if ($remainingPayment > 0) {
-                        $paymentToApply = min($remaining, $remainingPayment);
-
-                        if ($paymentToApply > 0) {
-                            // Crear un nuevo registro de pago asociado a la factura
-                            Payment::create([
-                                'reference' => $reference . ' (Aplicado a Factura)',
-                                'user_id' => $user->id,
-                                'invoice_id' => $invoice->id,
-                                'amount' => $paymentToApply,
-                                'id_number' => $user->id_number ?? 'V-00000000',
-                                'bank' => '0191',
-                                'phone' => $user->phone ?? '0000-0000000',
-                                'payment_date' => $currentDate,
-                                'verify_payments' => true, // Marcado como verificado (validación automática BNC)
-                            ]);
-
-                            $invoice->amount_paid += $paymentToApply;
-                            $remainingPayment -= $paymentToApply;
-
-                            // Actualizar estado de la factura
-                            $amountDiff = abs($invoice->amount_paid - $invoice->amount_due);
-                            if ($amountDiff < 0.01 || $invoice->amount_paid >= $invoice->amount_due) {
-                                $invoice->amount_paid = $invoice->amount_due;
-                                $invoice->status = 'paid';
-                            } elseif ($invoice->amount_paid > 0) {
-                                $invoice->status = 'partial';
-                            }
-
-                            $invoice->save();
-
-                            $appliedInvoices[] = [
-                                'id' => $invoice->id,
-                                'period' => $invoice->period ? $invoice->period->format('Y-m') : null,
-                                'applied_amount_usd' => $paymentToApply,
-                                'applied_amount_bs' => $paymentToApply * $bcvRate,
-                                'status' => $invoice->status,
-                            ];
-                        }
+                    if ($wisproPaymentResponse['success']) {
+                        Log::info('VALIDATE P2P: Pago registrado exitosamente en Wispro', [
+                            'invoice_id' => $request->invoice_id,
+                            'client_id' => $request->client_id,
+                            'response' => $wisproPaymentResponse['data']
+                        ]);
+                    } else {
+                        Log::error('VALIDATE P2P: Error al registrar pago en Wispro', [
+                            'invoice_id' => $request->invoice_id,
+                            'client_id' => $request->client_id,
+                            'error' => $wisproPaymentResponse['error'] ?? 'Error desconocido',
+                            'message' => $wisproPaymentResponse['message'] ?? null
+                        ]);
                     }
-
-                    if ($remainingPayment <= 0) break;
+                } catch (\Exception $e) {
+                    Log::error('VALIDATE P2P: Excepción al registrar pago en Wispro', [
+                        'message' => $e->getMessage()
+                    ]);
                 }
             }
 
-            // Actualizar el crédito del usuario (en bolívares)
-            $remainingPaymentBs = $remainingPayment * $bcvRate; // Convertir a bolívares
-            $currentCreditBs = $user->credit_balance ?? 0; // Ya está en bolívares
-            $finalCreditBalance = $currentCreditBs + $remainingPaymentBs;
-            User::where('id', $user->id)->update(['credit_balance' => $finalCreditBalance]);
-
             // Preparar mensaje de respuesta
-            $message = 'Pago verificado y procesado exitosamente. ';
-            if (count($appliedInvoices) > 0) {
-                $message .= 'Aplicado a ' . count($appliedInvoices) . ' factura(s). ';
-            }
-            if ($remainingPayment > 0) {
-                $message .= 'Crédito disponible: Bs. ' . number_format($remainingPaymentBs, 2);
-            }
+            $message = 'Pago verificado y procesado exitosamente.';
 
             return response()->json([
                 'success' => true,
                 'message' => $message,
                 'data' => [
                     'payment_id' => $payment->id,
-                    'applied_invoices' => $appliedInvoices,
-                    'remaining_credit' => $remainingPayment,
+                    'amount_usd' => $amountInUSD,
                     'verified' => true
                 ]
             ]);
@@ -725,7 +694,7 @@ class PaymentController extends Controller
             $payment = Payment::create([
                 'reference' => $reference,
                 'user_id' => $user->id,
-                'invoice_id' => null,
+                'invoice_wispro' => $request->invoice_id,
                 'amount' => $amountInUSD,
                 'id_number' => $normalizedId,
                 'bank' => str_pad($request->debtor_bank_code, 4, '0', STR_PAD_LEFT),
@@ -740,9 +709,10 @@ class PaymentController extends Controller
                     $paymentDate = now()->format('c'); // Formato ISO8601
                     $wisproApiService = new WisproApiService();
                     $wisproPaymentResponse = $wisproApiService->registerPayment(
-                        [$request->invoice_id],
+                        $request->invoice_id,
                         $request->client_id,
-                        $paymentDate
+                        $paymentDate,
+                        $amountInUSD
                     );
 
                     if ($wisproPaymentResponse['success']) {

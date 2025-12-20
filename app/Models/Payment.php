@@ -14,6 +14,7 @@ class Payment extends Model
         'bank',
         'phone',
         'payment_date',
+        'invoice_wispro',
         'amount',
         'image_path',
         'verify_payments',

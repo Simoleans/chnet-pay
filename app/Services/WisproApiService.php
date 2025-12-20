@@ -553,19 +553,24 @@ class WisproApiService
      * @param string $paymentDate Fecha del pago en formato ISO8601 (ej: 2025-01-15T10:30:00+00:00)
      * @return array
      */
-    public function registerPayment(array $invoiceIds, string $clientId, string $paymentDate)
+    public function registerPayment(string $invoiceId, string $clientId, string $paymentDate, float $amountInUSD)
     {
         try {
             $endpoint = '/invoicing/payments';
 
             $data = [
-                'invoice_ids' => $invoiceIds,
+                'invoice_ids' => $invoiceId,
                 'client_id' => $clientId,
                 'payment_date' => $paymentDate,
+                'amount' => $amountInUSD,
             ];
+
+            Log::info('REGISTER PAYMENT wispro: Enviando peticion', ['data' => $data]);
 
             $response = Http::withHeaders($this->getHeaders())
                 ->post($this->baseUrl . $endpoint, $data);
+
+            Log::info('REGISTER PAYMENT wispro: Respuesta recibida', ['response' => $response->json()]);
 
             if ($response->successful()) {
                 return [

@@ -60,7 +60,6 @@ class DashboardController extends Controller
             $contractData = $this->getUserContractAndPlan($user->id_wispro);
             $data = array_merge($data, $contractData);
         }
-
         // Obtener facturas de Wispro
         if ($user->code) {
             $invoicesData = $this->getUserInvoices($user->code);
@@ -133,6 +132,7 @@ class DashboardController extends Controller
                 'latitude' => $contractData['latitude'] ?? null,
                 'longitude' => $contractData['longitude'] ?? null,
                 'state' => $contractData['state'] ?? null,
+                'id' => $contractData['id'] ?? null,
             ];
 
             $data['user_plan'] = $plan;

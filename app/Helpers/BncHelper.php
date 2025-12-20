@@ -240,7 +240,7 @@ class BncHelper
     public static function getBanks(): ?array
     {
         try {
-            Log::info('BNC BANCOS: Iniciando getBanks');
+            //Log::info('BNC BANCOS: Iniciando getBanks');
 
             // Paso 1: Obtener WorkingKey
             $key = self::getWorkingKey();
@@ -272,7 +272,7 @@ class BncHelper
             //Log::info('BNC BANCOS: Enviando peticion a BNC API');
             $response = BncApiService::send('Services/Banks', $body);
 
-            Log::info('BNC BANCOS: Respuesta recibida', ['status' => $response->status()]);
+            //Log::info('BNC BANCOS: Respuesta recibida', ['status' => $response->status()]);
 
             // Paso 6: Procesar respuesta
             if ($response->ok() || $response->status() === 202) {
@@ -286,7 +286,6 @@ class BncHelper
                 // Paso 7: Desencriptar
                 $decrypted = BncCryptoHelper::decryptAES($result['value'], $key);
 
-                Log::info('BNC BANCOS: Desencriptacion exitosa', ['bancos_count' => count($decrypted)]);
                 return $decrypted;
             } else {
                 Log::error('BNC BANCOS: Error HTTP', ['status' => $response->status()]);

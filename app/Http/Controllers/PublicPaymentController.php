@@ -49,6 +49,8 @@ class PublicPaymentController extends Controller
                 }
             }
 
+            //dd($wisproInvoices);
+
             return Inertia::render('PublicPayment', [
                 'user' => $userData,
                 'error' => null,

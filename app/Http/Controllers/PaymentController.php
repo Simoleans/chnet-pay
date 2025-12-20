@@ -409,7 +409,6 @@ class PaymentController extends Controller
      */
     public function validateAndStorePayment(ValidatePaymentRequest $request)
     {
-        Log::info('VALIDATE AND STORE PAYMENT: Request', ['request' => $request->all()]);
         try {
             $user = Auth::user();
 
@@ -517,10 +516,11 @@ class PaymentController extends Controller
                     $paymentDate = now()->format('c'); // Formato ISO8601
                     $wisproApiService = new WisproApiService();
                     $wisproPaymentResponse = $wisproApiService->registerPayment(
-                        $request->invoice_id,
+                        [$request->invoice_id],
                         $request->client_id,
                         $paymentDate,
-                        $amountInUSD
+                        $amountInUSD,
+                        "Referencia {$reference}"
                     );
 
                     if ($wisproPaymentResponse['success']) {
@@ -709,10 +709,11 @@ class PaymentController extends Controller
                     $paymentDate = now()->format('c'); // Formato ISO8601
                     $wisproApiService = new WisproApiService();
                     $wisproPaymentResponse = $wisproApiService->registerPayment(
-                        $request->invoice_id,
+                        [$request->invoice_id],
                         $request->client_id,
                         $paymentDate,
-                        $amountInUSD
+                        $amountInUSD,
+                        "Referencia {$reference}"
                     );
 
                     if ($wisproPaymentResponse['success']) {

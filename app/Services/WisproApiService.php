@@ -518,6 +518,7 @@ class WisproApiService
         try {
             $params = $this->buildPaginationParams($page, $perPage);
             $params['client_custom_id_eq'] = $customId;
+            $params['state_eq'] = 'pending';
 
             $endpoint = '/invoicing/invoices';
             $response = Http::withHeaders($this->getHeaders())
@@ -551,18 +552,21 @@ class WisproApiService
      * @param array $invoiceIds Array de IDs de facturas (UUIDs) a las que se aplica el pago
      * @param string $clientId ID del cliente en Wispro (UUID)
      * @param string $paymentDate Fecha del pago en formato ISO8601 (ej: 2025-01-15T10:30:00+00:00)
+     * @param float $amountInUSD Monto del pago en USD
+     * @param string $comment Comentario del pago
      * @return array
      */
-    public function registerPayment(string $invoiceId, string $clientId, string $paymentDate, float $amountInUSD)
+    public function registerPayment(array $invoiceIds, string $clientId, string $paymentDate, float $amountInUSD, string $comment = '')
     {
         try {
             $endpoint = '/invoicing/payments';
 
             $data = [
-                'invoice_ids' => $invoiceId,
+                'invoice_ids' => $invoiceIds,
                 'client_id' => $clientId,
                 'payment_date' => $paymentDate,
                 'amount' => $amountInUSD,
+                'comment' => $comment,
             ];
 
             Log::info('REGISTER PAYMENT wispro: Enviando peticion', ['data' => $data]);
@@ -573,6 +577,9 @@ class WisproApiService
             Log::info('REGISTER PAYMENT wispro: Respuesta recibida', ['response' => $response->json()]);
 
             if ($response->successful()) {
+                //enable contract
+                $contractId = $this->getClientContracts($clientId);
+                $this->activateContract($contractId['data']['data'][0]['id']);
                 return [
                     'success' => true,
                     'data' => $response->json()
@@ -587,6 +594,41 @@ class WisproApiService
 
         } catch (\Exception $e) {
             Log::error('Error en WisproApiService::registerPayment: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Error de conexión con la API',
+                'message' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Activar un contrato en Wispro
+     * https://www.cloud.wispro.co/api/v1/contracts/{contract_id}?state=enabled
+     * @param string $contractId ID del contrato en Wispro
+     * @return array
+     */
+    public function activateContract($contractId)
+    {
+        try {
+            $endpoint = '/contracts/' . $contractId . '?state=enabled';
+            $response = Http::withHeaders($this->getHeaders())
+                ->put($this->baseUrl . $endpoint);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'message' => 'Contrato activado exitosamente'
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Error al activar el contrato'
+            ];
+
+        }catch (\Exception $e) {
+            Log::error('Error en WisproApiService::activateContract: ' . $e->getMessage());
             return [
                 'success' => false,
                 'error' => 'Error de conexión con la API',

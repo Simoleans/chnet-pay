@@ -36,7 +36,7 @@ const pendingInvoices = computed(() => {
 // Calcular total de facturas pendientes
 const totalPendingAmount = computed(() => {
     if (!pendingInvoices.value.length) return 0;
-    return pendingInvoices.value.reduce((sum: number, invoice: any) => sum + invoice.amount, 0);
+    return pendingInvoices.value.reduce((sum: number, invoice: any) => sum + parseFloat(invoice.amount), 0);
 });
 
 const calculateTotalAmount = computed(() => {

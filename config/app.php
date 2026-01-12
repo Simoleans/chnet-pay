@@ -133,6 +133,13 @@ return [
         'terminal' => env('BNC_TERMINAL', ''),
     ],
 
+    'payment_mobile' => [
+        'name' => env('PM_NAME', ''),
+        'banco' => env('PM_BANCO', ''),
+        'tlf' => env('PM_TLF', ''),
+        'rif' => env('PM_RIF', ''),
+    ],
+
     'recaptcha' => [
         'site_key' => env('RECAPTCHA_SITE_KEY'),
         'secret_key' => env('RECAPTCHA_SECRET_KEY'),

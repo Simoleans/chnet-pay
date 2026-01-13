@@ -124,6 +124,7 @@ class PaymentController extends Controller
                 'phone' => 'required|string|max:20',
                 'payment_date' => 'required|date',
                 'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:4048', // 4MB max
+                'invoice_wispro' => 'nullable|string|max:255', // ID de la factura de Wispro
             ]);
 
         // Manejar la subida de imagen
@@ -161,6 +162,7 @@ class PaymentController extends Controller
             'payment_date' => $validated['payment_date'],
             'image_path' => $imagePath, // Guardar la ruta de la imagen
             'verify_payments' => false, // Sin verificar por defecto
+            'invoice_wispro' => $validated['invoice_wispro'] ?? null, // ID de factura de Wispro
         ]);
 
         // Preparar mensaje informativo
@@ -222,6 +224,30 @@ class PaymentController extends Controller
     {
         try {
             $wasVerified = $payment->verify_payments;
+
+            // Si se está VERIFICANDO (false → true), validar con el banco primero
+            if (!$wasVerified) {
+                $bankValidation = $this->validatePaymentWithBank($payment);
+
+                if (!$bankValidation['success']) {
+                    // Si es una petición Inertia, redirigir de vuelta con error
+                    if ($request->header('X-Inertia')) {
+                        return back()->with('error', $bankValidation['message']);
+                    }
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => $bankValidation['message']
+                    ], 422);
+                }
+
+                // Validación exitosa, registrar en Wispro si tiene invoice_wispro
+                if ($payment->invoice_wispro) {
+                    $this->registerPaymentInWispro($payment);
+                }
+            }
+
+            // Cambiar el estado de verificación
             $payment->verify_payments = !$payment->verify_payments;
             $payment->save();
 
@@ -253,13 +279,169 @@ class PaymentController extends Controller
 
             // Si es una petición Inertia, redirigir de vuelta con error
             if ($request->header('X-Inertia')) {
-                return back()->with('error', 'Error al actualizar la verificación del pago');
+                return back()->with('error', 'Error al actualizar la verificación del pago: ' . $e->getMessage());
             }
 
             return response()->json([
                 'success' => false,
                 'message' => 'Error al actualizar la verificación del pago'
             ], 500);
+        }
+    }
+
+    /**
+     * Valida un pago con el banco (BNC)
+     */
+    private function validatePaymentWithBank(Payment $payment): array
+    {
+        try {
+            // Validar que tenga referencia
+            if (empty($payment->reference)) {
+                return [
+                    'success' => false,
+                    'message' => 'El pago no tiene referencia para validar.'
+                ];
+            }
+
+            // Convertir la fecha al formato ISO 8601 requerido por el banco
+            $paymentDate = date('Y-m-d\TH:i:s', strtotime($payment->payment_date));
+
+            // Obtener la tasa BCV para calcular el monto en Bs
+            $bcvData = BncHelper::getBcvRatesCached();
+            $bcvRate = $bcvData['Rate'] ?? null;
+
+            if (!$bcvRate) {
+                return [
+                    'success' => false,
+                    'message' => 'No se pudo obtener la tasa BCV para validar el pago.'
+                ];
+            }
+
+            // Calcular monto en bolívares
+            $amountBs = $payment->amount * $bcvRate;
+
+            // Validar la referencia con el banco
+            $result = BncHelper::validateOperationReference(
+                $payment->reference,
+                $paymentDate,
+                $amountBs,
+                $payment->bank,
+                $payment->phone
+            );
+
+            if (!$result) {
+                return [
+                    'success' => false,
+                    'message' => 'No se pudo validar la referencia con el banco. Verifique que los datos sean correctos.'
+                ];
+            }
+
+            // Validar que el status sea OK
+            if (!isset($result['status']) || $result['status'] !== 'OK') {
+                return [
+                    'success' => false,
+                    'message' => $result['message'] ?? 'El banco rechazó la validación. Verifique los datos del pago.'
+                ];
+            }
+
+            // Obtener datos desencriptados
+            $decrypted = $result['decrypted'] ?? null;
+            if (!$decrypted) {
+                return [
+                    'success' => false,
+                    'message' => 'No se pudo obtener la información del pago desde el banco.'
+                ];
+            }
+
+            // Validar si el movimiento existe
+            if (!isset($decrypted['MovementExists']) || !$decrypted['MovementExists']) {
+                return [
+                    'success' => false,
+                    'message' => 'No se encontró ningún movimiento con esta referencia en el banco.'
+                ];
+            }
+
+            // Validar que el monto sea correcto (con un margen de error de 0.01)
+            $amountDiff = abs(($decrypted['Amount'] ?? 0) - $amountBs);
+            if ($amountDiff > 0.01) {
+                return [
+                    'success' => false,
+                    'message' => 'El monto del pago no coincide con el registrado en el banco. Esperado: ' . number_format($amountBs, 2) . ' Bs, Encontrado: ' . number_format($decrypted['Amount'] ?? 0, 2) . ' Bs'
+                ];
+            }
+
+            Log::info('Pago validado exitosamente con el banco', [
+                'payment_id' => $payment->id,
+                'reference' => $payment->reference,
+                'amount_bs' => $amountBs
+            ]);
+
+            return [
+                'success' => true,
+                'message' => 'Pago validado exitosamente con el banco.'
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Error al validar pago con el banco: ' . $e->getMessage(), [
+                'payment_id' => $payment->id,
+                'reference' => $payment->reference
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Error al validar con el banco: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Registra el pago en Wispro
+     */
+    private function registerPaymentInWispro(Payment $payment): void
+    {
+        try {
+            $user = $payment->user;
+
+            if (!$user || !$user->id_wispro) {
+                Log::warning('No se puede registrar pago en Wispro: usuario sin id_wispro', [
+                    'payment_id' => $payment->id,
+                    'user_id' => $payment->user_id
+                ]);
+                return;
+            }
+
+            $paymentDate = now()->format('c'); // Formato ISO8601
+            $wisproApiService = new \App\Services\WisproApiService();
+
+            $wisproPaymentResponse = $wisproApiService->registerPayment(
+                [$payment->invoice_wispro],
+                $user->id_wispro,
+                $paymentDate,
+                $payment->amount,
+                "Referencia: {$payment->reference}"
+            );
+
+            if ($wisproPaymentResponse['success']) {
+                Log::info('Pago registrado exitosamente en Wispro', [
+                    'payment_id' => $payment->id,
+                    'invoice_wispro' => $payment->invoice_wispro,
+                    'client_id' => $user->id_wispro,
+                    'response' => $wisproPaymentResponse['data']
+                ]);
+            } else {
+                Log::error('Error al registrar pago en Wispro', [
+                    'payment_id' => $payment->id,
+                    'invoice_wispro' => $payment->invoice_wispro,
+                    'client_id' => $user->id_wispro,
+                    'error' => $wisproPaymentResponse['error'] ?? 'Error desconocido',
+                    'message' => $wisproPaymentResponse['message'] ?? null
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Excepción al registrar pago en Wispro', [
+                'payment_id' => $payment->id,
+                'message' => $e->getMessage()
+            ]);
         }
     }
 

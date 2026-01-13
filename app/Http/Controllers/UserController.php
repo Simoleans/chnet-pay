@@ -548,14 +548,59 @@ class UserController extends Controller
     public function searchByCode(string $code)
     {
         try {
-            $userData = User::searchByCode($code);
+            $user = User::where('code', $code)
+                ->where('status', true)
+                ->first();
 
-            if (!$userData) {
+            if (!$user) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No se encontró ningún usuario con ese código'
                 ]);
             }
+
+            // Obtener contrato y plan si el usuario tiene id_wispro
+            $plan = null;
+            if ($user->id_wispro) {
+                $contractsResponse = $this->wisproApiService->getClientContracts($user->id_wispro);
+
+                if ($contractsResponse['success'] && !empty($contractsResponse['data']['data'])) {
+                    $contractData = $contractsResponse['data']['data'][0]; // Obtener el primer contrato
+
+                    // Obtener información del plan
+                    if (!empty($contractData['plan_id'])) {
+                        $planResponse = $this->wisproApiService->getPlanById($contractData['plan_id']);
+
+                        if ($planResponse['success']) {
+                            $planData = $planResponse['data']['data'] ?? $planResponse['data'];
+                            $plan = [
+                                'name' => $planData['name'] ?? 'N/A',
+                                'price' => $planData['price'] ?? 0,
+                            ];
+                        }
+                    }
+                }
+            }
+
+            // Obtener facturas de Wispro pendientes
+            $wisproInvoices = $this->getWisproInvoices($user->code);
+
+            // Filtrar solo las facturas pendientes
+            $pendingInvoices = collect($wisproInvoices)->filter(function ($invoice) {
+                return $invoice['state'] === 'pending';
+            })->values()->toArray();
+
+            $userData = [
+                'id' => $user->id,
+                'name' => $user->name,
+                'code' => $user->code,
+                'zone' => $user->zone,
+                'plan' => $plan,
+                'credit_balance' => $user->credit_balance ?? 0,
+                'total_debt' => $user->due,
+                'pending_invoices' => $pendingInvoices,
+                'pending_invoices_count' => count($pendingInvoices),
+            ];
 
             return response()->json([
                 'success' => true,

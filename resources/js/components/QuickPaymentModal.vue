@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import { useNotifications } from '@/composables/useNotifications';
 import { useBcvStore } from '@/stores/bcv';
 import { useBanksStore } from '@/stores/banks';
 import { storeToRefs } from 'pinia';
+import { usePage } from '@inertiajs/vue3';
 const { notify } = useNotifications();
 
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,20 @@ import { Label } from '@/components/ui/label';
 interface Props {
     open?: boolean;
 }
+
+const page = usePage();
+const paymentMobile = computed(() => {
+    return (page.props.paymentMobile as {
+        name?: string;
+        banco?: string;
+        tlf?: string;
+        rif?: string;
+    } | undefined) || {};
+});
+
+const paymentMobileBanco = computed(() => paymentMobile.value.banco);
+const paymentMobileTlf = computed(() => paymentMobile.value.tlf);
+const paymentMobileRif = computed(() => paymentMobile.value.rif);
 
 interface Emits {
     (e: 'update:open', value: boolean): void;
@@ -461,9 +476,9 @@ const handleOpenChange = (open: boolean) => {
                 <div v-if="showPaymentForm" class="bg-blue-50 p-4 rounded-lg border border-blue-200">
                     <h4 class="font-semibold mb-2 text-blue-900">📱 Datos para Pago Móvil:</h4>
                     <div class="text-sm space-y-1 text-blue-800">
-                        <div>🏦 <strong>Banco:</strong> Nacional de Crédito (0191)</div>
-                        <div>👤 <strong>RIF:</strong> J-12569785-7</div>
-                        <div>📞 <strong>Teléfono:</strong> 0412-0355541</div>
+                        <div>🏦 <strong>Banco:</strong> {{ paymentMobileBanco }}</div>
+                        <div>👤 <strong>RIF:</strong> {{ paymentMobileRif }}</div>
+                        <div>📞 <strong>Teléfono:</strong> {{ paymentMobileTlf }}</div>
                     </div>
                 </div>
 

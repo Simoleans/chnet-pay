@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useBcvStore } from '@/stores/bcv';
 import { useBanksStore } from '@/stores/banks';
 import { storeToRefs } from 'pinia';
+import { usePage } from '@inertiajs/vue3';
 
 interface Props {
     user: any;
@@ -14,6 +15,19 @@ interface Props {
     wisproInvoices?: any[];
 }
 
+const page = usePage();
+const paymentMobile = computed(() => {
+    return (page.props.paymentMobile as {
+        name?: string;
+        banco?: string;
+        tlf?: string;
+        rif?: string;
+    } | undefined) || {};
+});
+const paymentMobileName = computed(() => paymentMobile.value.name);
+const paymentMobileBanco = computed(() => paymentMobile.value.banco);
+const paymentMobileTlf = computed(() => paymentMobile.value.tlf);
+const paymentMobileRif = computed(() => paymentMobile.value.rif);
 const props = defineProps<Props>();
 
 // Store BCV
@@ -242,15 +256,15 @@ const formatPrice = (price: number) => {
                     <div class="space-y-2 text-sm text-gray-800">
                         <div class="flex items-center gap-2">
                             <span class="font-semibold">Banco:</span>
-                            <span>Nacional de Crédito (0191)</span>
+                            <span>{{ paymentMobileBanco }}</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="font-semibold">RIF:</span>
-                            <span>J-12569785-7</span>
+                            <span>{{ paymentMobileRif }}</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="font-semibold">Teléfono:</span>
-                            <span>0412-0355541</span>
+                            <span>{{ paymentMobileTlf }}</span>
                         </div>
                         <div class="mt-4 p-3 bg-white rounded-lg border-2 border-green-500">
                             <p class="text-xs text-gray-600 mb-1">Monto Total a Pagar:</p>

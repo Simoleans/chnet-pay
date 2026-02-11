@@ -29,20 +29,30 @@ class BncHelper
 
     public static function getBcvRatesCached(): ?array
     {
-       /*  $fallback = self::getBcvRateFromBNC();
-        return $fallback; */
         return Cache::remember('bnc_bcv_rate', now()->addMinutes(10), function () {
-            // Intentar obtener la tasa desde el endpoint de pydolarve
+            // PRIMERO: Intentar obtener desde la base de datos (manual)
+            $dbRate = \App\Models\BcvRate::getLatestRate();
+            if ($dbRate) {
+                Log::info('BCV obtenido desde BASE DE DATOS', ['rate' => $dbRate['Rate']]);
+                return $dbRate;
+            }
+
+            // FALLBACK 1: Intentar obtener la tasa desde el endpoint de pydolarve
             $primary = self::getBcvRateFromPydolarve();
-            if ($primary) return $primary;
+            if ($primary) {
+                Log::info('BCV obtenido desde PYDOLARVE (fallback)', ['rate' => $primary['Rate']]);
+                return $primary;
+            }
 
-            // Si falla, intentar obtener la tasa desde el endpoint de bnc
+            // FALLBACK 2: Si falla, intentar obtener la tasa desde el endpoint de bnc
             $fallback = self::getBcvRateFromBNC();
-            if ($fallback) return $fallback;
+            if ($fallback) {
+                Log::info('BCV obtenido desde BNC (fallback)', ['rate' => $fallback['Rate']]);
+                return $fallback;
+            }
 
-
-
-            // Si ambos fallan, retornar null
+            // Si todo falla, retornar null
+            Log::error('BCV: Todas las fuentes fallaron');
             return null;
         });
     }

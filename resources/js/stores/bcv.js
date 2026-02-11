@@ -13,9 +13,7 @@ export const useBcvStore = defineStore('bcv', () => {
 
     try {
       const res = await fetch('/api/bcv')
-      //fetch get a https://servicios.bncenlinea.com:16500/api/Services/BCVRates
-      //alert('https://servicios.bncenlinea.com:16500/api/Services/BCVRates')
-      //const res = await fetch('https://servicios.bncenlinea.com:16500/api/Services/BCVRates')
+
       const json = await res.json()
 
       bcv.value = parseFloat(json?.Rate).toFixed(2) || null

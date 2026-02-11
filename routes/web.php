@@ -53,6 +53,10 @@ Route::get('/api/bcv', function () {
     return response()->json(BncHelper::getBcvRatesCached());
 });
 
+// Rutas para gestión manual de BCV (solo admin)
+Route::post('/api/bcv/store', [App\Http\Controllers\BcvRateController::class, 'store'])->middleware(['auth', 'admin']);
+Route::get('/api/bcv/history', [App\Http\Controllers\BcvRateController::class, 'history'])->middleware(['auth', 'admin']);
+
 //imports
 Route::get('/import-clients', function () {
     return Inertia::render('User/ImportUsers');

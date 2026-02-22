@@ -133,11 +133,21 @@ return [
         'terminal' => env('BNC_TERMINAL', ''),
     ],
 
+    'bdv' => [
+        'api_key' => env('API_KEY', ''),
+        'base_url' => env('BDV_BASE_URL', ''),
+    ],
+
     'payment_mobile' => [
         'name' => env('PM_NAME', ''),
         'banco' => env('PM_BANCO', ''),
         'tlf' => env('PM_TLF', ''),
         'rif' => env('PM_RIF', ''),
+    ],
+
+    'ipg2' => [
+        'client_id' => env('IPG2_CLIENT_ID', ''),
+        'client_secret' => env('IPG2_CLIENT_SECRET', ''),
     ],
 
     'recaptcha' => [

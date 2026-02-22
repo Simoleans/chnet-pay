@@ -6,6 +6,7 @@ import { ref } from 'vue';
 
 // Modals
 import ReportPaymentModal from '../components/ReportPaymentModal.vue';
+import UserPaymentBankSelector from '../components/UserPaymentBankSelector.vue';
 import UserPaymentModal from '../components/UserPaymentModal.vue';
 import PaymentDetailsModal from '../components/PaymentDetailsModal.vue';
 import PaymentReceiptModal from '../components/PaymentReceiptModal.vue';
@@ -93,6 +94,7 @@ banksStore.loadBanks()
 
 // Estado para los modales
 const showReportPaymentModal = ref(false)
+const showBankSelector = ref(false)
 const showUserPaymentModal = ref(false)
 const showPaymentDetailsModal = ref(false)
 const showReceiptModal = ref(false)
@@ -120,7 +122,14 @@ const viewReceipt = (payment: any) => {
 
 const openPaymentModal = (invoice?: any) => {
     selectedInvoice.value = invoice || null
-    showUserPaymentModal.value = true
+    showBankSelector.value = true
+}
+
+const handleBankSelected = (bank: 'bnc' | 'bdv') => {
+    if (bank === 'bnc') {
+        showUserPaymentModal.value = true
+    }
+    // BDV: pendiente de implementar
 }
 
 </script>
@@ -185,7 +194,13 @@ const openPaymentModal = (invoice?: any) => {
             </template>
         </div>
 
-        <!-- Modal de pago del usuario -->
+        <!-- Selector de banco -->
+        <UserPaymentBankSelector
+            v-model:open="showBankSelector"
+            @select-bank="handleBankSelected"
+        />
+
+        <!-- Modal de pago del usuario (BNC) -->
         <UserPaymentModal
             v-model:open="showUserPaymentModal"
             :user-plan="user_plan"

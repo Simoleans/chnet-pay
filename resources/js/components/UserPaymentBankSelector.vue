@@ -39,9 +39,9 @@ const selectBank = (bank: 'bnc' | 'bdv') => {
     <Dialog :open="open" @update:open="handleOpenChange">
         <DialogContent class="sm:max-w-md">
             <DialogHeader>
-                <DialogTitle>Selecciona tu banco</DialogTitle>
+                <DialogTitle>Selecciona el banco donde hiciste el pago</DialogTitle>
                 <DialogDescription>
-                    Elige el banco con el que deseas realizar el pago
+                    Elige el banco con el que deseas <strong>verificar</strong> el pago
                 </DialogDescription>
             </DialogHeader>
 

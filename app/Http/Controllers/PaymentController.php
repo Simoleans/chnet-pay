@@ -127,6 +127,14 @@ class PaymentController extends Controller
                 'invoice_wispro' => 'nullable|string|max:255', // ID de la factura de Wispro
             ]);
 
+        // Validar que la referencia no exista previamente
+        if (!empty($validated['reference']) && Payment::where('reference', $validated['reference'])->exists()) {
+            if ($request->is('quick-payment')) {
+                return back()->with('error', 'Esta referencia de pago ya fue registrada anteriormente.');
+            }
+            return redirect()->back()->with('error', 'Esta referencia de pago ya fue registrada anteriormente.');
+        }
+
         // Manejar la subida de imagen
         $imagePath = null;
         if ($request->hasFile('image')) {
@@ -241,9 +249,10 @@ class PaymentController extends Controller
                     ], 422);
                 }
 
-                // Validación exitosa, registrar en Wispro si tiene invoice_wispro
-                if ($payment->invoice_wispro) {
+                // Validación exitosa, registrar en Wispro si tiene invoice_wispro y no fue registrado antes
+                if ($payment->invoice_wispro && !$payment->wispro_registered) {
                     $this->registerPaymentInWispro($payment);
+                    $payment->update(['wispro_registered' => true]);
                 }
             }
 
@@ -411,7 +420,7 @@ class PaymentController extends Controller
             }
 
             $paymentDate = now()->format('c'); // Formato ISO8601
-            $wisproApiService = new \App\Services\WisproApiService();
+            $wisproApiService = new WisproApiService();
 
             $wisproPaymentResponse = $wisproApiService->registerPayment(
                 [$payment->invoice_wispro],
@@ -688,8 +697,9 @@ class PaymentController extends Controller
                 'id_number' => $user->id_number ?? 'V-00000000',
                 'bank' => $bank,
                 'phone' => $phoneNumber,
-                'payment_date' => $request->payment_date, // Guardar en formato Y-m-d para la BD
-                'verify_payments' => true, // Marcado como verificado (validación automática BNC)
+                'payment_date' => $request->payment_date,
+                'verify_payments' => true,
+                'wispro_registered' => false,
             ]);
 
             // Registrar el pago en Wispro SIEMPRE que la validación fue exitosa (si vienen los datos necesarios)
@@ -706,6 +716,7 @@ class PaymentController extends Controller
                     );
 
                     if ($wisproPaymentResponse['success']) {
+                        $payment->update(['wispro_registered' => true]);
                         Log::info('VALIDATE P2P: Pago registrado exitosamente en Wispro', [
                             'invoice_id' => $request->invoice_id,
                             'client_id' => $request->client_id,
@@ -882,7 +893,8 @@ class PaymentController extends Controller
                 'bank' => str_pad($request->debtor_bank_code, 4, '0', STR_PAD_LEFT),
                 'phone' => $debtorPhoneDigits,
                 'payment_date' => $currentDate,
-                'verify_payments' => true, // Marcado como verificado (C2P validado por BNC)
+                'verify_payments' => true,
+                'wispro_registered' => false,
             ]);
 
             // Registrar el pago en Wispro SIEMPRE que el C2P fue exitoso (si vienen los datos necesarios)
@@ -899,6 +911,7 @@ class PaymentController extends Controller
                     );
 
                     if ($wisproPaymentResponse['success']) {
+                        $payment->update(['wispro_registered' => true]);
                         Log::info('SEND C2P: Pago registrado exitosamente en Wispro', [
                             'invoice_id' => $request->invoice_id,
                             'client_id' => $request->client_id,

@@ -18,11 +18,13 @@ class Payment extends Model
         'amount',
         'image_path',
         'verify_payments',
+        'wispro_registered',
     ];
 
     protected $casts = [
         'payment_date' => 'date',
         'verify_payments' => 'boolean',
+        'wispro_registered' => 'boolean',
     ];
 
 

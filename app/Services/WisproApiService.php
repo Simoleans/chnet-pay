@@ -567,6 +567,7 @@ class WisproApiService
                 'payment_date' => $paymentDate,
                 'amount' => $amountInUSD,
                 'comment' => $comment,
+                'transaction_kind_id' => '7b320226-e70b-4ec9-93ed-c736224df3bc',
             ];
 
             Log::info('REGISTER PAYMENT wispro: Enviando peticion', ['data' => $data]);

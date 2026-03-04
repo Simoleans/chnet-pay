@@ -27,17 +27,21 @@ const copyCode = () => {
     }
 }
 
+const IVA = 0.16
+
+const applyIva = (price: number) => price * (1 + IVA)
+
 const formatPrice = (price: number | null) => {
     if (!price) return '0.00'
     return new Intl.NumberFormat('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
-    }).format(price)
+    }).format(applyIva(price))
 }
 
 const formatPriceBs = (priceUsd: number | null) => {
     if (!priceUsd || !bcv.value) return '0.00'
-    const priceBs = priceUsd * parseFloat(bcv.value)
+    const priceBs = applyIva(priceUsd) * parseFloat(bcv.value)
     return new Intl.NumberFormat('es-VE', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
@@ -99,7 +103,7 @@ const formatPriceBs = (priceUsd: number | null) => {
                             <p class="font-medium text-lg">{{ userPlan.name }}</p>
                         </div>
                         <div>
-                            <p class="text-xs text-gray-500">Precio</p>
+                            <p class="text-xs text-gray-500">Precio (IVA 16% incluido)</p>
                             <p class="font-medium text-xl text-green-600">
                                 ${{ formatPrice(userPlan.price) }} USD
                             </p>

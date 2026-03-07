@@ -74,6 +74,7 @@ class SyncWisproClientsPage implements ShouldQueue
 
                 if (!$idNumber) {
                     $skipped++;
+                    Log::warning("⚠️ Cliente omitido (sin cédula) - ID Wispro: " . ($client['id'] ?? 'N/A') . " | Nombre: " . ($client['name'] ?? 'Sin nombre') . " | Email: " . ($client['email'] ?? 'Sin email') . " | Página: {$this->page}");
                     DB::rollBack();
                     continue;
                 }

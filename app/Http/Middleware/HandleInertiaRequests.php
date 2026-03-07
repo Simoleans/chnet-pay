@@ -67,6 +67,12 @@ class HandleInertiaRequests extends Middleware
                 'tlf' => config('app.payment_mobile.tlf'),
                 'rif' => config('app.payment_mobile.rif'),
             ],
+            'paymentBdv' => [
+                'name' => config('app.bdv.name'),
+                'banco' => config('app.bdv.banco'),
+                'tlf' => config('app.bdv.tlf'),
+                'rif' => config('app.bdv.rif'),
+            ],
 
         ];
     }

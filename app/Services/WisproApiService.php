@@ -409,6 +409,7 @@ class WisproApiService
                 ]);
 
             if ($response->successful()) {
+                Log::info('GET CLIENT '.$clientId.' CONTRACTS wispro: Respuesta recibida', ['response' => $response->json()]);
                 return [
                     'success' => true,
                     'data' => $response->json()

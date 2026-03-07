@@ -103,6 +103,8 @@ Route::post('/api/bnc/validate-and-store-payment', [App\Http\Controllers\Payment
 
 Route::post('/api/bnc/send-c2p', [App\Http\Controllers\PaymentController::class, 'sendC2P'])->middleware(['auth']);
 
+Route::post('/api/bdv/verify', [App\Http\Controllers\BdvPaymentController::class, 'verify'])->middleware(['auth']);
+
 Route::get('/api/users/search/{code}', [App\Http\Controllers\UserController::class, 'searchByCode']);
 Route::post('/api/users/sync-wispro-all', [App\Http\Controllers\UserController::class, 'syncWisproClients'])->middleware(['auth', 'admin']);
 

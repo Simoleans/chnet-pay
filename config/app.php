@@ -145,6 +145,13 @@ return [
         'rif' => env('PM_RIF', ''),
     ],
 
+    'bdv' => [
+        'name' => env('PM_BDV_NAME', ''),
+        'banco' => env('PM_BDV_BANCO', ''),
+        'tlf' => env('PM_BDV_TLF', ''),
+        'rif' => env('PM_BDV_RIF', ''),
+    ],
+
     'ipg2' => [
         'client_id' => env('IPG2_CLIENT_ID', ''),
         'client_secret' => env('IPG2_CLIENT_SECRET', ''),

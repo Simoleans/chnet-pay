@@ -3,28 +3,47 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use App\Services\BdvApiService;
+use App\Services\WisproApiService;
+use App\Models\BcvRate;
 use App\Models\Invoice;
 use App\Models\Payment;
+
 class BdvPaymentController extends Controller
 {
+    // Códigos BDV que indican un pago válido/existente
+    private const BDV_CODE_OK           = 1000; // Transacción realizada (nueva)
+    private const BDV_CODE_RECONCILED   = 1010; // Ya fue conciliada anteriormente
+
     public function verify(Request $request, BdvApiService $bdv)
     {
         $data = $request->validate([
-            'cedulaPagador'   => ['required','string'],
-            'telefonoPagador' => ['required','string'],
-            'telefonoDestino' => ['required','string'],
-            'referencia'      => ['required','string'],
-            'fechaPago'       => ['required','string'], // ideal: date_format
-            'importe'         => ['required','string'],
-            'bancoOrigen'     => ['required','string'],
-            'reqCed'          => ['sometimes','boolean'],
+            'cedulaPagador'   => ['required', 'string'],
+            'telefonoPagador' => ['required', 'string'],
+            'telefonoDestino' => ['required', 'string'],
+            'referencia'      => ['required', 'string'],
+            'fechaPago'       => ['required', 'string'],
+            'importe'         => ['required', 'string'],
+            'bancoOrigen'     => ['required', 'string'],
+            'reqCed'          => ['sometimes', 'boolean'],
+            'invoice_id'      => ['sometimes', 'nullable', 'string'],
+            'client_id'       => ['sometimes', 'nullable', 'string'],
         ]);
 
+        // Normalizar teléfonos: eliminar +58 y dejar formato 04XXXXXXXXX
+        $normalizarTelefono = fn(string $tlf): string =>
+            preg_replace('/^\+?58/', '0', preg_replace('/\D/', '', $tlf));
+
+        $telefonoPagador = $normalizarTelefono($data['telefonoPagador']);
+        $telefonoDestino = $normalizarTelefono($data['telefonoDestino']);
+
+        // 1. Consultar al BDV
         $resp = $bdv->verifyP2P(
             $data['cedulaPagador'],
-            $data['telefonoPagador'],
-            $data['telefonoDestino'],
+            $telefonoPagador,
+            $telefonoDestino,
             $data['referencia'],
             $data['fechaPago'],
             $data['importe'],
@@ -32,7 +51,104 @@ class BdvPaymentController extends Controller
             $data['reqCed'] ?? false
         );
 
-        return response()->json($resp);
+        Log::info('BDV VERIFY P2P: Respuesta del banco', ['response' => $resp]);
+
+        // 2. El banco debe responder con code 1000 o 1010 para considerar el pago válido
+        $code = $resp['code'] ?? null;
+
+        if (!in_array($code, [self::BDV_CODE_OK, self::BDV_CODE_RECONCILED])) {
+            return response()->json([
+                'success' => false,
+                'message' => $resp['message'] ?? 'El banco rechazó la validación del pago.',
+                'bdv_code' => $code,
+            ], 422);
+        }
+
+        // 3. Evitar duplicados en nuestra BD (el banco ya confirma si fue conciliado vía 1010)
+        if (Payment::where('reference', $data['referencia'])->exists()) {
+            return response()->json([
+                'success'            => true,
+                'already_registered' => true,
+                'message'            => 'El pago ya fue registrado anteriormente en el sistema.',
+                'bdv_code'           => $code,
+            ]);
+        }
+
+        // 4. Obtener tasa BCV y convertir Bs → USD
+        $bcvData = BcvRate::getLatestRate();
+        $bcvRate = $bcvData['Rate'] ?? null;
+
+        if (!$bcvRate) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo obtener la tasa BCV. Intente nuevamente.',
+            ], 500);
+        }
+
+        $amountBs  = (float) $data['importe'];
+        $amountUsd = $amountBs / $bcvRate;
+
+        // 5. Guardar el pago como verificado (el banco ya lo confirmó)
+        $user    = Auth::user();
+        $payment = Payment::create([
+            'reference'        => $data['referencia'],
+            'user_id'          => $user?->id,
+            'invoice_wispro'   => $data['invoice_id'] ?? null,
+            'amount'           => $amountUsd,
+            'id_number'        => $data['cedulaPagador'],
+            'bank'             => $data['bancoOrigen'],
+            'phone'            => $data['telefonoPagador'],
+            'payment_date'     => $data['fechaPago'],
+            'verify_payments'  => true,
+            'wispro_registered' => false,
+        ]);
+
+        // 6. Registrar en Wispro si vienen los datos necesarios
+        if (!empty($data['invoice_id']) && !empty($data['client_id'])) {
+            try {
+                $wisproApiService      = new WisproApiService();
+                $wisproPaymentResponse = $wisproApiService->registerPayment(
+                    [$data['invoice_id']],
+                    $data['client_id'],
+                    now()->format('c'),
+                    $amountUsd,
+                    "Referencia {$data['referencia']}"
+                );
+
+                if ($wisproPaymentResponse['success']) {
+                    $payment->update(['wispro_registered' => true]);
+                    Log::info('BDV VERIFY P2P: Pago registrado en Wispro', [
+                        'invoice_id' => $data['invoice_id'],
+                        'client_id'  => $data['client_id'],
+                        'response'   => $wisproPaymentResponse['data'],
+                    ]);
+                } else {
+                    Log::error('BDV VERIFY P2P: Error al registrar en Wispro', [
+                        'invoice_id' => $data['invoice_id'],
+                        'client_id'  => $data['client_id'],
+                        'error'      => $wisproPaymentResponse['error'] ?? 'Error desconocido',
+                        'message'    => $wisproPaymentResponse['message'] ?? null,
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::error('BDV VERIFY P2P: Excepción al registrar en Wispro', [
+                    'message' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return response()->json([
+            'success'  => true,
+            'message'  => $resp['message'] ?? 'Pago verificado y registrado exitosamente.',
+            'bdv_code' => $code,
+            'data'     => [
+                'payment_id'   => $payment->id,
+                'amount_bs'    => $amountBs,
+                'amount_usd'   => $amountUsd,
+                'verified'     => true,
+                'bdv_response' => $resp['data'] ?? null,
+            ],
+        ]);
     }
 
     public function sendOtp(Request $request, BdvApiService $bdv)

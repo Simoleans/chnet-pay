@@ -8,6 +8,7 @@ import { ref } from 'vue';
 import ReportPaymentModal from '../components/ReportPaymentModal.vue';
 import UserPaymentBankSelector from '../components/UserPaymentBankSelector.vue';
 import UserPaymentModal from '../components/UserPaymentModal.vue';
+import UserPaymentBdvModal from '../components/UserPaymentBdvModal.vue';
 import PaymentDetailsModal from '../components/PaymentDetailsModal.vue';
 import PaymentReceiptModal from '../components/PaymentReceiptModal.vue';
 
@@ -96,6 +97,7 @@ banksStore.loadBanks()
 const showReportPaymentModal = ref(false)
 const showBankSelector = ref(false)
 const showUserPaymentModal = ref(false)
+const showBdvPaymentModal  = ref(false)
 const showPaymentDetailsModal = ref(false)
 const showReceiptModal = ref(false)
 const showPendingInvoiceAlert = ref(props.show_pending_invoice_alert || false)
@@ -128,8 +130,9 @@ const openPaymentModal = (invoice?: any) => {
 const handleBankSelected = (bank: 'bnc' | 'bdv') => {
     if (bank === 'bnc') {
         showUserPaymentModal.value = true
+    } else if (bank === 'bdv') {
+        showBdvPaymentModal.value = true
     }
-    // BDV: pendiente de implementar
 }
 
 </script>
@@ -206,6 +209,13 @@ const handleBankSelected = (bank: 'bnc' | 'bdv') => {
             :user-plan="user_plan"
             :selected-invoice="selectedInvoice"
             @openReportModal="handleOpenReportModal"
+        />
+
+        <!-- Modal de pago del usuario (BDV) -->
+        <UserPaymentBdvModal
+            v-model:open="showBdvPaymentModal"
+            :user-plan="user_plan"
+            :selected-invoice="selectedInvoice"
         />
 
         <!-- Modal para reportar pago -->

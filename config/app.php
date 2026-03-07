@@ -150,6 +150,8 @@ return [
         'banco' => env('PM_BDV_BANCO', ''),
         'tlf' => env('PM_BDV_TLF', ''),
         'rif' => env('PM_BDV_RIF', ''),
+        'base_url' => env('BDV_BASE_URL', ''),
+        'api_key' => env('API_KEY', ''),
     ],
 
     'ipg2' => [

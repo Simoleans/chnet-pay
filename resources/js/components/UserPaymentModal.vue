@@ -75,6 +75,8 @@ const { bcv } = storeToRefs(bcvStore);
 const banksStore = useBanksStore();
 const { banks, loading: banksLoading, error: banksError } = storeToRefs(banksStore as any);
 
+const PHONE_PREFIXES = ['0412', '0414', '0424', '0426', '0416'];
+
 // Estados para el pago
 const paymentLoading = ref(false);
 const paymentError = ref(false);
@@ -85,14 +87,16 @@ const paymentDate = ref('');
 const showReportLink = ref(false);
 // Estados para validación manual
 const manualBankCode = ref('0191');
-const manualPhone = ref('');
+const manualPhonePrefix = ref('0412');
+const manualPhoneNumber = ref('');
 // Estados para C2P
 const showC2PSection = ref(false);
 const c2pLoading = ref(false);
 const c2pBankCode = ref('');
 const c2pToken = ref('');
 const c2pId = ref('');
-const c2pPhone = ref('');
+const c2pPhonePrefix = ref('0412');
+const c2pPhoneNumber = ref('');
 
 const suggestedAmountBs = computed(() => {
     // Usar factura si existe, sino usar plan
@@ -139,9 +143,11 @@ const resetStates = () => {
     paymentDate.value = '';
     showReportLink.value = false;
     manualBankCode.value = '0191';
-    manualPhone.value = '';
+    manualPhonePrefix.value = '0412';
+    manualPhoneNumber.value = '';
     showC2PSection.value = false;
-    // No resetear selectedInvoice aquí, se maneja desde el componente padre
+    c2pPhonePrefix.value = '0412';
+    c2pPhoneNumber.value = '';
 };
 
 const openC2PSection = () => {
@@ -150,7 +156,7 @@ const openC2PSection = () => {
         referenceNumber.value = '';
         paymentAmount.value = '';
         paymentDate.value = '';
-        manualPhone.value = '';
+        manualPhoneNumber.value = '';
         showReportLink.value = false;
     }
 
@@ -173,7 +179,7 @@ const openC2PSection = () => {
 const sendC2P = async () => {
     c2pLoading.value = true;
     try {
-        if (!c2pBankCode.value || !c2pToken.value || !c2pId.value || !c2pPhone.value) {
+        if (!c2pBankCode.value || !c2pToken.value || !c2pId.value || !c2pPhoneNumber.value) {
             notify({ message: 'Complete los datos del C2P', type: 'error', duration: 2000 });
             c2pLoading.value = false;
             return;
@@ -189,21 +195,17 @@ const sendC2P = async () => {
         }
         c2pId.value = normalized;
 
-        // Validación de teléfono: 10 dígitos, luego agregamos el 58
-        let phoneDigits = c2pPhone.value.replace(/\D/g, '');
-
-        // Si comienza con 0, quitarlo (0412 -> 412)
-        if (phoneDigits.startsWith('0')) {
-            phoneDigits = phoneDigits.substring(1);
-        }
-
-        if (!/^\d{10}$/.test(phoneDigits)) {
-            notify({ message: `Teléfono inválido. Debe tener 10 dígitos (recibido: ${phoneDigits.length}). Ejemplo: 4120355541 o 04120355541`, type: 'error', duration: 3000 });
+        // Validación de teléfono: 7 dígitos después del prefijo
+        const phoneDigits7 = c2pPhoneNumber.value.replace(/\D/g, '');
+        if (!/^\d{7}$/.test(phoneDigits7)) {
+            notify({ message: 'El teléfono debe tener exactamente 7 dígitos después del prefijo', type: 'error', duration: 2500 });
             c2pLoading.value = false;
             return;
         }
-        // Agregar el prefijo 58 automáticamente
-        const phoneWithPrefix = '58' + phoneDigits;
+        // Construir número completo: quitar el 0 inicial del prefijo y agregar 58
+        // Ej: 0412 + 1234567 → 4121234567 → 584121234567
+        const phoneDigits10 = c2pPhonePrefix.value.substring(1) + phoneDigits7;
+        const phoneWithPrefix = '58' + phoneDigits10;
 
         // Calcular monto exacto: usar factura si existe, sino usar plan
         let amountToPay = 0;
@@ -360,7 +362,7 @@ const checkPayment = async () => {
     // Limpiar formulario de C2P si estaba activo
     if (showC2PSection.value) {
         c2pToken.value = '';
-        c2pPhone.value = '';
+        c2pPhoneNumber.value = '';
         c2pBankCode.value = banks.value && banks.value.length > 0 ? String(banks.value[0].Code || '') : '';
     }
 
@@ -373,11 +375,6 @@ const checkPayment = async () => {
     // Cargar bancos si no están cargados
     if (!banks.value || banks.value.length === 0) {
         banksStore.loadBanks();
-    }
-
-    // Precargar teléfono del usuario si existe
-    if (page.props.auth?.user?.phone && !manualPhone.value) {
-        manualPhone.value = page.props.auth.user.phone;
     }
 
     // Precargar fecha actual
@@ -393,15 +390,20 @@ const checkPayment = async () => {
 
     try {
         if (referenceNumber.value.trim()) {
-            console.log('LOG:: Validando referencia:', referenceNumber.value);
-            console.log('LOG:: Monto esperado:', paymentAmount.value);
+            // Validar 7 dígitos del número de teléfono
+            if (!/^\d{7}$/.test(manualPhoneNumber.value.trim())) {
+                notify({ message: 'El teléfono debe tener exactamente 7 dígitos después del prefijo', type: 'error', duration: 2500 });
+                paymentLoading.value = false;
+                return;
+            }
+            const manualPhoneFull = manualPhonePrefix.value + manualPhoneNumber.value.trim();
 
             // Preparar payload con invoice_id y client_id si están disponibles
             const payload: any = {
                 reference: referenceNumber.value,
                 amount: parseFloat(paymentAmount.value),
                 bank: manualBankCode.value,
-                phone: manualPhone.value,
+                phone: manualPhoneFull,
                 payment_date: paymentDate.value
             };
 
@@ -609,15 +611,25 @@ const setYesterday = () => {
                                     </div>
 
                                     <div class="space-y-2">
-                                        <label for="manualPhone" class="text-sm font-medium">Teléfono</label>
-                                        <Input
-                                            id="manualPhone"
-                                            v-model="manualPhone"
-                                            placeholder="04120355541"
-                                            class="w-full text-sm"
-                                            type="text"
-                                        />
-                                        <p class="text-xs text-muted-foreground">Teléfono registrado en el pago móvil</p>
+                                        <label class="text-sm font-medium">Teléfono</label>
+                                        <div class="flex gap-2">
+                                            <select
+                                                v-model="manualPhonePrefix"
+                                                class="border rounded-md p-2 bg-background text-sm w-24 shrink-0"
+                                            >
+                                                <option v-for="p in PHONE_PREFIXES" :key="p" :value="p">{{ p }}</option>
+                                            </select>
+                                            <Input
+                                                v-model="manualPhoneNumber"
+                                                placeholder="1234567"
+                                                class="flex-1 text-sm"
+                                                type="text"
+                                                maxlength="7"
+                                                inputmode="numeric"
+                                                pattern="[0-9]{7}"
+                                            />
+                                        </div>
+                                        <p class="text-xs text-muted-foreground">7 dígitos — número registrado en tu pago móvil</p>
                                     </div>
 
                                     <div class="space-y-2">
@@ -692,7 +704,7 @@ const setYesterday = () => {
                                 <Button
                                     @click="submitReference"
                                     size="sm"
-                                    :disabled="paymentLoading || !referenceNumber.trim() || referenceNumber.trim().length < 4 || !paymentAmount || parseFloat(paymentAmount) <= 0 || !manualBankCode || !manualPhone.trim() || !paymentDate"
+                                    :disabled="paymentLoading || !referenceNumber.trim() || referenceNumber.trim().length < 4 || !paymentAmount || parseFloat(paymentAmount) <= 0 || !manualBankCode || !/^\d{7}$/.test(manualPhoneNumber.trim()) || !paymentDate"
                                     class="flex-1"
                                 >
                                     <span v-if="paymentLoading">Verificando...</span>
@@ -741,8 +753,25 @@ const setYesterday = () => {
                                 <!-- Columna derecha -->
                                 <div class="space-y-3">
                                     <div class="space-y-1">
-                                        <label class="text-sm font-medium flex items-center gap-2">Teléfono - <p class="text-xs text-muted-foreground">10 dígitos (con o sin 0)</p></label>
-                                        <Input v-model="c2pPhone" placeholder="4120355541 o 04120355541" class="w-full text-sm" />
+                                        <label class="text-sm font-medium">Teléfono</label>
+                                        <div class="flex gap-2">
+                                            <select
+                                                v-model="c2pPhonePrefix"
+                                                class="border rounded-md p-2 bg-background text-sm w-24 shrink-0"
+                                            >
+                                                <option v-for="p in PHONE_PREFIXES" :key="p" :value="p">{{ p }}</option>
+                                            </select>
+                                            <Input
+                                                v-model="c2pPhoneNumber"
+                                                placeholder="1234567"
+                                                class="flex-1 text-sm"
+                                                type="text"
+                                                maxlength="7"
+                                                inputmode="numeric"
+                                                pattern="[0-9]{7}"
+                                            />
+                                        </div>
+                                        <p class="text-xs text-muted-foreground">7 dígitos sin el prefijo</p>
                                     </div>
                                     <div class="space-y-1">
                                         <label class="text-sm font-medium flex items-center gap-2">Token - <p class="text-xs text-muted-foreground">Código enviado por tu banco</p></label>
@@ -759,7 +788,7 @@ const setYesterday = () => {
                                     @click="sendC2P"
                                     size="sm"
                                     class="w-full"
-                                    :disabled="c2pLoading || !c2pToken || !c2pBankCode || !c2pId || !c2pPhone || !(userPlan?.price && bcv)"
+                                    :disabled="c2pLoading || !c2pToken || !c2pBankCode || !c2pId || !/^\d{7}$/.test(c2pPhoneNumber) || !(userPlan?.price && bcv)"
                                 >
                                     <span v-if="c2pLoading">Enviando C2P...</span>
                                     <span v-else>Enviar C2P</span>

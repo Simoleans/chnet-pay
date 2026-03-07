@@ -80,17 +80,20 @@ const suggestedAmountBs = computed(() => {
     return '';
 });
 
+const PHONE_PREFIXES = ['0412', '0414', '0424', '0426', '0416'];
+
 // ── Estados del formulario P2P ───────────────────────────────────────────────
 const loading       = ref(false);
 const showP2PForm   = ref(false);
 
 // Campos
-const p2pCedula     = ref('');
-const p2pTelefono   = ref('');
-const p2pBancoOrigen = ref('');
-const p2pReferencia  = ref('');
-const p2pFecha       = ref('');
-const p2pImporte     = ref('');
+const p2pCedula          = ref('');
+const p2pTelefonoPrefix  = ref('0412');
+const p2pTelefonoNumber  = ref('');
+const p2pBancoOrigen     = ref('');
+const p2pReferencia      = ref('');
+const p2pFecha           = ref('');
+const p2pImporte         = ref('');
 
 // ── Helpers de fecha ─────────────────────────────────────────────────────────
 const setToday = () => {
@@ -144,14 +147,15 @@ Monto: ${total} Bs`;
 
 // ── Reset ────────────────────────────────────────────────────────────────────
 const resetStates = () => {
-    loading.value      = false;
-    showP2PForm.value  = false;
-    p2pCedula.value    = '';
-    p2pTelefono.value  = '';
-    p2pBancoOrigen.value = '';
-    p2pReferencia.value  = '';
-    p2pFecha.value       = '';
-    p2pImporte.value     = '';
+    loading.value            = false;
+    showP2PForm.value        = false;
+    p2pCedula.value          = '';
+    p2pTelefonoPrefix.value  = '0412';
+    p2pTelefonoNumber.value  = '';
+    p2pBancoOrigen.value     = '';
+    p2pReferencia.value      = '';
+    p2pFecha.value           = '';
+    p2pImporte.value         = '';
 };
 
 // ── Abrir sección P2P ────────────────────────────────────────────────────────
@@ -162,10 +166,9 @@ const openP2PForm = () => {
         banksStore.loadBanks();
     }
 
-    // Pre-cargar datos del usuario
+    // Pre-cargar cédula del usuario
     const user = page.props.auth?.user as any;
-    p2pCedula.value   = user?.id_number ?? '';
-    p2pTelefono.value = user?.phone ?? '';
+    p2pCedula.value = user?.id_number ?? '';
 
     // Pre-cargar fecha de hoy
     if (!p2pFecha.value) {
@@ -186,10 +189,11 @@ const submitP2P = async () => {
         notify({ message: 'Ingrese su cédula (ej: V23795133)', type: 'error', duration: 2500 });
         return;
     }
-    if (!p2pTelefono.value.trim()) {
-        notify({ message: 'Ingrese el teléfono pagador', type: 'error', duration: 2500 });
+    if (!/^\d{7}$/.test(p2pTelefonoNumber.value.trim())) {
+        notify({ message: 'El teléfono debe tener exactamente 7 dígitos después del prefijo', type: 'error', duration: 2500 });
         return;
     }
+    const telefonoPagadorFull = p2pTelefonoPrefix.value + p2pTelefonoNumber.value.trim();
     if (!p2pBancoOrigen.value) {
         notify({ message: 'Seleccione el banco de origen', type: 'error', duration: 2500 });
         return;
@@ -215,7 +219,7 @@ const submitP2P = async () => {
     try {
         const payload: Record<string, any> = {
             cedulaPagador:   p2pCedula.value.trim().toUpperCase(),
-            telefonoPagador: p2pTelefono.value.trim(),
+            telefonoPagador: telefonoPagadorFull,
             telefonoDestino: paymentMobileTlf.value.trim(),
             referencia:      p2pReferencia.value.trim(),
             fechaPago:       p2pFecha.value,
@@ -392,13 +396,24 @@ const handleOpenChange = (open: boolean) => {
                             <!-- Teléfono pagador -->
                             <div class="space-y-1">
                                 <label class="text-sm font-medium">Teléfono pagador</label>
-                                <Input
-                                    v-model="p2pTelefono"
-                                    placeholder="04124601746"
-                                    class="w-full text-sm"
-                                    type="tel"
-                                />
-                                <p class="text-xs text-muted-foreground">El número registrado en tu pago móvil</p>
+                                <div class="flex gap-2">
+                                    <select
+                                        v-model="p2pTelefonoPrefix"
+                                        class="border rounded-md p-2 bg-background text-sm w-24 shrink-0"
+                                    >
+                                        <option v-for="p in PHONE_PREFIXES" :key="p" :value="p">{{ p }}</option>
+                                    </select>
+                                    <Input
+                                        v-model="p2pTelefonoNumber"
+                                        placeholder="1234567"
+                                        class="flex-1 text-sm"
+                                        type="text"
+                                        maxlength="7"
+                                        inputmode="numeric"
+                                        pattern="[0-9]{7}"
+                                    />
+                                </div>
+                                <p class="text-xs text-muted-foreground">7 dígitos — número registrado en tu pago móvil</p>
                             </div>
 
                             <!-- Banco origen -->
@@ -481,7 +496,7 @@ const handleOpenChange = (open: boolean) => {
                         :disabled="
                             loading ||
                             !p2pCedula.trim() ||
-                            !p2pTelefono.trim() ||
+                            !/^\d{7}$/.test(p2pTelefonoNumber.trim()) ||
                             !p2pBancoOrigen ||
                             !/^\d{4}$/.test(p2pReferencia.trim()) ||
                             !p2pFecha ||

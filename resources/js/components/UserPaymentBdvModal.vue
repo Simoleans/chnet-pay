@@ -242,10 +242,14 @@ const submitP2P = async () => {
         const res = await axios.post('/api/bdv/verify', payload);
 
         if (res.data?.success) {
+            const mensaje = res.data?.already_registered
+                ? 'Este pago ya fue verificado anteriormente. No puede registrarlo dos veces.'
+                : 'Su pago ha sido verificado y registrado correctamente.';
+
             notify({
-                message: res.data.message || 'Pago verificado exitosamente',
-                type: 'success',
-                duration: 2500,
+                message: mensaje,
+                type: res.data?.already_registered ? 'warning' : 'success',
+                duration: 3500,
             });
             resetStates();
             emit('update:open', false);

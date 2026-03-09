@@ -64,6 +64,7 @@ class PaymentController extends Controller
                 'created_at' => $payment->created_at ? $payment->created_at->format('d/m/Y H:i') : null,
                 'image_path' => $payment->image_path,
                 'verify_payments' => $payment->verify_payments,
+                'type_bank' => $payment->type_bank,
             ];
         });
 
@@ -700,6 +701,7 @@ class PaymentController extends Controller
                 'payment_date' => $request->payment_date,
                 'verify_payments' => true,
                 'wispro_registered' => false,
+                'type_bank' => Payment::TYPE_BANK_BNC,
             ]);
 
             // Registrar el pago en Wispro SIEMPRE que la validación fue exitosa (si vienen los datos necesarios)
@@ -895,6 +897,7 @@ class PaymentController extends Controller
                 'payment_date' => $currentDate,
                 'verify_payments' => true,
                 'wispro_registered' => false,
+                'type_bank' => Payment::TYPE_BANK_BNC,
             ]);
 
             // Registrar el pago en Wispro SIEMPRE que el C2P fue exitoso (si vienen los datos necesarios)

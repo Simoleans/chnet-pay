@@ -19,6 +19,7 @@ class Payment extends Model
         'image_path',
         'verify_payments',
         'wispro_registered',
+        'type_bank',
     ];
 
     protected $casts = [
@@ -26,6 +27,9 @@ class Payment extends Model
         'verify_payments' => 'boolean',
         'wispro_registered' => 'boolean',
     ];
+
+    const TYPE_BANK_BNC = 'bnc';
+    const TYPE_BANK_BDV = 'bdv';
 
 
     public function invoice()

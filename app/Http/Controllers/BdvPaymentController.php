@@ -101,6 +101,7 @@ class BdvPaymentController extends Controller
             'payment_date'     => $data['fechaPago'],
             'verify_payments'  => true,
             'wispro_registered' => false,
+            'type_bank'        => Payment::TYPE_BANK_BDV,
         ]);
 
         // 6. Registrar en Wispro si vienen los datos necesarios

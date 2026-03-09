@@ -77,6 +77,10 @@ const toggleVerification = () => {
             <div v-if="payment" class="space-y-4">
                 <div class="grid grid-cols-2 gap-4 text-sm">
                     <div>
+                        <span class="font-medium text-muted-foreground">Banco donde se recibio el pago:</span>
+                        <p>{{ payment.type_bank ?? 'No se ha registrado el banco' }}</p>
+                    </div>
+                    <div>
                         <span class="font-medium text-muted-foreground">Referencia:</span>
                         <p class="font-mono">{{ payment.reference || 'Sin referencia' }}</p>
                     </div>
@@ -97,7 +101,7 @@ const toggleVerification = () => {
                         </p>
                     </div>
                     <div>
-                        <span class="font-medium text-muted-foreground">Banco:</span>
+                        <span class="font-medium text-muted-foreground">Banco Emisor:</span>
                         <p>{{ payment.bank }}</p>
                     </div>
                     <div>

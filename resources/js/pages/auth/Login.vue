@@ -393,7 +393,7 @@ const submit = () => {
                         </div>
                     </div>
 
-                    <Button
+                    <!-- <Button
                         type="button"
                         variant="outline"
                         class="w-full"
@@ -401,7 +401,7 @@ const submit = () => {
                         :tabindex="6"
                     >
                         💳 Pago Rápido
-                    </Button>
+                    </Button> -->
                 </div>
             </div>
 

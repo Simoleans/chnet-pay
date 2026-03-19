@@ -1,27 +1,25 @@
-import { ref } from 'vue'
+import Swal from 'sweetalert2'
 
-// ✅ Esta es la clave: definir el ref fuera de la función
-const notifications = ref([])
-
-let id = 0
+const titleMap = {
+  success: '¡Hecho!',
+  error: 'Error',
+  warning: 'Atención',
+  info: 'Información',
+}
 
 export function useNotifications() {
-  const notify = ({ message, type = 'success', duration = 3000 }) => {
-    const newNotification = {
-      id: id++,
-      message,
-      type,
-    }
-
-    notifications.value.push(newNotification)
-
-    setTimeout(() => {
-      notifications.value = notifications.value.filter(n => n.id !== newNotification.id)
-    }, duration)
+  const notify = ({ message, type = 'success', duration = 2300, title = null }) => {
+    Swal.fire({
+      title: title ?? titleMap[type] ?? 'Aviso',
+      text: message,
+      icon: type,
+      timer: duration,
+      timerProgressBar: true,
+      showConfirmButton: false,
+      allowOutsideClick: true,
+      position: 'center',
+    })
   }
 
-  return {
-    notifications,
-    notify,
-  }
+  return { notify }
 }

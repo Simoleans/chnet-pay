@@ -165,3 +165,19 @@
         @apply bg-background text-foreground;
     }
 }
+/* Fix compatibilidad SweetAlert2 + Tailwind v4 */
+.swal2-container,
+.swal2-container * {
+    pointer-events: auto !important;
+}
+
+.swal2-container {
+    z-index: 99999 !important;
+}
+
+.swal2-confirm,
+.swal2-cancel,
+.swal2-deny {
+    cursor: pointer !important;
+}
+

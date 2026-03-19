@@ -38,7 +38,7 @@ interface Props {
 
 interface Emits {
     (e: 'update:open', value: boolean): void;
-    (e: 'openReportModal'): void;
+    // (e: 'openReportModal'): void; // deshabilitado
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -84,7 +84,7 @@ const showReferenceInput = ref(false);
 const referenceNumber = ref('');
 const paymentAmount = ref('');
 const paymentDate = ref('');
-const showReportLink = ref(false);
+// const showReportLink = ref(false); // deshabilitado: ya no se muestra el link de reporte manual
 // Estados para validación manual
 const manualBankCode = ref('0191');
 const manualPhonePrefix = ref('0412');
@@ -141,7 +141,7 @@ const resetStates = () => {
     referenceNumber.value = '';
     paymentAmount.value = '';
     paymentDate.value = '';
-    showReportLink.value = false;
+    // showReportLink.value = false;
     manualBankCode.value = '0191';
     manualPhonePrefix.value = '0412';
     manualPhoneNumber.value = '';
@@ -157,7 +157,7 @@ const openC2PSection = () => {
         paymentAmount.value = '';
         paymentDate.value = '';
         manualPhoneNumber.value = '';
-        showReportLink.value = false;
+        // showReportLink.value = false;
     }
 
     showC2PSection.value = true;
@@ -353,10 +353,10 @@ const copyPaymentReference = async () => {
     }
 };
 
-const handleReportManually = () => {
-    emit('update:open', false);
-    emit('openReportModal');
-};
+// const handleReportManually = () => {
+//     emit('update:open', false);
+//     emit('openReportModal');
+// };
 
 const checkPayment = async () => {
     // Limpiar formulario de C2P si estaba activo
@@ -369,7 +369,7 @@ const checkPayment = async () => {
     paymentLoading.value = true;
     paymentError.value = false;
     showReferenceInput.value = true;
-    showReportLink.value = false;
+    // showReportLink.value = false;
     showC2PSection.value = false;
 
     // Cargar bancos si no están cargados
@@ -436,7 +436,7 @@ const checkPayment = async () => {
                     window.location.reload();
                 }, 1500);
             } else {
-                showReportLink.value = res.data.showReportLink;
+                // showReportLink.value = res.data.showReportLink;
                 notify({
                     message: res.data.message,
                     type: 'warning',
@@ -710,6 +710,7 @@ const setYesterday = () => {
                                     <span v-if="paymentLoading">Verificando...</span>
                                     <span v-else>Verificar Pago</span>
                                 </Button>
+                                <!-- Botón de reporte manual deshabilitado: el usuario debe revisar sus datos
                                 <Button
                                     v-if="showReportLink"
                                     @click="handleReportManually"
@@ -719,6 +720,7 @@ const setYesterday = () => {
                                 >
                                     Reportar manualmente
                                 </Button>
+                                -->
                             </div>
                         </div>
 

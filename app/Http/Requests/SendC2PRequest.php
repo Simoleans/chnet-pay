@@ -50,7 +50,9 @@ class SendC2PRequest extends FormRequest
             'amount' => 'required|numeric|min:0.01',
             'debtor_id' => ['required', 'string', 'max:20', 'regex:/^[VEve]-?[0-9]+$/'],
             'debtor_phone' => ['required', 'string', 'max:20'],
-            'invoice_id' => 'required|string',
+            'invoice_id' => 'nullable|string',
+            'invoice_ids' => 'nullable|array',
+            'invoice_ids.*' => 'string',
             'client_id' => 'required|string',
         ];
     }
@@ -82,6 +84,12 @@ class SendC2PRequest extends FormRequest
                         'Formato de cédula inválido. Debe ser V00000000 o E00000000'
                     );
                 }
+            }
+
+            $hasSingle = $this->filled('invoice_id');
+            $hasMany = is_array($this->invoice_ids) && count($this->invoice_ids) > 0;
+            if (! $hasSingle && ! $hasMany) {
+                $validator->errors()->add('invoice_id', 'Debe indicar al menos una factura.');
             }
         });
     }

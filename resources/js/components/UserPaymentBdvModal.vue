@@ -26,8 +26,9 @@ interface Props {
         price: number;
     } | null;
     selectedInvoice?: {
-        id: number;
-        amount: number;
+        id?: number | string;
+        invoice_ids?: string[];
+        amount?: number;
         invoice_number?: string;
         client_id?: number | string;
     } | null;
@@ -71,9 +72,33 @@ const paymentMobileName = computed(() => paymentMobile.value.name ?? '');
 const paymentMobileRif  = computed(() => paymentMobile.value.rif  ?? '');
 const paymentMobileBanco = computed(() => paymentMobile.value.banco ?? '');
 
+const invoiceIdsForWispro = computed((): string[] => {
+    const inv = props.selectedInvoice;
+    if (!inv) return [];
+    if (inv.invoice_ids && inv.invoice_ids.length > 0) {
+        return inv.invoice_ids.map((id) => String(id));
+    }
+    if (inv.id != null && inv.id !== '') {
+        return [String(inv.id)];
+    }
+    return [];
+});
+
+const isBatchInvoicePay = computed(() => invoiceIdsForWispro.value.length > 1);
+
+const amountUsdPrimary = computed(() => {
+    if (props.selectedInvoice?.amount != null && props.selectedInvoice.amount !== '') {
+        return parseFloat(String(props.selectedInvoice.amount));
+    }
+    if (props.userPlan?.price != null) {
+        return parseFloat(String(props.userPlan.price));
+    }
+    return 0;
+});
+
 // Monto sugerido en Bs
 const suggestedAmountBs = computed(() => {
-    const amountToPay = props.selectedInvoice?.amount || props.userPlan?.price;
+    const amountToPay = amountUsdPrimary.value;
     if (bcv.value && amountToPay) {
         return (parseFloat(String(amountToPay)) * parseFloat(String(bcv.value))).toFixed(2);
     }
@@ -107,7 +132,7 @@ const setYesterday = () => {
 
 // ── Copiar datos bancarios ───────────────────────────────────────────────────
 const copyPaymentData = async () => {
-    const amountToPay = props.selectedInvoice?.amount || props.userPlan?.price;
+    const amountToPay = amountUsdPrimary.value;
     if (!bcv.value || !amountToPay) {
         notify({
             message: 'No hay datos disponibles para copiar. Verifica que tengas un plan asignado y la tasa BCV cargada.',
@@ -176,7 +201,7 @@ const openP2PForm = () => {
     }
 
     // Pre-cargar monto
-    const amountToPay = props.selectedInvoice?.amount || props.userPlan?.price;
+    const amountToPay = amountUsdPrimary.value;
     if (bcv.value && amountToPay) {
         p2pImporte.value = (parseFloat(String(amountToPay)) * parseFloat(String(bcv.value))).toFixed(2);
     }
@@ -228,9 +253,11 @@ const submitP2P = async () => {
             reqCed:          false,
         };
 
-        // Agregar invoice_id y client_id si hay factura seleccionada
-        if (props.selectedInvoice?.id) {
-            payload.invoice_id = String(props.selectedInvoice.id);
+        const ids = invoiceIdsForWispro.value;
+        if (ids.length === 1) {
+            payload.invoice_id = ids[0];
+        } else if (ids.length > 1) {
+            payload.invoice_ids = ids;
         }
         const user = page.props.auth?.user as any;
         if (props.selectedInvoice?.client_id) {
@@ -310,7 +337,7 @@ const handleOpenChange = (open: boolean) => {
                     @click="copyPaymentData"
                     size="sm"
                     variant="outline"
-                    :disabled="!bcv || !(selectedInvoice?.amount || userPlan?.price)"
+                    :disabled="!bcv || !amountUsdPrimary"
                     class="w-full"
                 >
                     📋 Copiar datos bancarios
@@ -320,12 +347,15 @@ const handleOpenChange = (open: boolean) => {
                 <div class="bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-950/20 dark:to-rose-950/20 border-2 border-red-200 dark:border-red-800 rounded-lg p-4">
                     <div class="flex flex-col items-center justify-center space-y-1">
                         <p class="text-sm font-medium text-gray-700 dark:text-gray-300">💰 Monto Exacto a Pagar</p>
-                        <div v-if="bcv && (selectedInvoice?.amount || userPlan?.price)" class="text-center">
+                        <div v-if="bcv && amountUsdPrimary" class="text-center">
                             <p class="text-4xl font-bold text-red-600 dark:text-red-400">
                                 {{ suggestedAmountBs }} Bs
                             </p>
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                (${{ parseFloat(String(selectedInvoice?.amount || userPlan?.price || 0)).toFixed(2) }} USD × {{ parseFloat(String(bcv)).toFixed(2) }} Bs)
+                                (${{ amountUsdPrimary.toFixed(2) }} USD × {{ parseFloat(String(bcv)).toFixed(2) }} Bs)
+                            </p>
+                            <p v-if="isBatchInvoicePay" class="text-xs text-amber-700 dark:text-amber-400 mt-1 font-medium">
+                                Pago de {{ invoiceIdsForWispro.length }} facturas
                             </p>
                         </div>
                         <div v-else class="text-center">
@@ -341,7 +371,7 @@ const handleOpenChange = (open: boolean) => {
                         @click="openP2PForm"
                         size="lg"
                         :variant="showP2PForm ? 'default' : 'secondary'"
-                        :disabled="!bcv || !(selectedInvoice?.amount || userPlan?.price)"
+                        :disabled="!bcv || !amountUsdPrimary"
                         :class="[
                             'w-full h-14 text-base font-semibold transition-all',
                             showP2PForm

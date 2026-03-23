@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useBcvStore } from '@/stores/bcv'
 import { Button } from '@/components/ui/button'
 
@@ -10,8 +11,31 @@ const props = defineProps<Props>()
 const emit = defineEmits(['openPaymentModal'])
 const bcvStore = useBcvStore()
 
+/** Facturas en estado pendiente de pago (mismo criterio que el botón Pagar por fila). */
+const pendingInvoices = computed(() =>
+    (props.invoices || []).filter((inv: any) => inv.state === 'pending')
+)
+
+const totalPendingUsd = computed(() =>
+    pendingInvoices.value.reduce(
+        (sum: number, inv: any) => sum + parseFloat(String(inv.amount ?? 0)),
+        0
+    )
+)
+
 const openPaymentModal = (invoice: any) => {
-    emit('openPaymentModal', invoice)
+    emit('openPaymentModal', {
+        invoice_ids: [invoice.id],
+        amount: parseFloat(String(invoice.amount ?? 0)),
+    })
+}
+
+const openPayAllPending = () => {
+    if (pendingInvoices.value.length === 0) return
+    emit('openPaymentModal', {
+        invoice_ids: pendingInvoices.value.map((i: any) => i.id),
+        amount: totalPendingUsd.value,
+    })
 }
 
 const formatDate = (dateString: string) => {
@@ -64,7 +88,17 @@ const getInvoiceStateClass = (state: string) => {
 
 <template>
     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-        <h2 class="text-lg font-semibold mb-4">Mis Facturas</h2>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+            <h2 class="text-lg font-semibold">Mis Facturas</h2>
+            <Button
+                v-if="pendingInvoices.length > 0 && $page.props.auth.user.role === 0"
+                type="button"
+                class="w-full sm:w-auto shrink-0 bg-green-600 hover:bg-green-700"
+                @click="openPayAllPending"
+            >
+                💰 Pagar todo ({{ pendingInvoices.length }} · ${{ formatPrice(totalPendingUsd) }} USD)
+            </Button>
+        </div>
 
         <div v-if="invoices && invoices.length > 0">
 

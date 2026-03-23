@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import { useNotifications } from '@/composables/useNotifications';
 import { useBcvStore } from '@/stores/bcv';
 import { storeToRefs } from 'pinia';
 import axios from 'axios';
 import { useBanksStore } from '@/stores/banks';
-import { computed } from 'vue';
 
 const { notify } = useNotifications();
 
@@ -28,9 +27,11 @@ interface Props {
         name: string;
         price: number;
     } | null;
+    /** Una factura o varias (Pagar todo): siempre incluye amount en USD total y invoice_ids o id legacy. */
     selectedInvoice?: {
-        id: number;
-        amount: number;
+        id?: number | string;
+        invoice_ids?: string[];
+        amount?: number;
         invoice_number?: string;
         client_id?: number | string;
     } | null;
@@ -98,9 +99,32 @@ const c2pId = ref('');
 const c2pPhonePrefix = ref('0412');
 const c2pPhoneNumber = ref('');
 
+const invoiceIdsForWispro = computed((): string[] => {
+    const inv = props.selectedInvoice;
+    if (!inv) return [];
+    if (inv.invoice_ids && inv.invoice_ids.length > 0) {
+        return inv.invoice_ids.map((id) => String(id));
+    }
+    if (inv.id != null && inv.id !== '') {
+        return [String(inv.id)];
+    }
+    return [];
+});
+
+const isBatchInvoicePay = computed(() => invoiceIdsForWispro.value.length > 1);
+
+const amountUsdPrimary = computed(() => {
+    if (props.selectedInvoice?.amount != null && props.selectedInvoice.amount !== '') {
+        return parseFloat(String(props.selectedInvoice.amount));
+    }
+    if (props.userPlan?.price != null) {
+        return parseFloat(String(props.userPlan.price));
+    }
+    return 0;
+});
+
 const suggestedAmountBs = computed(() => {
-    // Usar factura si existe, sino usar plan
-    const amountToPay = props.selectedInvoice?.amount || props.userPlan?.price;
+    const amountToPay = amountUsdPrimary.value;
     if (bcv.value && amountToPay) {
         return (parseFloat(String(amountToPay)) * parseFloat(bcv.value)).toFixed(2);
     }
@@ -207,13 +231,9 @@ const sendC2P = async () => {
         const phoneDigits10 = c2pPhonePrefix.value.substring(1) + phoneDigits7;
         const phoneWithPrefix = '58' + phoneDigits10;
 
-        // Calcular monto exacto: usar factura si existe, sino usar plan
-        let amountToPay = 0;
-        if (props.selectedInvoice?.amount) {
-            amountToPay = props.selectedInvoice.amount;
-        } else if (props.userPlan?.price) {
-            amountToPay = props.userPlan.price;
-        } else {
+        // Calcular monto exacto: total factura(s) o plan
+        const amountToPay = amountUsdPrimary.value;
+        if (!amountToPay) {
             notify({ message: 'No se pudo calcular el monto. Verifique su factura o plan.', type: 'error', duration: 2500 });
             c2pLoading.value = false;
             return;
@@ -236,9 +256,11 @@ const sendC2P = async () => {
             debtor_phone: phoneWithPrefix,
         };
 
-        // Agregar invoice_id y client_id si la factura está seleccionada
-        if (props.selectedInvoice?.id) {
-            payload.invoice_id = props.selectedInvoice.id;
+        const ids = invoiceIdsForWispro.value;
+        if (ids.length === 1) {
+            payload.invoice_id = ids[0];
+        } else if (ids.length > 1) {
+            payload.invoice_ids = ids;
         }
         // Intentar obtener client_id de la factura o del usuario
         if (props.selectedInvoice?.client_id) {
@@ -382,8 +404,8 @@ const checkPayment = async () => {
         paymentDate.value = new Date().toISOString().split('T')[0];
     }
 
-    // Precargar monto exacto: usar factura si existe, sino usar plan
-    const amountToPay = props.selectedInvoice?.amount || props.userPlan?.price;
+    // Precargar monto exacto: total factura(s) o plan
+    const amountToPay = amountUsdPrimary.value;
     if (bcv.value && amountToPay) {
         paymentAmount.value = (parseFloat(String(amountToPay)) * parseFloat(bcv.value)).toFixed(2);
     }
@@ -407,9 +429,11 @@ const checkPayment = async () => {
                 payment_date: paymentDate.value
             };
 
-            // Agregar invoice_id y client_id si la factura está seleccionada
-            if (props.selectedInvoice?.id) {
-                payload.invoice_id = props.selectedInvoice.id;
+            const ids = invoiceIdsForWispro.value;
+            if (ids.length === 1) {
+                payload.invoice_id = ids[0];
+            } else if (ids.length > 1) {
+                payload.invoice_ids = ids;
             }
             // Intentar obtener client_id de la factura o del usuario
             if (props.selectedInvoice?.client_id) {
@@ -420,8 +444,6 @@ const checkPayment = async () => {
             }
 
             const res = await axios.post('/api/bnc/validate-and-store-payment', payload);
-
-            console.log('LOG:: Respuesta de validación:', res.data);
 
             if (res.data.success) {
                 notify({
@@ -520,15 +542,21 @@ const setYesterday = () => {
                     <div class="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-2 border-green-200 dark:border-green-800 rounded-lg p-4 mt-3">
                         <div class="flex flex-col items-center justify-center space-y-2">
                             <p class="text-sm font-medium text-gray-700 dark:text-gray-300">💰 Monto Exacto a Pagar</p>
-                            <div v-if="bcv && (selectedInvoice?.amount || userPlan?.price)" class="text-center">
+                            <div v-if="bcv && amountUsdPrimary" class="text-center">
                                 <p class="text-4xl font-bold text-green-600 dark:text-green-400">
                                     {{ suggestedAmountBs }} Bs
                                 </p>
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    (${{ parseFloat(String(selectedInvoice?.amount || userPlan?.price || 0)).toFixed(2) }} USD × {{ parseFloat(bcv).toFixed(2) }} Bs)
+                                    (${{ amountUsdPrimary.toFixed(2) }} USD × {{ parseFloat(bcv).toFixed(2) }} Bs)
                                 </p>
                                 <p class="text-xs text-gray-600 dark:text-gray-400 mt-1 font-medium">
-                                    {{ selectedInvoice ? 'Monto de la factura' : 'Tasa BCV del día' }}
+                                    {{
+                                        isBatchInvoicePay
+                                            ? 'Monto total (varias facturas)'
+                                            : selectedInvoice
+                                              ? 'Monto de la factura'
+                                              : 'Tasa BCV del día'
+                                    }}
                                 </p>
                             </div>
                             <div v-else class="text-center">
@@ -544,7 +572,7 @@ const setYesterday = () => {
                             @click="copyPaymentReference"
                             size="sm"
                             variant="outline"
-                            :disabled="!bcv || !userPlan?.price"
+                            :disabled="!bcv || !amountUsdPrimary"
                             class="w-full"
                         >
                             📋 Copiar datos bancarios
@@ -556,7 +584,7 @@ const setYesterday = () => {
                                 @click="checkPayment"
                                 size="lg"
                                 :variant="showReferenceInput ? 'default' : 'secondary'"
-                                :disabled="paymentLoading || !bcv || !userPlan?.price"
+                                :disabled="paymentLoading || !bcv || !amountUsdPrimary"
                                 :class="[
                                     'w-full h-14 text-base font-semibold transition-all',
                                     showReferenceInput
@@ -576,7 +604,7 @@ const setYesterday = () => {
                                 @click="openC2PSection"
                                 size="lg"
                                 :variant="showC2PSection ? 'default' : 'secondary'"
-                                :disabled="!bcv || !userPlan?.price"
+                                :disabled="!bcv || !amountUsdPrimary"
                                 :class="[
                                     'w-full h-14 text-base font-semibold transition-all',
                                     showC2PSection
@@ -685,7 +713,7 @@ const setYesterday = () => {
                                             id="paymentAmount"
                                             type="text"
                                             v-model="paymentAmount"
-                                            :placeholder="bcv && (selectedInvoice?.amount || userPlan?.price) ?
+                                            :placeholder="bcv && amountUsdPrimary ?
                                                 `Monto exacto: ${suggestedAmountBs} Bs` :
                                                 'Calculando...'"
                                             class="w-full font-bold bg-green-50 dark:bg-green-950/10 border-green-300 dark:border-green-700 text-center text-lg cursor-not-allowed"
@@ -790,7 +818,7 @@ const setYesterday = () => {
                                     @click="sendC2P"
                                     size="sm"
                                     class="w-full"
-                                    :disabled="c2pLoading || !c2pToken || !c2pBankCode || !c2pId || !/^\d{7}$/.test(c2pPhoneNumber) || !(userPlan?.price && bcv)"
+                                    :disabled="c2pLoading || !c2pToken || !c2pBankCode || !c2pId || !/^\d{7}$/.test(c2pPhoneNumber) || !(amountUsdPrimary && bcv)"
                                 >
                                     <span v-if="c2pLoading">Enviando C2P...</span>
                                     <span v-else>Enviar C2P</span>

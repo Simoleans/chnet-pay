@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use App\Models\User;
+use App\Support\WisproInvoiceIds;
 
 class PaymentController extends Controller
 {
@@ -423,8 +424,13 @@ class PaymentController extends Controller
             $paymentDate = now()->format('c'); // Formato ISO8601
             $wisproApiService = new WisproApiService();
 
+            $invoiceIds = WisproInvoiceIds::parse($payment->invoice_wispro);
+            if (count($invoiceIds) === 0) {
+                return;
+            }
+
             $wisproPaymentResponse = $wisproApiService->registerPayment(
-                [$payment->invoice_wispro],
+                $invoiceIds,
                 $user->id_wispro,
                 $paymentDate,
                 $payment->amount,
@@ -602,6 +608,11 @@ class PaymentController extends Controller
     public function validateAndStorePayment(ValidatePaymentRequest $request)
     {
         try {
+            Log::info('BNC validate-and-store-payment: payload recibido en controlador', [
+                'user_id' => Auth::id(),
+                'payload' => $request->all(),
+            ]);
+
             $user = Auth::user();
 
             $reference = $request->reference;
@@ -689,11 +700,18 @@ class PaymentController extends Controller
             // Convertir el monto de bolívares a dólares
             $amountInUSD = $amountBs / $bcvRate;
 
+            $wisproIds = [];
+            if ($request->filled('invoice_ids') && is_array($request->invoice_ids)) {
+                $wisproIds = array_values(array_filter(array_map('strval', $request->invoice_ids)));
+            } elseif ($request->filled('invoice_id')) {
+                $wisproIds = [(string) $request->invoice_id];
+            }
+
             // Crear el pago marcado como verificado
             $payment = Payment::create([
                 'reference' => $reference,
                 'user_id' => $user->id,
-                'invoice_wispro' => $request->invoice_id,
+                'invoice_wispro' => WisproInvoiceIds::encode($wisproIds),
                 'amount' => $amountInUSD,
                 'id_number' => $user->id_number ?? 'V-00000000',
                 'bank' => $bank,
@@ -705,12 +723,12 @@ class PaymentController extends Controller
             ]);
 
             // Registrar el pago en Wispro SIEMPRE que la validación fue exitosa (si vienen los datos necesarios)
-            if ($result['status'] === 'OK') {
+            if ($result['status'] === 'OK' && count($wisproIds) > 0 && $request->filled('client_id')) {
                 try {
                     $paymentDate = now()->format('c'); // Formato ISO8601
                     $wisproApiService = new WisproApiService();
                     $wisproPaymentResponse = $wisproApiService->registerPayment(
-                        [$request->invoice_id],
+                        $wisproIds,
                         $request->client_id,
                         $paymentDate,
                         $amountInUSD,
@@ -720,13 +738,13 @@ class PaymentController extends Controller
                     if ($wisproPaymentResponse['success']) {
                         $payment->update(['wispro_registered' => true]);
                         Log::info('VALIDATE P2P: Pago registrado exitosamente en Wispro', [
-                            'invoice_id' => $request->invoice_id,
+                            'invoice_ids' => $wisproIds,
                             'client_id' => $request->client_id,
                             'response' => $wisproPaymentResponse['data']
                         ]);
                     } else {
                         Log::error('VALIDATE P2P: Error al registrar pago en Wispro', [
-                            'invoice_id' => $request->invoice_id,
+                            'invoice_ids' => $wisproIds,
                             'client_id' => $request->client_id,
                             'error' => $wisproPaymentResponse['error'] ?? 'Error desconocido',
                             'message' => $wisproPaymentResponse['message'] ?? null
@@ -806,7 +824,6 @@ class PaymentController extends Controller
      */
     public function sendC2P(SendC2PRequest $request)
     {
-        //dd($request->all());
         try {
             $user = Auth::user();
             if (!$user) {
@@ -815,6 +832,11 @@ class PaymentController extends Controller
                     'error' => 'Usuario no autenticado'
                 ], 401);
             }
+
+            Log::info('BNC send-c2p: payload recibido en controlador', [
+                'user_id' => $user->id,
+                'payload' => $request->all(),
+            ]);
 
             $debtorPhoneDigits = $request->debtor_phone;
             $normalizedId = $request->debtor_id;
@@ -885,11 +907,18 @@ class PaymentController extends Controller
             $amountInUSD = $request->amount / $bcvRate;
             $currentDate = now()->format('Y-m-d');
 
+            $wisproIds = [];
+            if ($request->filled('invoice_ids') && is_array($request->invoice_ids)) {
+                $wisproIds = array_values(array_filter(array_map('strval', $request->invoice_ids)));
+            } elseif ($request->filled('invoice_id')) {
+                $wisproIds = [(string) $request->invoice_id];
+            }
+
             // Crear el pago marcado como verificado (C2P validado automáticamente por el banco)
             $payment = Payment::create([
                 'reference' => $reference,
                 'user_id' => $user->id,
-                'invoice_wispro' => $request->invoice_id,
+                'invoice_wispro' => WisproInvoiceIds::encode($wisproIds),
                 'amount' => $amountInUSD,
                 'id_number' => $normalizedId,
                 'bank' => str_pad($request->debtor_bank_code, 4, '0', STR_PAD_LEFT),
@@ -901,12 +930,12 @@ class PaymentController extends Controller
             ]);
 
             // Registrar el pago en Wispro SIEMPRE que el C2P fue exitoso (si vienen los datos necesarios)
-            if ($result['status'] === 'OK') {
+            if ($result['status'] === 'OK' && count($wisproIds) > 0) {
                 try {
                     $paymentDate = now()->format('c'); // Formato ISO8601
                     $wisproApiService = new WisproApiService();
                     $wisproPaymentResponse = $wisproApiService->registerPayment(
-                        [$request->invoice_id],
+                        $wisproIds,
                         $request->client_id,
                         $paymentDate,
                         $amountInUSD,
@@ -916,13 +945,13 @@ class PaymentController extends Controller
                     if ($wisproPaymentResponse['success']) {
                         $payment->update(['wispro_registered' => true]);
                         Log::info('SEND C2P: Pago registrado exitosamente en Wispro', [
-                            'invoice_id' => $request->invoice_id,
+                            'invoice_ids' => $wisproIds,
                             'client_id' => $request->client_id,
                             'response' => $wisproPaymentResponse['data']
                         ]);
                     } else {
                         Log::error('SEND C2P: Error al registrar pago en Wispro', [
-                            'invoice_id' => $request->invoice_id,
+                            'invoice_ids' => $wisproIds,
                             'client_id' => $request->client_id,
                             'error' => $wisproPaymentResponse['error'] ?? 'Error desconocido',
                             'message' => $wisproPaymentResponse['message'] ?? null

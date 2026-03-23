@@ -10,6 +10,7 @@ use App\Services\WisproApiService;
 use App\Models\BcvRate;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Support\WisproInvoiceIds;
 
 class BdvPaymentController extends Controller
 {
@@ -29,7 +30,14 @@ class BdvPaymentController extends Controller
             'bancoOrigen'     => ['required', 'string'],
             'reqCed'          => ['sometimes', 'boolean'],
             'invoice_id'      => ['sometimes', 'nullable', 'string'],
+            'invoice_ids'     => ['sometimes', 'nullable', 'array'],
+            'invoice_ids.*'   => ['string'],
             'client_id'       => ['sometimes', 'nullable', 'string'],
+        ]);
+
+        Log::info('BDV verify: payload recibido en controlador', [
+            'user_id' => Auth::id(),
+            'payload' => $data,
         ]);
 
         // Normalizar teléfonos: eliminar +58 y dejar formato 04XXXXXXXXX
@@ -88,12 +96,19 @@ class BdvPaymentController extends Controller
         $amountBs  = (float) $data['importe'];
         $amountUsd = $amountBs / $bcvRate;
 
+        $wisproIds = [];
+        if (! empty($data['invoice_ids']) && is_array($data['invoice_ids'])) {
+            $wisproIds = array_values(array_filter(array_map('strval', $data['invoice_ids'])));
+        } elseif (! empty($data['invoice_id'])) {
+            $wisproIds = [(string) $data['invoice_id']];
+        }
+
         // 5. Guardar el pago como verificado (el banco ya lo confirmó)
         $user    = Auth::user();
         $payment = Payment::create([
             'reference'        => $data['referencia'],
             'user_id'          => $user?->id,
-            'invoice_wispro'   => $data['invoice_id'] ?? null,
+            'invoice_wispro'   => WisproInvoiceIds::encode($wisproIds),
             'amount'           => $amountUsd,
             'id_number'        => $data['cedulaPagador'],
             'bank'             => $data['bancoOrigen'],
@@ -105,11 +120,11 @@ class BdvPaymentController extends Controller
         ]);
 
         // 6. Registrar en Wispro si vienen los datos necesarios
-        if (!empty($data['invoice_id']) && !empty($data['client_id'])) {
+        if (count($wisproIds) > 0 && ! empty($data['client_id'])) {
             try {
                 $wisproApiService      = new WisproApiService();
                 $wisproPaymentResponse = $wisproApiService->registerPayment(
-                    [$data['invoice_id']],
+                    $wisproIds,
                     $data['client_id'],
                     now()->format('c'),
                     $amountUsd,
@@ -119,13 +134,13 @@ class BdvPaymentController extends Controller
                 if ($wisproPaymentResponse['success']) {
                     $payment->update(['wispro_registered' => true]);
                     Log::info('BDV VERIFY P2P: Pago registrado en Wispro', [
-                        'invoice_id' => $data['invoice_id'],
+                        'invoice_ids' => $wisproIds,
                         'client_id'  => $data['client_id'],
                         'response'   => $wisproPaymentResponse['data'],
                     ]);
                 } else {
                     Log::error('BDV VERIFY P2P: Error al registrar en Wispro', [
-                        'invoice_id' => $data['invoice_id'],
+                        'invoice_ids' => $wisproIds,
                         'client_id'  => $data['client_id'],
                         'error'      => $wisproPaymentResponse['error'] ?? 'Error desconocido',
                         'message'    => $wisproPaymentResponse['message'] ?? null,

@@ -54,6 +54,8 @@ class ValidatePaymentRequest extends FormRequest
             'phone' => ['required', 'string', 'max:20'],
             'payment_date' => 'required|date',
             'invoice_id' => 'nullable|string',
+            'invoice_ids' => 'nullable|array',
+            'invoice_ids.*' => 'string',
             'client_id' => 'nullable|string',
         ];
     }

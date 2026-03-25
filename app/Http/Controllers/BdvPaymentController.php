@@ -66,6 +66,16 @@ class BdvPaymentController extends Controller
             ], 422);
         }
 
+        // 3. Evitar duplicados internos
+        if (Payment::where('reference', $data['referencia'])->exists()) {
+            return response()->json([
+                'success'            => true,
+                'already_registered' => true,
+                'message'            => 'El pago ya fue registrado anteriormente en el sistema.',
+                'bdv_code'           => $code,
+            ]);
+        }
+
         // 4. Obtener tasa BCV y convertir Bs → USD
         $bcvData = BcvRate::getLatestRate();
         $bcvRate = $bcvData['Rate'] ?? null;

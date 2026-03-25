@@ -565,7 +565,7 @@ class PaymentController extends Controller
                 return response()->json([
                     'success' => false,
                     'showReportLink' => true,
-                    'message' => 'No se pudo validar la referencia con el banco. ¿Desea reportar su pago manualmente?'
+                    'message' => 'No se pudo validar la referencia con el banco.'
                 ]);
             }
 
@@ -574,7 +574,7 @@ class PaymentController extends Controller
                 return response()->json([
                     'success' => false,
                     'showReportLink' => true,
-                    'message' => 'No se encontró ningún pago con esta referencia. ¿Desea reportar su pago manualmente?'
+                    'message' => 'No se encontró ningún pago con esta referencia.'
                 ]);
             }
 
@@ -584,7 +584,7 @@ class PaymentController extends Controller
                 return response()->json([
                     'success' => false,
                     'showReportLink' => true,
-                    'message' => 'El monto del pago no coincide con el esperado. ¿Desea reportar su pago manualmente?'
+                    'message' => 'El monto del pago no coincide con el esperado.'
                 ]);
             }
 
@@ -644,7 +644,7 @@ class PaymentController extends Controller
                 return response()->json([
                     'success' => false,
                     'showReportLink' => true,
-                    'message' => 'No se pudo validar la referencia con el banco. ¿Desea reportar su pago manualmente?'
+                    'message' => 'No se pudo validar la referencia con el banco.'
                 ]);
             }
 
@@ -653,7 +653,7 @@ class PaymentController extends Controller
                 return response()->json([
                     'success' => false,
                     'showReportLink' => true,
-                    'message' => $result['message'] ?? 'No se pudo validar el pago con el banco. ¿Desea reportar su pago manualmente?'
+                    'message' => $result['message'] ?? 'No se pudo validar el pago con el banco.'
                 ]);
             }
 
@@ -663,7 +663,7 @@ class PaymentController extends Controller
                 return response()->json([
                     'success' => false,
                     'showReportLink' => true,
-                    'message' => 'No se pudo obtener la información del pago. ¿Desea reportar su pago manualmente?'
+                    'message' => 'No se pudo obtener la información del pago.'
                 ]);
             }
 
@@ -672,7 +672,7 @@ class PaymentController extends Controller
                 return response()->json([
                     'success' => false,
                     'showReportLink' => true,
-                    'message' => 'No se encontró ningún pago con esta referencia en la fecha actual. ¿Desea reportar su pago manualmente?'
+                    'message' => 'No se encontró ningún pago con esta referencia en la fecha actual.'
                 ]);
             }
 
@@ -682,7 +682,7 @@ class PaymentController extends Controller
                 return response()->json([
                     'success' => false,
                     'showReportLink' => true,
-                    'message' => 'El monto del pago no coincide con el esperado. ¿Desea reportar su pago manualmente?'
+                    'message' => 'El monto del pago no coincide con el esperado.'
                 ]);
             }
 

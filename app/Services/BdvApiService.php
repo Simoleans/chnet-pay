@@ -34,7 +34,6 @@ class BdvApiService
 
     public function sendC2PClientBDV(string $customerDocumentId, string $customerNumberInstrument) : array
     {
-
         $body = [
             "customerDocumentId" => $customerDocumentId,
             "customerNumberInstrument" => $customerNumberInstrument,

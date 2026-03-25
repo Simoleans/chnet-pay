@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use App\Http\Requests\BDV\VerifyP2PRequest;
 use App\Services\BdvApiService;
 use App\Services\WisproApiService;
 use App\Models\BcvRate;
@@ -18,34 +19,17 @@ class BdvPaymentController extends Controller
     private const BDV_CODE_OK           = 1000; // Transacción realizada (nueva)
     private const BDV_CODE_RECONCILED   = 1010; // Ya fue conciliada anteriormente
 
-    public function verify(Request $request, BdvApiService $bdv)
+    public function verify(VerifyP2PRequest $request, BdvApiService $bdv)
     {
-        $data = $request->validate([
-            'cedulaPagador'   => ['required', 'string'],
-            'telefonoPagador' => ['required', 'string'],
-            'telefonoDestino' => ['required', 'string'],
-            'referencia'      => ['required', 'string'],
-            'fechaPago'       => ['required', 'string'],
-            'importe'         => ['required', 'string'],
-            'bancoOrigen'     => ['required', 'string'],
-            'reqCed'          => ['sometimes', 'boolean'],
-            'invoice_id'      => ['sometimes', 'nullable', 'string'],
-            'invoice_ids'     => ['sometimes', 'nullable', 'array'],
-            'invoice_ids.*'   => ['string'],
-            'client_id'       => ['sometimes', 'nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         Log::info('BDV verify: payload recibido en controlador', [
             'user_id' => Auth::id(),
             'payload' => $data,
         ]);
 
-        // Normalizar teléfonos: eliminar +58 y dejar formato 04XXXXXXXXX
-        $normalizarTelefono = fn(string $tlf): string =>
-            preg_replace('/^\+?58/', '0', preg_replace('/\D/', '', $tlf));
-
-        $telefonoPagador = $normalizarTelefono($data['telefonoPagador']);
-        $telefonoDestino = $normalizarTelefono($data['telefonoDestino']);
+        $telefonoPagador = $data['telefonoPagador'];
+        $telefonoDestino = $data['telefonoDestino'];
 
         // 1. Consultar al BDV
         $resp = $bdv->verifyP2P(
@@ -64,22 +48,22 @@ class BdvPaymentController extends Controller
         // 2. El banco debe responder con code 1000 o 1010 para considerar el pago válido
         $code = $resp['code'] ?? null;
 
-        if (!in_array($code, [self::BDV_CODE_OK, self::BDV_CODE_RECONCILED])) {
+       // 1010 = ya conciliado, rechazar directo
+        if ($code === self::BDV_CODE_RECONCILED) {
             return response()->json([
-                'success' => false,
-                'message' => $resp['message'] ?? 'El banco rechazó la validación del pago.',
+                'success'  => false,
+                'message'  => 'Este pago ya fue procesado anteriormente.',
                 'bdv_code' => $code,
             ], 422);
         }
 
-        // 3. Evitar duplicados en nuestra BD (el banco ya confirma si fue conciliado vía 1010)
-        if (Payment::where('reference', $data['referencia'])->exists()) {
+        // Solo 1000 es válido para continuar
+        if ($code !== self::BDV_CODE_OK) {
             return response()->json([
-                'success'            => true,
-                'already_registered' => true,
-                'message'            => 'El pago ya fue registrado anteriormente en el sistema.',
-                'bdv_code'           => $code,
-            ]);
+                'success'  => false,
+                'message'  => $resp['message'] ?? 'El banco rechazó la validación del pago.',
+                'bdv_code' => $code,
+            ], 422);
         }
 
         // 4. Obtener tasa BCV y convertir Bs → USD

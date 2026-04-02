@@ -161,7 +161,7 @@ class PaymentController extends Controller
         $amountInUSD = $validated['amount'] / $bcvRate;
 
         // PASO 1: Registrar SOLO el pago (sin aplicar a facturas hasta verificación)
-        $originalPayment = Payment::create([
+       /*  $originalPayment = Payment::create([
             'reference' => $validated['reference'],
             'user_id' => $user->id,
             'invoice_id' => null, // Sin factura asociada hasta verificación
@@ -173,7 +173,7 @@ class PaymentController extends Controller
             'image_path' => $imagePath, // Guardar la ruta de la imagen
             'verify_payments' => false, // Sin verificar por defecto
             'invoice_wispro' => $validated['invoice_wispro'] ?? null, // ID de factura de Wispro
-        ]);
+        ]); */
 
         // Preparar mensaje informativo
         $message = 'Pago registrado exitosamente. Pendiente de verificación por el operador.';
@@ -414,10 +414,6 @@ class PaymentController extends Controller
             $user = $payment->user;
 
             if (!$user || !$user->id_wispro) {
-                Log::warning('No se puede registrar pago en Wispro: usuario sin id_wispro', [
-                    'payment_id' => $payment->id,
-                    'user_id' => $payment->user_id
-                ]);
                 return;
             }
 
@@ -944,11 +940,7 @@ class PaymentController extends Controller
 
                     if ($wisproPaymentResponse['success']) {
                         $payment->update(['wispro_registered' => true]);
-                        Log::info('SEND C2P: Pago registrado exitosamente en Wispro', [
-                            'invoice_ids' => $wisproIds,
-                            'client_id' => $request->client_id,
-                            'response' => $wisproPaymentResponse['data']
-                        ]);
+
                     } else {
                         Log::error('SEND C2P: Error al registrar pago en Wispro', [
                             'invoice_ids' => $wisproIds,

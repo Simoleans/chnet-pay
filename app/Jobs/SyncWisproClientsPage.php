@@ -34,8 +34,6 @@ class SyncWisproClientsPage implements ShouldQueue
 
     public function handle(WisproApiService $wisproApiService): void
     {
-        Log::info("📄 Sincronizando página {$this->page} de Wispro (perPage={$this->perPage})");
-
         $response = $wisproApiService->getClients($this->page, $this->perPage);
 
         if (!$response['success']) {

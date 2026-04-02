@@ -23,11 +23,6 @@ class BdvPaymentController extends Controller
     {
         $data = $request->validated();
 
-        Log::info('BDV verify: payload recibido en controlador', [
-            'user_id' => Auth::id(),
-            'payload' => $data,
-        ]);
-
         $telefonoPagador = $data['telefonoPagador'];
         $telefonoDestino = $data['telefonoDestino'];
 
@@ -42,9 +37,6 @@ class BdvPaymentController extends Controller
             $data['bancoOrigen'],
             $data['reqCed'] ?? false
         );
-
-        Log::info('BDV VERIFY P2P: Respuesta del banco', ['response' => $resp]);
-
         // 2. El banco debe responder con code 1000 o 1010 para considerar el pago válido
         $code = $resp['code'] ?? null;
 

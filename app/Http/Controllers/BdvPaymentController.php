@@ -12,6 +12,7 @@ use App\Models\BcvRate;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Support\WisproInvoiceIds;
+use App\Http\Requests\BDV\StartIpg2PaymentRequest;
 
 class BdvPaymentController extends Controller
 {
@@ -203,56 +204,35 @@ class BdvPaymentController extends Controller
      * Crea el pago en IPG2 y redirige al usuario a urlPayment.
      * Ejemplo: pagar una factura de internet.
      */
-    public function start(Request $request, BdvApiService $bdv)
+    public function start(StartIpg2PaymentRequest $request, BdvApiService $bdv)
     {
-        $data = $request->validate([
-            'invoice_id' => ['required','integer'],
-        ]);
+        $data = $request->validated();
 
-        // 1) Busca la factura
-        $invoice = Invoice::findOrFail($data['invoice_id']);
-
-        // 2) Arma payload IPG2 (ajusta campos según tu ipg2-bdv.php)
         $payload = [
             'currency'    => 1,
-            'amount'      => (string) $invoice->amount,
-            'reference'   => 'INTERNET-' . $invoice->id,
-            'title'       => 'Pago de Internet',
-            'description' => 'Factura #' . $invoice->id,
-
-            // pagador (ejemplo usando usuario logueado)
-            'idLetter'  => 'V',
-            'idNumber'  => (string) $request->user()->cedula,
-            'email'     => (string) $request->user()->email,
-            'cellphone' => (string) $request->user()->telefono,
-
-            // tu URL de retorno
+            'amount'      => (string) $data['amount'],
+            'reference'   => 'CHNET-' . $data['idLetter'] . $data['idNumber'] . date('YmdHis'),
+            'title'       => 'Pago de Servicios CHNET',
+            'description' => 'Pago de Servicios CHNET',
+            'idLetter'    => $data['idLetter'],
+            'idNumber'    => $data['idNumber'],
+            'email'       => $data['email'],
+            'cellphone'   => $data['cellphone'],
             'urlToReturn' => route('bdv.ipg2.return'),
         ];
 
         $resp = $bdv->createButtonPayment($payload);
 
-        // OJO: si resp es objeto, aquí ajustas ($resp->success)
-        $success = is_array($resp) ? ($resp['success'] ?? false) : ($resp->success ?? false);
+        Log::info('BDV IPG2 START', ['payload' => $payload, 'resp' => $resp]);
 
-        if (!$success) {
-            $msg = is_array($resp) ? ($resp['responseMessage'] ?? 'Error IPG2') : ($resp->responseMessage ?? 'Error IPG2');
-            return back()->withErrors(['bdv' => $msg]);
+        if (!$resp->success) {
+            return back()->withErrors(['bdv' => $resp->responseMessage]);
         }
 
-        $paymentId  = is_array($resp) ? $resp['paymentId'] : $resp->paymentId;
-        $urlPayment = is_array($resp) ? $resp['urlPayment'] : $resp->urlPayment;
+        // Guardamos en sesión para verificar al retorno
+        session(['bdv_ipg2_payment_id' => $resp->paymentId]);
 
-        // 3) Guardas paymentId en tu BD como PENDING
-        Payment::create([
-            'invoice_id' => $invoice->id,
-            'payment_id' => $paymentId,
-            'reference'  => 'INTERNET-' . $invoice->id,
-            'status'     => 'PENDING',
-        ]);
-
-        // 4) REDIRECCIÓN a la pasarela
-        return redirect()->away($urlPayment);
+        return redirect()->away($resp->urlPayment);
     }
 
     /**
@@ -260,44 +240,22 @@ class BdvPaymentController extends Controller
      */
     public function retorno(Request $request, BdvApiService $bdv)
     {
-        // depende de cómo lo envíe Biopago/IPG2:
-        $paymentId = $request->query('paymentId');
+        $paymentId = session('bdv_ipg2_payment_id') ?? $request->query('paymentId');
+
+        Log::info('BDV IPG2 RETORNO', ['query_params' => $request->all(), 'session_payment_id' => $paymentId]);
 
         if (!$paymentId) {
-            return redirect('/')->withErrors(['bdv' => 'Retorno sin paymentId']);
+            return response()->json(['error' => 'Sin paymentId'], 400);
         }
 
         $check = $bdv->checkButtonPayment($paymentId);
 
-        $success = is_array($check) ? ($check['success'] ?? false) : ($check->success ?? false);
+        Log::info('BDV IPG2 CHECK', ['check' => $check]);
 
-        $local = Payment::where('payment_id', $paymentId)->first();
-
-        if (!$local) {
-            return redirect('/')->withErrors(['bdv' => 'Pago no encontrado en sistema']);
-        }
-
-        if (!$success) {
-            $local->update(['status' => 'ERROR', 'raw' => json_encode($check)]);
-            $msg = is_array($check) ? ($check['responseMessage'] ?? 'Error verificando pago') : ($check->responseMessage ?? 'Error verificando pago');
-            return redirect()->route('internet.invoice.show', $local->invoice_id)
-                ->withErrors(['bdv' => $msg]);
-        }
-
-        $status = is_array($check) ? ($check['status'] ?? null) : ($check->status ?? null);
-
-        // ✅ Ajusta estos estados a lo que realmente devuelva tu IPG2
-        $approved = in_array($status, ['APPROVED','COMPLETED','PAID','SUCCESS'], true);
-
-        if ($approved) {
-            $local->update(['status' => 'PAID', 'raw' => json_encode($check)]);
-            $local->invoice->markAsPaid(); // tu método
-            return redirect()->route('internet.invoice.show', $local->invoice_id)
-                ->with('ok', 'Pago aprobado');
-        }
-
-        $local->update(['status' => $status ?? 'UNKNOWN', 'raw' => json_encode($check)]);
-        return redirect()->route('internet.invoice.show', $local->invoice_id)
-            ->withErrors(['bdv' => 'Pago no aprobado. Estado: '.($status ?? 'desconocido')]);
+        // Por ahora solo dump para ver qué devuelve
+        return response()->json([
+            'paymentId' => $paymentId,
+            'check'     => $check,
+        ]);
     }
 }

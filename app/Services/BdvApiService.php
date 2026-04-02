@@ -26,7 +26,7 @@ class BdvApiService
         ];
 
         $response = Http::withApiHeadersBDV()
-            ->timeout(20)
+            ->timeout(30)
             ->post(config('app.bdv.base_url') . '/getMovement', $body);
 
         return $response->json();
@@ -39,7 +39,7 @@ class BdvApiService
             "customerNumberInstrument" => $customerNumberInstrument,
         ];
         $response = Http::withApiHeadersBDV()
-            ->timeout(20)
+            ->timeout(30)
             ->post(config('app.bdv.base_url') . '/BankMobilePaymentC2P/paymentkey', $body);
 
         return $response->json();
@@ -48,7 +48,6 @@ class BdvApiService
 
     public function verifyC2P(string $customerDocumentId, string $customerNumberInstrument, string $amount, string $customerBankCode, string $concept, string $otp, string $coinType, string $operationType = 'CELE') : array
     {
-
         $body = [
             "customerDocumentId" => $customerDocumentId,
             "customerNumberInstrument" => $customerNumberInstrument,

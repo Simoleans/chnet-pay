@@ -27,6 +27,7 @@ const openPaymentModal = (invoice: any) => {
     emit('openPaymentModal', {
         invoice_ids: [invoice.id],
         amount: parseFloat(String(invoice.amount ?? 0)),
+        invoices: [{ id: invoice.id, invoice_number: invoice.invoice_number, amount: parseFloat(String(invoice.amount ?? 0)) }],
     })
 }
 
@@ -35,6 +36,11 @@ const openPayAllPending = () => {
     emit('openPaymentModal', {
         invoice_ids: pendingInvoices.value.map((i: any) => i.id),
         amount: totalPendingUsd.value,
+        invoices: pendingInvoices.value.map((i: any) => ({
+            id: i.id,
+            invoice_number: i.invoice_number,
+            amount: parseFloat(String(i.amount ?? 0)),
+        })),
     })
 }
 

@@ -105,6 +105,12 @@ Route::post('/api/bnc/send-c2p', [App\Http\Controllers\PaymentController::class,
 
 Route::post('/api/bdv/verify', [App\Http\Controllers\BdvPaymentController::class, 'verify'])->middleware(['auth']);
 
+// IPG2 BioPago BDV
+Route::get('/pagos/bdv/checkout', fn () => Inertia::render('Payments/BdvCheckout'))
+    ->middleware(['auth'])->name('bdv.ipg2.checkout');
+Route::post('/pagos/bdv/start',   [App\Http\Controllers\BdvPaymentController::class, 'start'])->middleware(['auth'])->name('bdv.ipg2.start');
+Route::get('/pagos/bdv/retorno',  [App\Http\Controllers\BdvPaymentController::class, 'retorno'])->name('bdv.ipg2.return');
+
 Route::get('/api/users/search/{code}', [App\Http\Controllers\UserController::class, 'searchByCode']);
 Route::post('/api/users/sync-wispro-all', [App\Http\Controllers\UserController::class, 'syncWisproClients'])->middleware(['auth', 'admin']);
 

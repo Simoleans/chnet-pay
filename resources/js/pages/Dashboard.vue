@@ -2,7 +2,9 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
+import { useCheckoutStore } from '@/stores/checkout';
+import { useNotifications } from '@/composables/useNotifications';
 
 // Modals
 import ReportPaymentModal from '../components/ReportPaymentModal.vue';
@@ -122,8 +124,44 @@ const viewReceipt = (payment: any) => {
     }
 }
 
+const checkoutStore = useCheckoutStore()
+const { notify }    = useNotifications()
+
+// Mostrar notificación flash de retorno BioPago BDV
+onMounted(() => {
+    const flash = page.props.flash as any
+    if (flash?.type && flash?.message) {
+        notify({
+            type:     flash.type,
+            message:  flash.message,
+            duration: flash.type === 'success' ? 6000 : 5000,
+        })
+    }
+})
+
 const openPaymentModal = (invoice?: any) => {
     selectedInvoice.value = invoice || null
+
+    // Guardar en store para que BioPago checkout lo lea sin depender de props
+    if (invoice) {
+        const ids = invoice.invoice_ids
+            ? invoice.invoice_ids.map(String)
+            : (invoice.id != null ? [String(invoice.id)] : [])
+
+        checkoutStore.set({
+            amountUsd:  parseFloat(String(invoice.amount ?? 0)),
+            invoiceIds: ids,
+            invoices:   invoice.invoices ?? [],
+            clientId:   String(invoice.client_id ?? ''),
+        })
+    } else if (props.user_plan?.price) {
+        checkoutStore.set({
+            amountUsd:  parseFloat(String(props.user_plan.price)),
+            invoiceIds: [],
+            invoices:   [],
+        })
+    }
+
     showBankSelector.value = true
 }
 

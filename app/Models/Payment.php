@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
+use App\Support\WisproInvoiceIds;
 
 class Payment extends Model
 {
@@ -40,6 +42,23 @@ class Payment extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public static function safeCreate(string $reference, User $user, array $invoiceIds, float $amountUsd, string $idNumber, string $bank, $phone = null,$typeBank): self
+    {
+        return self::create([
+            'reference'         => $reference,
+            'user_id'           => $user?->id,
+            'invoice_wispro'    => WisproInvoiceIds::encode($invoiceIds),
+            'amount'            => $amountUsd,
+            'id_number'         => $idNumber,
+            'bank'              => $bank,
+            'phone'             => $phone,
+            'payment_date'      => now()->format('Y-m-d'),
+            'verify_payments'   => true,
+            'wispro_registered' => false,
+            'type_bank'         => $typeBank,
+        ]);
     }
 
 }

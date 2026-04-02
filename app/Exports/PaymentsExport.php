@@ -60,6 +60,7 @@ class PaymentsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
     {
         return [
             'ID',
+            'Banco',
             'Referencia',
             'Cliente',
             'Código',
@@ -83,6 +84,7 @@ class PaymentsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
 
         return [
             $payment->id,
+            $this->getBankName($payment->type_bank),
             $payment->reference,
             optional($payment->user)->name,
             optional($payment->user)->code,
@@ -96,6 +98,17 @@ class PaymentsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
             $payment->verify_payments ? 'Verificado' : 'Sin verificar',
             optional($payment->created_at)->format('Y-m-d H:i:s'),
         ];
+    }
+
+    public function getBankName(string $typeBank): string
+    {
+        switch ($typeBank) {
+            case 'bnc':
+                return 'Banco Nacional de Crédito';
+            case 'bdv':
+                return 'Banco de Venezuela';
+        }
+        return 'No se ha registrado el banco';
     }
 }
 

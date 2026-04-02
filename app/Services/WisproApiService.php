@@ -4,7 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-
+use App\Models\Payment;
 /**
  * Servicio para consumir la API de Wispro
  *
@@ -14,9 +14,6 @@ use Illuminate\Support\Facades\Log;
  * - Manejo de errores y logging
  * - Métodos genéricos para CRUD
  *
- * Ejemplos de paginación:
- * - getClients(1, 20) → ?page=1&per_page=20
- * - getClients(3, 50) → ?page=3&per_page=50
  */
 class WisproApiService
 {
@@ -570,8 +567,6 @@ class WisproApiService
                 'transaction_kind_id' => '7b320226-e70b-4ec9-93ed-c736224df3bc',
             ];
 
-            Log::info('REGISTER PAYMENT wispro: Enviando peticion', ['data' => $data]);
-
             $response = Http::withHeaders($this->getHeaders())
                 ->post($this->baseUrl . $endpoint, $data);
 
@@ -600,6 +595,27 @@ class WisproApiService
                 'error' => 'Error de conexión con la API',
                 'message' => $e->getMessage()
             ];
+        }
+    }
+
+    public function registerPaymentSafe(array $invoiceIds, string $clientId, float $amountInUSD, string $reference, Payment $payment): bool
+    {
+        try {
+            $response = $this->registerPayment($invoiceIds, $clientId, now()->format('c'), $amountInUSD, $reference);
+
+            if($response['success']) {
+                $payment->update(['wispro_registered' => true]);
+                return true;
+            }
+
+            $payment->update(['wispro_registered' => false]);
+
+            return false;
+
+        } catch (\Exception $e) {
+            Log::error('Error en WisproApiService::registerPaymentSafe: ' . $e->getMessage());
+            $payment->update(['wispro_registered' => false]);
+            return false;
         }
     }
 
@@ -637,4 +653,5 @@ class WisproApiService
             ];
         }
     }
+
 }

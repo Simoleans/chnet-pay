@@ -209,6 +209,7 @@ class DashboardController extends Controller
                 'created_at' => $payment->created_at ? $payment->created_at->format('d/m/Y H:i') : null,
                 'image_path' => $payment->image_path,
                 'verify_payments' => $payment->verify_payments,
+                'type_bank' => $payment->type_bank,
             ];
         });
     }

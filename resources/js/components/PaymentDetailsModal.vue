@@ -62,6 +62,17 @@ const toggleVerification = () => {
         }
     })
 }
+
+const getBankName = (typeBank) => {
+    switch (typeBank) {
+        case 'bnc':
+            return 'Banco Nacional de Crédito'
+        case 'bdv':
+            return 'Banco de Venezuela'
+        default:
+            return 'No se ha registrado el banco'
+    }
+}
 </script>
 
 <template>
@@ -78,7 +89,7 @@ const toggleVerification = () => {
                 <div class="grid grid-cols-2 gap-4 text-sm">
                     <div>
                         <span class="font-medium text-muted-foreground">Banco donde se recibio el pago:</span>
-                        <p>{{ payment.type_bank ?? 'No se ha registrado el banco' }}</p>
+                        <p class="font-semibold">{{ getBankName(payment.type_bank) }}</p>
                     </div>
                     <div>
                         <span class="font-medium text-muted-foreground">Referencia:</span>

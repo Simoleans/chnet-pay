@@ -44,7 +44,7 @@ class Payment extends Model
         return $this->belongsTo(User::class);
     }
 
-    public static function safeCreate(string $reference, User $user, array $invoiceIds, float $amountUsd, string $idNumber, string $bank, $phone = null,$typeBank): self
+    public static function safeCreate(string $reference, User $user, array $invoiceIds, float $amountUsd, string $idNumber, string $bank, string $typeBank, $phone = null): self
     {
         return self::create([
             'reference'         => $reference,

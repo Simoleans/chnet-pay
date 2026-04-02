@@ -337,8 +337,8 @@ class BdvPaymentController extends Controller
                 $amountUsd,
                 $check->idLetter . $check->idNumber,
                 'BDV-IPG2',
-                $cellphone,
-                Payment::TYPE_BANK_BDV
+                Payment::TYPE_BANK_BDV,
+                $cellphone
             );
 
             Log::info('BDV IPG2 RETORNO: Pago guardado', [

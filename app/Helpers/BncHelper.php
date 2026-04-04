@@ -33,7 +33,7 @@ class BncHelper
             // PRIMERO: Intentar obtener desde la base de datos (manual)
             $dbRate = \App\Models\BcvRate::getLatestRate();
             if ($dbRate) {
-                Log::info('BCV obtenido desde BASE DE DATOS', ['rate' => $dbRate['Rate']]);
+                //Log::info('BCV obtenido desde BASE DE DATOS', ['rate' => $dbRate['Rate']]);
                 return $dbRate;
             }
 
@@ -204,10 +204,6 @@ class BncHelper
                 'ChildClientID' => '',
                 'BranchID' => '',
             ];
-
-            Log::info('BNC VALIDACION REF: Enviando validacion', [
-                'body' => $body
-            ]);
 
             //$response = BncApiService::send('Position/Validate', $body);
             $response = BncApiService::send('Position/ValidateP2P', $body);

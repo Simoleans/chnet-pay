@@ -212,12 +212,12 @@ class BncHelper
             //$response = BncApiService::send('Position/Validate', $body);
             $response = BncApiService::send('Position/ValidateP2P', $body);
 
-            Log::info('BNC VALIDACION REF: Respuesta recibidaxXXXX', ['response' => $response->json(),'status' => $response->status()]);
+            //Log::info('BNC VALIDACION REF: Respuesta recibidaxXXXX', ['response' => $response->json(),'status' => $response->status()]);
 
             if ($response->ok() || $response->status() === 202) {
                 $json = $response->json();
 
-                Log::info('BNC VALIDACION REF: Respuesta recibida', ['response' => $json]);
+               // Log::info('BNC VALIDACION REF: Respuesta recibida', ['response' => $json]);
 
                 if (!isset($json['value'])) {
                     Log::error('BNC VALIDACION REF: Respuesta sin campo value');
@@ -225,7 +225,7 @@ class BncHelper
                 }
 
                 $decrypted = BncCryptoHelper::decryptAES($json['value'], $key);
-                Log::info('BNC VALIDACION REF: Validacion exitosa', ['result' => $decrypted]);
+                //Log::info('BNC VALIDACION REF: Validacion exitosa', ['result' => $decrypted]);
 
                 // Devolver status, message y el value desencriptado
                 return [

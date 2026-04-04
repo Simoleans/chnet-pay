@@ -17,12 +17,7 @@ class SyncWisproClients implements ShouldQueue
     public $tries   = 5;
     public $timeout = 900;
 
-    protected $perPage = 115;
-
-    public function __construct()
-    {
-        //
-    }
+    public const PER_PAGE = 100;
 
     public function handle(WisproApiService $wisproApiService): void
     {
@@ -30,7 +25,7 @@ class SyncWisproClients implements ShouldQueue
 
         try {
             // 1. Obtener primera página para conocer total
-            $response = $wisproApiService->getClients(1, $this->perPage);
+            $response = $wisproApiService->getClients(1, self::PER_PAGE);
 
             if (!$response['success']) {
                 throw new \Exception('Error al obtener clientes de Wispro: ' . ($response['error'] ?? 'Error desconocido'));
@@ -44,7 +39,7 @@ class SyncWisproClients implements ShouldQueue
 
             // 2. Despachar un job por página
             for ($page = 1; $page <= $totalPages; $page++) {
-                dispatch(new SyncWisproClientsPage($page, $this->perPage));
+                dispatch(new SyncWisproClientsPage($page, self::PER_PAGE));
             }
 
             Log::info("✅ Orquestador completado. Jobs por página encolados correctamente.");

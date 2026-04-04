@@ -604,10 +604,10 @@ class PaymentController extends Controller
     public function validateAndStorePayment(ValidatePaymentRequest $request)
     {
         try {
-            Log::info('BNC validate-and-store-payment: payload recibido en controlador', [
+           /*  Log::info('BNC validate-and-store-payment: payload recibido en controlador', [
                 'user_id' => Auth::id(),
                 'payload' => $request->all(),
-            ]);
+            ]); */
 
             $user = Auth::user();
 

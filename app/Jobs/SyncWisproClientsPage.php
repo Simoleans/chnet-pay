@@ -26,10 +26,10 @@ class SyncWisproClientsPage implements ShouldQueue
      * @param int $page     Número de página a sincronizar
      * @param int $perPage  Tamaño de página (debe coincidir con tu API)
      */
-    public function __construct(int $page, int $perPage = 100)
+    public function __construct(int $page)
     {
         $this->page    = $page;
-        $this->perPage = $perPage;
+        $this->perPage = SyncWisproClients::PER_PAGE;
     }
 
     public function handle(WisproApiService $wisproApiService): void
@@ -62,28 +62,29 @@ class SyncWisproClientsPage implements ShouldQueue
         $created = 0;
         $updated = 0;
         $skipped = 0;
+        $now = now();
 
         foreach ($clients as $client) {
             try {
-                DB::beginTransaction();
 
                 $idNumber = $client['national_identification_number'] ?? null;
                 $email    = $client['email'] ?? ($idNumber ? $idNumber . '@sincronizado.local' : null);
+                $detail = $client['details'] ?? null;
 
                 if (!$idNumber) {
                     $skipped++;
                     Log::warning("⚠️ Cliente omitido (sin cédula) - ID Wispro: " . ($client['id'] ?? 'N/A') . " | Nombre: " . ($client['name'] ?? 'Sin nombre') . " | Email: " . ($client['email'] ?? 'Sin email') . " | Página: {$this->page}");
-                    DB::rollBack();
+
                     continue;
                 }
 
                 $code = $client['custom_id'] ?? 'WIS-' . $client['national_identification_number'];
 
-                // Buscar solo por identificadores únicos e inmutables
-                $existingUser = User::where('id_wispro', $client['id'])
-                    ->orWhere('code', $code)
-                    ->orWhere('id_number', 'V-' . $idNumber)
-                    ->first();
+                DB::beginTransaction();
+
+                // Primero busca por el identificador más confiable
+                $existingUser = User::where('id_wispro', $client['id'])->first()
+                ?? User::where('id_number', $detail.'-'. $idNumber)->first();
 
                 if ($existingUser) {
                     // UPDATE: Actualizar todos los campos que pueden cambiar en Wispro
@@ -95,7 +96,7 @@ class SyncWisproClientsPage implements ShouldQueue
                         'zone'      => $client['zone_name'] ?? null,
                         'code'      => $code,
                         'id_wispro' => $client['id'], // Por si no lo tenía antes
-                        'synced_at' => now(), // Marca última sincronización
+                        'synced_at' => $now, // Marca última sincronización
                         'status'    => true, // Asegura que esté activo
                     ]);
                     $updated++;
@@ -108,10 +109,10 @@ class SyncWisproClientsPage implements ShouldQueue
                         'address'   => $client['address'] ?? null,
                         'zone'      => $client['zone_name'] ?? null,
                         'code'      => $code,
-                        'id_number' => 'V-' . $idNumber,
+                        'id_number' => $detail.'-'. $idNumber,
                         'id_wispro' => $client['id'],
                         'password'  => bcrypt($idNumber),
-                        'synced_at' => now(), // Marca creación
+                        'synced_at' => $now, // Marca creación
                         'status'    => true,
                         'role'      => 0,
                     ]);

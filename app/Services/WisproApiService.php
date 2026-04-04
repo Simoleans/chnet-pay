@@ -44,11 +44,11 @@ class WisproApiService
      * @param int $perPage Registros por página (mínimo 1, máximo 100)
      * @return array Parámetros validados
      */
-    private function buildPaginationParams($page = 1, $perPage = 20)
+    private function buildPaginationParams($page = 1, $perPage = 20): array
     {
         return [
             'page' => max(1, (int)$page),
-            'per_page' => max(1, min(100, (int)$perPage))
+            'per_page' => max(1, min(100, (int)$perPage)),
         ];
     }
 

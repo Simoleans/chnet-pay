@@ -100,7 +100,7 @@ class PaymentsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
         ];
     }
 
-    public function getBankName(string $typeBank): string
+    public function getBankName(?string $typeBank): string
     {
         switch ($typeBank) {
             case 'bnc':

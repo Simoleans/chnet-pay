@@ -733,11 +733,11 @@ class PaymentController extends Controller
 
                     if ($wisproPaymentResponse['success']) {
                         $payment->update(['wispro_registered' => true]);
-                        Log::info('VALIDATE P2P: Pago registrado exitosamente en Wispro', [
+                       /*  Log::info('VALIDATE P2P: Pago registrado exitosamente en Wispro', [
                             'invoice_ids' => $wisproIds,
                             'client_id' => $request->client_id,
                             'response' => $wisproPaymentResponse['data']
-                        ]);
+                        ]); */
                     } else {
                         Log::error('VALIDATE P2P: Error al registrar pago en Wispro', [
                             'invoice_ids' => $wisproIds,

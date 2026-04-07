@@ -122,7 +122,7 @@ class SyncWisproClientsPage implements ShouldQueue
                 DB::commit();
             } catch (\Exception $e) {
                 DB::rollBack();
-                Log::warning("⚠️ Error procesando cliente {$client['name']} (página {$this->page}): {$e->getMessage()}");
+                Log::warning("⚠️ Error procesando cliente {$client['name']} - {$client['national_indentification_number']} (página {$this->page}): {$e->getMessage()}");
             }
         }
 

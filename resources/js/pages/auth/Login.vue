@@ -142,7 +142,7 @@ onMounted(async () => {
     // Cargar script si no existe
     if (!document.querySelector('script[src*="recaptcha"]')) {
         const script = document.createElement('script');
-        script.src = 'https://www.google.com/recaptcha/api.js';
+        script.src = 'https://www.google.com/recaptcha/api.js?render=explicit';
         script.async = true;
         script.defer = true;
         document.head.appendChild(script);
@@ -313,7 +313,7 @@ const submit = () => {
                         autocomplete="id_number"
                         v-model="form.id_number"
                         placeholder="Solo números"
-                        @input="form.id_number = form.id_number.replace(/[^0-9]/g, '')"
+                        @input="form.id_number = String(form.id_number).replace(/[^0-9]/g, '')"
                     />
                     <small class="text-xs text-muted-foreground">
                         {{ form.id_type === ID_TYPE_CEDULA_RIF ? 'Ejemplo: 12345678 o 123456789' : 'Ingresa tu número de abonado' }}
@@ -373,7 +373,6 @@ const submit = () => {
                     <div
                         v-if="props.recaptchaSiteKey"
                         ref="recaptchaRef"
-                        class="g-recaptcha"
                     ></div>
                     <InputError :message="form.errors['g-recaptcha-response']" />
                 </div>

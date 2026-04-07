@@ -1,7 +1,7 @@
 {
     "name": "CHNET App",
     "short_name": "CHNET",
-    "description": "Intranet de CHNET",
+    "description": "Intranet de pagos CHNET",
     "background_color": "#343333",
     "theme_color": "#343333",
     "display": "standalone",

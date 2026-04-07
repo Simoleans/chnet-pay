@@ -40,7 +40,7 @@
 
         {{-- Open Graph (compartir en WhatsApp, redes sociales, etc.) --}}
         <meta property="og:title" content="{{ config('app.name', 'CHNET') }}">
-        <meta property="og:description" content="Intranet de CHNET">
+        <meta property="og:description" content="Intranet de pagos CHNET">
         <meta property="og:image" content="{{ request()->getSchemeAndHttpHost() }}/img/logo.png">
         <meta property="og:image:width" content="512">
         <meta property="og:image:height" content="512">

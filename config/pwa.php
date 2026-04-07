@@ -9,7 +9,7 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'install-button' => true,
+    'install-button' => false,
 
     /*
     |--------------------------------------------------------------------------
@@ -27,8 +27,7 @@ return [
         'theme_color' => '#343333',
         'icons' => [
             [
-                'src' => 'img/logo.png',
-                'sizes' => '192x192',
+                'src' => 'img/logo.png',                'sizes' => '192x192',
                 'type' => 'image/png',
                 'purpose' => 'any maskable',
             ],

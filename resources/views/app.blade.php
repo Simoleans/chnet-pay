@@ -34,10 +34,20 @@
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
-        {{-- <link rel="icon" href="/favicon.ico" sizes="any"> --}}
-        <link rel="icon" href="https://chnet.com.ve/wp-content/uploads/2024/04/cropped-favicon-192x192.jpg" sizes="any">
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+        {{-- Favicon --}}
+        <link rel="icon" href="/img/logo.png" type="image/png">
+        <link rel="apple-touch-icon" href="/img/logo.png">
+
+        {{-- Open Graph (compartir en WhatsApp, redes sociales, etc.) --}}
+        <meta property="og:title" content="{{ config('app.name', 'CHNET') }}">
+        <meta property="og:description" content="Intranet de CHNET">
+        <meta property="og:image" content="{{ request()->getSchemeAndHttpHost() }}/img/logo.png">
+        <meta property="og:image:width" content="512">
+        <meta property="og:image:height" content="512">
+        <meta property="og:url" content="{{ request()->getSchemeAndHttpHost() }}">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary">
+        <meta name="twitter:image" content="{{ request()->getSchemeAndHttpHost() }}/img/logo.png">
 
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />

@@ -41,7 +41,7 @@ const formatPrice = (price: number | null) => {
 
 const formatPriceBs = (priceUsd: number | null) => {
     if (!priceUsd || !bcv.value) return '0.00'
-    const priceBs = applyIva(priceUsd) * parseFloat(bcv.value)
+    const priceBs = formatPrice(priceUsd) * parseFloat(bcv.value)
     return new Intl.NumberFormat('es-VE', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2

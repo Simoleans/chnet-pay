@@ -10,8 +10,8 @@
                     <img src="/img/bdv.webp" alt="BDV" class="h-10 w-10 object-contain" />
                 </div>
                 <div>
-                    <h1 class="text-xl font-semibold">BioPago BDV</h1>
-                    <p class="text-sm text-muted-foreground">Punto de venta digital — IPG2</p>
+                    <h1 class="text-xl font-semibold">Botón de pago BDV</h1>
+                    <!-- <p class="text-sm text-muted-foreground">Punto de venta digital — IPG2</p> -->
                 </div>
             </div>
 
@@ -152,7 +152,7 @@
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
                     </svg>
                     <img v-else src="/img/bdv.webp" alt="BDV" class="h-5 w-5 object-contain" />
-                    {{ form.processing ? 'Iniciando pago...' : 'Pagar con BioPago BDV' }}
+                    {{ form.processing ? 'Iniciando pago...' : 'Pagar con Botón de pago BDV' }}
                 </button>
 
             </form>

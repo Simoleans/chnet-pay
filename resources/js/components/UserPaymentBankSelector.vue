@@ -110,7 +110,7 @@ const goToBiopago = () => {
                     <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 dark:bg-red-950/30 overflow-hidden">
                         <img src="/img/bdv.webp" alt="BDV" class="h-8 w-8 object-contain" />
                     </div>
-                    <span class="text-sm font-semibold text-foreground">BioPago BDV</span>
+                    <span class="text-sm font-semibold text-foreground">Botón de pago BDV</span>
                 </button>
             </div>
 

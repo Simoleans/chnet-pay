@@ -21,7 +21,7 @@ import ContractStatsCards from '../components/Dashboard/Admin/ContractStatsCards
 import RecentPaymentsTable from '../components/Dashboard/Admin/RecentPaymentsTable.vue';
 
 // User Components
-import PaymentLinkCard from '../components/Dashboard/User/PaymentLinkCard.vue';
+// import PaymentLinkCard from '../components/Dashboard/User/PaymentLinkCard.vue';
 import ContractCard from '../components/Dashboard/User/ContractCard.vue';
 import PlanCard from '../components/Dashboard/User/PlanCard.vue';
 import UserPaymentsTable from '../components/Dashboard/User/UserPaymentsTable.vue';
@@ -212,14 +212,9 @@ const handleBankSelected = (bank: 'bnc' | 'bdv') => {
 
             <!-- Vista para USUARIO NORMAL (role = 0) -->
             <template v-else>
-                <!-- Cards superiores: Tasa BCV + Link de Pago -->
-                <div class="grid gap-4 grid-cols-1 md:grid-cols-2">
+                <!-- Cards superiores -->
+                <div class="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
                     <BcvRateCard />
-                    <PaymentLinkCard />
-                </div>
-
-                <!-- Cards del medio: Mi Contrato + Mi Plan -->
-                <div class="grid gap-4 grid-cols-1 md:grid-cols-2">
                     <ContractCard :user-contract="user_contract" />
                     <PlanCard
                         :user-plan="user_plan"

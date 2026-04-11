@@ -84,6 +84,7 @@
                             v-model="form.idNumber"
                             type="text"
                             inputmode="numeric"
+                            @input="onIdNumberInput"
                             placeholder="Número de cédula"
                             maxlength="9"
                             class="flex-1 rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
@@ -167,8 +168,8 @@
 
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue'
-import { Head, useForm, usePage } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { Head, router, useForm, usePage } from '@inertiajs/vue3'
+import { computed, onMounted } from 'vue'
 import { useBcvStore } from '@/stores/bcv'
 import { useCheckoutStore } from '@/stores/checkout'
 import { storeToRefs } from 'pinia'
@@ -194,6 +195,16 @@ const form = useForm({
     cellphone:   '',
     amount:      '',
     invoice_ids: checkout.invoiceIds,
+})
+
+const onIdNumberInput = () => {
+    form.idNumber = form.idNumber.replace(/\D/g, '').slice(0, 9)
+}
+
+onMounted(() => {
+    if (!checkout.amountUsd || checkout.amountUsd <= 0) {
+        router.visit(route('dashboard'))
+    }
 })
 
 const submit = async () => {

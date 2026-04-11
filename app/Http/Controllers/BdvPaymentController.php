@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\PaymentStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -16,6 +17,7 @@ use App\Http\Requests\BDV\StartIpg2PaymentRequest;
 use Inertia\Inertia;
 use App\Helpers\CurrencyHelper;
 use Illuminate\Support\Facades\DB;
+use App\Models\BdvIpg2Payment;
 
 class BdvPaymentController extends Controller
 {
@@ -233,10 +235,21 @@ class BdvPaymentController extends Controller
         }
 
         // Guardamos en sesión para verificar al retorno
-        session([
+        /* session([
             'bdv_ipg2_payment_id'  => $resp->paymentId,
             'bdv_ipg2_invoice_ids' => $data['invoice_ids'] ?? [],
             'bdv_ipg2_cellphone'   => $data['cellphone'],
+        ]); */
+
+        BdvIpg2Payment::create([
+            'payment_id'  => $resp->paymentId,
+            'user_id'     => Auth::id(),
+            'invoice_ids' => $data['invoice_ids'] ?? [],
+            'cellphone'   => $data['cellphone'],
+            'amount'      => $data['amount'],
+            'reference'   => $payload['reference'],
+            'status'      => PaymentStatus::Pending,
+            'expires_at'  => now()->addMinutes(10),
         ]);
 
         return response()->json([
@@ -244,73 +257,40 @@ class BdvPaymentController extends Controller
         ]);
     }
 
-    /**
-     * Retorno: BDV redirige aquí tras el pago. Verificamos con checkPayment y redirigimos al dashboard.
-     */
- /*    public function retornoold(Request $request, BdvApiService $bdv)
-    {
-        $paymentId = session('bdv_ipg2_payment_id') ?? $request->query('paymentId');
-
-        Log::info('BDV IPG2 RETORNO', ['query_params' => $request->all(), 'session_payment_id' => $paymentId]);
-
-        if (!$paymentId) {
-            session()->flash('type', 'error');
-            session()->flash('message', 'No se encontró el identificador del pago. Por favor contacte soporte.');
-            return redirect()->route('dashboard');
-        }
-
-        $check = $bdv->checkButtonPayment($paymentId);
-
-        Log::info('BDV IPG2 CHECK', ['check' => $check]);
-
-        $success = $check->success ?? false;
-        $message = $check->responseMessage ?? 'Sin respuesta del banco.';
-
-        if ($success) {
-            session()->flash('type', 'success');
-            session()->flash('message', $message);
-        } else {
-            session()->flash('type', 'error');
-            session()->flash('message', $message);
-        }
-
-        // Limpiar sesión del pago
-        session()->forget('bdv_ipg2_payment_id');
-
-        return redirect()->route('dashboard');
-    } */
-
     public function retorno(Request $request, BdvApiService $bdv, WisproApiService $wispro)
     {//try catch dcon db transaction
         DB::beginTransaction();
         try {
-            $paymentId  = $request->query('id') ?? session('bdv_ipg2_payment_id');
-            $invoiceIds = session('bdv_ipg2_invoice_ids', []);
-            $cellphone  = session('bdv_ipg2_cellphone', null);
+            $paymentId  = $request->query('id');
 
-            session()->forget(['bdv_ipg2_payment_id', 'bdv_ipg2_invoice_ids', 'bdv_ipg2_cellphone']);
-
-
-            Log::info('BDV IPG2 RETORNO', [
-                'query_params' => $request->all(),
-                'paymentId'    => $paymentId,
-                'invoiceIds'   => $invoiceIds,
-            ]);
 
             if (!$paymentId) {
                 Log::error('BDV IPG2 RETORNO: Sin paymentId');
                 return redirect('/')->withErrors(['bdv' => 'Sin paymentId']);
             }
 
+            //Buscar en BD el registro pendiente
+            $ipg2Payment = BdvIpg2Payment::where('payment_id', $paymentId)
+                ->where('status', PaymentStatus::Pending)
+                ->first();
+
+
+            Log::info('BDV IPG2 RETORNO', [
+                'query_params' => $request->all(),
+                'paymentId'    => $paymentId,
+                'invoiceIds'   => $ipg2Payment?->invoice_ids,
+            ]);
+
+            if (!$ipg2Payment) {
+                Log::error('BDV IPG2 RETORNO: paymentId no encontrado o ya procesado', [
+                    'paymentId' => $paymentId,
+                ]);
+                return redirect('/')->withErrors(['bdv' => 'Pago no encontrado o ya procesado']);
+            }
+
             // 1. Verificar estado real con BDV
             $check = $bdv->checkButtonPayment($paymentId);
 
-            Log::info('BDV IPG2 CHECK', [
-                'paymentId'  => $paymentId,
-                'invoiceIds' => $invoiceIds,
-                'success'    => $check->success,
-                'status'     => $check->status,
-            ]);
 
             // status 1 = pagado (confirmado en pruebas)
             if (!$check->success || $check->status !== 1) {
@@ -319,6 +299,8 @@ class BdvPaymentController extends Controller
                     'status'    => $check->status,
                     'message'   => $check->responseMessage,
                 ]);
+                $ipg2Payment->markRejected();
+                DB::commit();
                 return redirect('/')->withErrors(['bdv' => $check->responseMessage]);
             }
 
@@ -327,8 +309,10 @@ class BdvPaymentController extends Controller
             $amountUsd = CurrencyHelper::bsToUsd($amountBs);
 
             // 3. Guardar el pago en la tabla payments
-            $wisproIds = array_values(array_filter(array_map('strval', $invoiceIds)));
-            $user      = Auth::user();
+            $wisproIds = array_values(array_filter(array_map('strval', $ipg2Payment->invoice_ids)));
+            $cellphone = $ipg2Payment->cellphone;
+            //$user      = Auth::user();
+            $user      = $ipg2Payment->user;
 
             $payment = Payment::safeCreate(
                 $check->reference,
@@ -341,6 +325,8 @@ class BdvPaymentController extends Controller
                 $cellphone
             );
 
+            $ipg2Payment->markApproved();
+
             Log::info('BDV IPG2 RETORNO: Pago guardado', [
                 'payment_id' => $payment->id,
                 'amount_bs'  => $amountBs,
@@ -351,7 +337,7 @@ class BdvPaymentController extends Controller
             ]);
 
             // 4. Registrar en Wispro
-            if (count($wisproIds) > 0 && $user?->id_wispro) {
+           /*  if (count($wisproIds) > 0 && $user?->id_wispro) {
                 Log::info('BDV IPG2 RETORNO: Registrando en Wispro', [
                     'wispro_ids' => $wisproIds,
                     'client_id' => $user->id_wispro,
@@ -365,7 +351,7 @@ class BdvPaymentController extends Controller
                         $amountUsd,
                         "Pago IPG2 {$check->reference}",
                         $payment);
-            }
+            } */
 
             session()->flash('type', 'success');
             session()->flash('message', $check->responseMessage);

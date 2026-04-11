@@ -82,4 +82,9 @@ class BdvApiService
     {
         return $this->ipg2->checkPayment($paymentId);
     }
+
+    public function verifyPayment(string $paymentId)
+    {
+        return $this->ipg2->verifyPayment($paymentId);
+    }
 }

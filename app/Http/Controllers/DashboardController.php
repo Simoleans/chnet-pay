@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\BncHelper;
+use App\Enums\PaymentStatus;
+use App\Models\BdvIpg2Payment;
 use App\Models\Payment;
 use App\Models\User;
 use App\Services\WisproApiService;
@@ -97,6 +99,7 @@ class DashboardController extends Controller
             ->get();
 
         $data['admin_payments'] = $this->formatPayments($allPayments);
+        $data['bdv_ipg2_payments'] = $this->formatBdvIpg2Payments();
 
         return $data;
     }
@@ -212,6 +215,55 @@ class DashboardController extends Controller
                 'type_bank' => $payment->type_bank,
             ];
         });
+    }
+
+    /**
+     * Formatear pagos BDV IPG2 para admin con paginación.
+     * No expone payment_id ni invoice_ids al frontend.
+     */
+    private function formatBdvIpg2Payments(): array
+    {
+        $paginator = BdvIpg2Payment::query()
+            ->with(['user:id,name,code'])
+            ->select([
+                'id',
+                'user_id',
+                'cellphone',
+                'amount',
+                'reference',
+                'status',
+                'approved_at',
+                'expires_at',
+                'created_at',
+            ])
+            ->orderByDesc('id')
+            ->paginate(10, ['*'], 'bdv_page')
+            ->withQueryString();
+
+        return [
+            'data' => collect($paginator->items())->map(function ($payment) {
+                $status = $payment->status instanceof PaymentStatus
+                    ? $payment->status
+                    : PaymentStatus::from((string) $payment->status);
+
+                return [
+                    'id' => $payment->id,
+                    'reference' => $payment->reference,
+                    'amount' => $payment->amount,
+                    'cellphone' => $payment->cellphone,
+                    'user_name' => $payment->user?->name ?? 'N/A',
+                    'user_code' => $payment->user?->code ?? 'N/A',
+                    'status' => $status->value,
+                    'status_label' => $status->label(),
+                    'approved_at' => $payment->approved_at?->format('d/m/Y H:i'),
+                    'created_at' => $payment->created_at?->format('d/m/Y H:i'),
+                ];
+            })->values(),
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'per_page' => $paginator->perPage(),
+            'total' => $paginator->total(),
+        ];
     }
 }
 

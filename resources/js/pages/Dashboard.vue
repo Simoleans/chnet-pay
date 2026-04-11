@@ -77,6 +77,16 @@ const props = defineProps({
     admin_payments: {
         type: Array,
         default: () => []
+    },
+    bdv_ipg2_payments: {
+        type: Object,
+        default: () => ({
+            data: [],
+            current_page: 1,
+            last_page: 1,
+            per_page: 10,
+            total: 0,
+        })
     }
 });
 
@@ -194,6 +204,7 @@ const handleBankSelected = (bank: 'bnc' | 'bdv') => {
                 <!-- Tabla de Pagos para Admin -->
                 <RecentPaymentsTable
                     :payments="admin_payments"
+                    :bdv-ipg2-payments="bdv_ipg2_payments"
                     @view-payment="viewPayment"
                     @view-receipt="viewReceipt"
                 />

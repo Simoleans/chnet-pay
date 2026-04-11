@@ -108,9 +108,9 @@ const saveBcvRate = async () => {
                 >
                     ✏️ Actualizar BCV
                 </Button>
-                <Button @click="reloadBcvRate" size="sm" variant="outline" :disabled="loading" class="flex-1">
+                <!-- <Button @click="reloadBcvRate" size="sm" variant="outline" :disabled="loading" class="flex-1">
                     🔄 Recargar
-                </Button>
+                </Button> -->
                 <Button as="a" href="https://www.bcv.org.ve/" target="_blank" size="sm" variant="outline" class="flex-1">
                     🔍 Verificar
                 </Button>

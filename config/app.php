@@ -157,6 +157,7 @@ return [
     'ipg2' => [
         'client_id' => env('IPG2_CLIENT_ID', ''),
         'client_secret' => env('IPG2_CLIENT_SECRET', ''),
+        'base_url' => env('IPG2_BASE_URL', ''),
     ],
 
     'recaptcha' => [

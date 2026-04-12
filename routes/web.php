@@ -28,6 +28,7 @@ Route::resource('users', UserController::class)->middleware(['auth', 'admin']);
 Route::put('/users/{id}/update-client', [UserController::class, 'updateClient'])->middleware(['auth', 'admin'])->name('users.update-client');
 Route::get('/users/wispro/{wisproId}/show', [UserController::class, 'showWispro'])->middleware(['auth', 'admin'])->name('users.show-wispro');
 Route::post('/users/wispro/{wisproId}/sync', [UserController::class, 'syncSingleWisproClient'])->middleware(['auth', 'admin'])->name('users.sync-wispro-single');
+Route::delete('/users/wispro/{wisproId}', [UserController::class, 'deleteWisproClient'])->middleware(['auth', 'admin'])->name('users.delete-wispro');
 
 //zones
 Route::resource('zones', ZoneController::class)->middleware(['auth', 'admin']);
@@ -96,8 +97,6 @@ Route::get('/api/bnc/history', function (Request $request) {
 });
 
 Route::get('/api/banks', [PaymentController::class, 'getBanks'])->name('get-banks');
-
-Route::get('/api/bnc/validate-reference/{reference}', [App\Http\Controllers\PaymentController::class, 'validateReference'])->middleware(['auth']);
 
 Route::post('/api/bnc/validate-and-store-payment', [App\Http\Controllers\PaymentController::class, 'validateAndStorePayment'])->middleware(['auth']);
 

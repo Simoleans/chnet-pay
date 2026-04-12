@@ -121,7 +121,7 @@ const goToBdvPage = (page: number) => {
     <div class="flex-1 rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
         <div class="p-4">
             <div class="mb-4 flex justify-between items-center">
-                <h2 class="text-xl font-semibold">📋 Pagos Recientes (Últimos 50)</h2>
+                <h2 class="text-xl font-semibold">📋 Pagos Recientes (Últimos 30)</h2>
                 <Button
                     as="a"
                     :href="route('payments.index')"
@@ -155,7 +155,7 @@ const goToBdvPage = (page: number) => {
                             :key="i"
                             class="border-b transition-colors hover:bg-muted/50"
                         >
-                            <td v-for="column in paymentColumns" :key="column.key" class="px-4 py-3 whitespace-nowrap">
+                            <td v-for="column in paymentColumns" :key="column.key" class="px-4 py-1 whitespace-nowrap">
                                 <template v-if="column.key === 'actions'">
                                     <div class="flex gap-2">
                                         <button

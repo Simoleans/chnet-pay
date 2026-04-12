@@ -540,74 +540,11 @@ class PaymentController extends Controller
     }
 
     /**
-     * Valida una referencia de pago con el banco
-     */
-    public function validateReference(Request $request, string $reference)
-    {
-        try {
-            // Validar que la fecha de movimiento y monto sean proporcionados
-            $request->validate([
-                'payment_date' => 'required|date_format:Y-m-d',
-                'expected_amount' => 'required|numeric|min:0.01',
-            ]);
-
-            $result = BncHelper::validateOperationReference(
-                $reference,
-                $request->payment_date,
-                $request->expected_amount
-            );
-
-            if (!$result) {
-                return response()->json([
-                    'success' => false,
-                    'showReportLink' => true,
-                    'message' => 'No se pudo validar la referencia con el banco.'
-                ]);
-            }
-
-            // Validar si el movimiento existe
-            if (!$result['MovementExists']) {
-                return response()->json([
-                    'success' => false,
-                    'showReportLink' => true,
-                    'message' => 'No se encontró ningún pago con esta referencia.'
-                ]);
-            }
-
-            // Si el movimiento existe, validar que el monto sea correcto (con un margen de error de 0.01)
-            $amountDiff = abs($result['Amount'] - $request->expected_amount);
-            if ($amountDiff > 0.01) {
-                return response()->json([
-                    'success' => false,
-                    'showReportLink' => true,
-                    'message' => 'El monto del pago no coincide con el esperado.'
-                ]);
-            }
-
-            return response()->json([
-                'success' => true,
-                'data' => $result,
-                'message' => 'Pago validado exitosamente'
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al validar la referencia'
-            ], 500);
-        }
-    }
-
-    /**
      * Valida una referencia de pago y la almacena si es exitosa
      */
     public function validateAndStorePayment(ValidatePaymentRequest $request)
     {
         try {
-           /*  Log::info('BNC validate-and-store-payment: payload recibido en controlador', [
-                'user_id' => Auth::id(),
-                'payload' => $request->all(),
-            ]); */
 
             $user = Auth::user();
 

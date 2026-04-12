@@ -407,6 +407,35 @@ class UserController extends Controller
     }
 
     /**
+     * Eliminar cliente en Wispro usando su ID
+     */
+    public function deleteWisproClient(string $wisproId)
+    {
+        try {
+            $wisproResponse = $this->wisproApiService->delete('/clients/' . $wisproId);
+
+            if (!$wisproResponse['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pudo eliminar el cliente en Wispro: ' . ($wisproResponse['message'] ?? 'Error desconocido'),
+                ], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cliente eliminado exitosamente en Wispro.',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error eliminando cliente Wispro: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar el cliente en Wispro.',
+            ], 500);
+        }
+    }
+
+    /**
      * Show the form for editing the specified resource.
      */
     public function edit(string $id)

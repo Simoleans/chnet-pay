@@ -68,17 +68,29 @@ class SyncWisproClientsPage implements ShouldQueue
             try {
 
                 $idNumber = $client['national_identification_number'] ?? null;
-                $email    = $client['email'] ?? ($idNumber ? $idNumber . '@sincronizado.local' : null);
-                $detail = $client['details'] ?? null;
+                $email    = $client['email'] ?? null;
+                $detail   = $client['details'] ?? null;
+                $code     = $client['custom_id'] ?? null;
 
                 if (!$idNumber) {
                     $skipped++;
-                    Log::warning("⚠️ Cliente omitido (sin cédula) - ID Wispro: " . ($client['id'] ?? 'N/A') . " | Nombre: " . ($client['name'] ?? 'Sin nombre') . " | Email: " . ($client['email'] ?? 'Sin email') . " | Página: {$this->page}");
-
+                    Log::warning("⚠️ Cliente omitido (sin cédula) - ID Wispro: " . ($client['id'] ?? 'N/A') . " | Nombre: " . ($client['name'] ?? 'Sin nombre') . " | Página: {$this->page}");
                     continue;
                 }
 
-                $code = $client['custom_id'] ?? 'WIS-' . $client['national_identification_number'];
+                if (!$email) {
+                    $skipped++;
+                    Log::warning("⚠️ Cliente omitido (sin email) - ID Wispro: " . ($client['id'] ?? 'N/A') . " | Nombre: " . ($client['name'] ?? 'Sin nombre') . " | Página: {$this->page}");
+                    continue;
+                }
+
+                if (!$code) {
+                    $skipped++;
+                    Log::warning("⚠️ Cliente omitido (sin custom_id) - ID Wispro: " . ($client['id'] ?? 'N/A') . " | Nombre: " . ($client['name'] ?? 'Sin nombre') . " | Página: {$this->page}");
+                    continue;
+                }
+
+                //$code = $client['custom_id'] ?? 'WIS-' . $client['national_identification_number'];
 
                 DB::beginTransaction();
 
@@ -90,7 +102,7 @@ class SyncWisproClientsPage implements ShouldQueue
                     // UPDATE: Actualizar todos los campos que pueden cambiar en Wispro
                     $existingUser->update([
                         'name'      => $client['name'] ?? 'Sin nombre',
-                        'email'     => $email, // ✅ El email puede cambiar en Wispro
+                        'email'     => $email, //El email puede cambiar en Wispro
                         'phone'     => $client['phone_mobile'] ?? null,
                         'address'   => $client['address'] ?? null,
                         'zone'      => $client['zone_name'] ?? null,

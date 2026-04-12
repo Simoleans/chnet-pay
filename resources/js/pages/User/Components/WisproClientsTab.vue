@@ -109,13 +109,23 @@
                             {{ client.zone_name || 'N/A' }}
                         </td>
                         <td class="px-4 py-3">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                @click="router.visit(route('users.show-wispro', client.id))"
-                            >
-                                Ver
-                            </Button>
+                            <div class="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    @click="router.visit(route('users.show-wispro', client.id))"
+                                >
+                                    Ver
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    :disabled="isDeleting === getWisproId(client)"
+                                    @click="deleteWisproClient(client)"
+                                >
+                                    {{ isDeleting === getWisproId(client) ? 'Borrando...' : 'Borrar' }}
+                                </Button>
+                            </div>
                         </td>
                     </tr>
                 </tbody>
@@ -184,7 +194,7 @@
 </template>
 
 <script setup lang="ts">
-import { router, usePage } from '@inertiajs/vue3'
+import { router } from '@inertiajs/vue3'
 import { ref, computed } from 'vue'
 import { Button } from '@/components/ui/button'
 import { debounce } from 'lodash'
@@ -195,6 +205,7 @@ const { notify } = useNotifications()
 
 interface WisproClient {
     id: string
+    id_wispro?: string
     public_id: number
     custom_id: string
     name: string
@@ -234,6 +245,7 @@ const props = defineProps<{
 const wisproSearch = ref(props.filters?.wispro_search || '')
 const wisproPerPage = ref(20)
 const isSyncing = ref(false)
+const isDeleting = ref<string | null>(null)
 
 // Columnas para la tabla de Wispro
 const wisproColumns = [
@@ -336,6 +348,55 @@ const submitWisproSearch = debounce(() => {
 const clearWisproSearch = () => {
     wisproSearch.value = ''
     submitWisproSearch()
+}
+
+const getWisproId = (client: WisproClient): string => {
+    return client.id_wispro || client.id
+}
+
+const deleteWisproClient = async (client: WisproClient) => {
+    const wisproId = getWisproId(client)
+
+    if (!wisproId) {
+        notify({
+            message: '❌ No se encontró el id_wispro del cliente.',
+            type: 'error',
+            duration: 5000,
+        })
+        return
+    }
+
+    const confirmed = confirm(
+        `¿Seguro que deseas borrar a "${client.name}"?\n\nEsta acción también eliminará el cliente en Wispro y no se puede deshacer.`
+    )
+
+    if (!confirmed) {
+        return
+    }
+
+    isDeleting.value = wisproId
+
+    try {
+        const response = await axios.delete(route('users.delete-wispro', wisproId))
+
+        notify({
+            message: response.data?.message || '✅ Cliente eliminado en Wispro.',
+            type: 'success',
+            duration: 5000,
+        })
+
+        router.reload({ only: ['wispro_clients'] })
+    } catch (error: any) {
+        const errorMessage = error.response?.data?.message || '❌ Error al eliminar el cliente en Wispro.'
+
+        notify({
+            message: errorMessage,
+            type: 'error',
+            duration: 5000,
+        })
+    } finally {
+        isDeleting.value = null
+    }
 }
 
 // Sincronizar todos los clientes de Wispro

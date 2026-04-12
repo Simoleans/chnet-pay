@@ -95,7 +95,7 @@ class DashboardController extends Controller
         // Pagos recientes
         $allPayments = Payment::with(['user', 'invoice'])
             ->orderBy('id', 'desc')
-            ->limit(50)
+            ->limit(30)
             ->get();
 
         $data['admin_payments'] = $this->formatPayments($allPayments);

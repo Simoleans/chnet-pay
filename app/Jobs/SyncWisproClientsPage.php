@@ -84,13 +84,13 @@ class SyncWisproClientsPage implements ShouldQueue
                     continue;
                 }
 
-                if (!$code) {
+                /* if (!$code) {
                     $skipped++;
                     Log::warning("⚠️ Cliente omitido (sin custom_id) - ID Wispro: " . ($client['id'] ?? 'N/A') . " | Nombre: " . ($client['name'] ?? 'Sin nombre') . " | Página: {$this->page}");
                     continue;
-                }
+                } */
 
-                //$code = $client['custom_id'] ?? 'WIS-' . $client['national_identification_number'];
+                $code = $client['custom_id'] ?? 'WIS-' . $client['national_identification_number'];
 
                 DB::beginTransaction();
 

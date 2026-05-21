@@ -105,7 +105,6 @@ const formatPriceBs = (priceUsd: number | null) => {
                         <div>
                             <p class="text-xs text-gray-500">Precio (IVA 16% incluido)</p>
                             <p class="font-medium text-xl text-green-600">
-                                {{ userPlan.price }}
                                 ${{ formatPrice(userPlan.price) }} USD
                             </p>
                             <p v-if="bcv" class="font-medium text-md text-blue-600">

@@ -36,10 +36,10 @@ const selectBank = (bank: 'bnc' | 'bdv') => {
 };
 
 const goToBiopago = () => {
-    //emit('update:open', false);
-    //router.visit(route('bdv.ipg2.checkout'));
+    emit('update:open', false);
+    router.visit(route('bdv.ipg2.checkout'));
 
-    alert('Próximamente');
+    //alert('Próximamente');
 };
 </script>
 
@@ -47,7 +47,7 @@ const goToBiopago = () => {
     <Dialog :open="open" @update:open="handleOpenChange">
         <DialogContent class="sm:max-w-md">
             <DialogHeader>
-                <DialogTitle>Selecciona el banco donde hiciste el pago</DialogTitle>
+                <DialogTitle>Selecciona el banco destino</DialogTitle>
                 <DialogDescription>
                     Elige el banco con el que deseas <strong>verificar</strong> el pago
                 </DialogDescription>

@@ -119,6 +119,20 @@ const p2pBancoOrigen     = ref('');
 const p2pReferencia      = ref('');
 const p2pFecha           = ref('');
 const p2pImporte         = ref('');
+const minimumMarkedP2PAmountBs = ref(0);
+
+const parsePaymentAmount = (value: string) => {
+    const amount = Number(value.trim().replace(',', '.'));
+    return Number.isFinite(amount) ? amount : 0;
+};
+
+const enteredP2PAmountBs = computed(() => {
+    return parsePaymentAmount(p2pImporte.value);
+});
+
+const isP2PAmountTooLow = computed(() => {
+    return minimumMarkedP2PAmountBs.value > 0 && enteredP2PAmountBs.value < minimumMarkedP2PAmountBs.value;
+});
 
 // ── Helpers de fecha ─────────────────────────────────────────────────────────
 const setToday = () => {
@@ -181,6 +195,7 @@ const resetStates = () => {
     p2pReferencia.value      = '';
     p2pFecha.value           = '';
     p2pImporte.value         = '';
+    minimumMarkedP2PAmountBs.value = 0;
 };
 
 // ── Abrir sección P2P ────────────────────────────────────────────────────────
@@ -204,6 +219,7 @@ const openP2PForm = () => {
     const amountToPay = amountUsdPrimary.value;
     if (bcv.value && amountToPay) {
         p2pImporte.value = (parseFloat(String(amountToPay)) * parseFloat(String(bcv.value))).toFixed(2);
+        minimumMarkedP2PAmountBs.value = parsePaymentAmount(p2pImporte.value);
     }
 };
 
@@ -235,6 +251,14 @@ const submitP2P = async () => {
         notify({ message: 'El monto no es válido', type: 'error', duration: 2500 });
         return;
     }
+    if (isP2PAmountTooLow.value) {
+        notify({
+            message: `El monto no puede ser menor a tu deuda: ${minimumMarkedP2PAmountBs.value.toFixed(2)} Bs`,
+            type: 'error',
+            duration: 2500,
+        });
+        return;
+    }
     if (!paymentMobileTlf.value) {
         notify({ message: 'No hay teléfono destino configurado. Contacte al administrador.', type: 'error', duration: 3000 });
         return;
@@ -248,7 +272,7 @@ const submitP2P = async () => {
             telefonoDestino: paymentMobileTlf.value.trim(),
             referencia:      p2pReferencia.value.trim(),
             fechaPago:       p2pFecha.value,
-            importe:         parseFloat(p2pImporte.value).toFixed(2),
+            importe:         enteredP2PAmountBs.value.toFixed(2),
             bancoOrigen:     p2pBancoOrigen.value,
             reqCed:          false,
         };
@@ -512,14 +536,16 @@ const handleOpenChange = (open: boolean) => {
                                 <Input
                                     v-model="p2pImporte"
                                     type="text"
-                                    readonly
-                                    class="w-full font-bold bg-green-50 dark:bg-green-950/10 border-green-300 dark:border-green-700 text-center text-lg cursor-not-allowed"
+                                    class="w-full font-bold dark:bg-green-950/10 border-green-300 dark:border-green-700 text-center text-lg"
                                 />
                                 <div class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-2">
                                     <p class="text-xs text-yellow-800 dark:text-yellow-300 font-medium">
-                                        ⚠️ Paga exactamente este monto para que la verificación sea exitosa.
+                                        ⚠️ No puedes pagar menos de tu deuda.
                                     </p>
                                 </div>
+                                <p v-if="isP2PAmountTooLow" class="text-xs text-red-600 dark:text-red-400 font-medium">
+                                    El monto no puede ser menor a tu deuda: {{ minimumMarkedP2PAmountBs.toFixed(2) }} Bs.
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -535,7 +561,8 @@ const handleOpenChange = (open: boolean) => {
                             !/^\d{4}$/.test(p2pReferencia.trim()) ||
                             !p2pFecha ||
                             !p2pImporte ||
-                            parseFloat(p2pImporte) <= 0
+                            enteredP2PAmountBs <= 0 ||
+                            isP2PAmountTooLow
                         "
                     >
                         <span v-if="loading">Verificando con el banco...</span>

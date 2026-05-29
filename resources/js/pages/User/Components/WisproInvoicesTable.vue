@@ -16,18 +16,24 @@ const pendingInvoices = computed(() =>
     (props.invoices || []).filter((inv: any) => inv.state === 'pending')
 )
 
+const getPendingAmount = (invoice: any) => {
+    return parseFloat(String(invoice.balance ?? invoice.amount ?? 0))
+}
+
 const totalPendingUsd = computed(() =>
     pendingInvoices.value.reduce(
-        (sum: number, inv: any) => sum + parseFloat(String(inv.amount ?? 0)),
+        (sum: number, inv: any) => sum + getPendingAmount(inv),
         0
     )
 )
 
 const openPaymentModal = (invoice: any) => {
+    const amount = getPendingAmount(invoice)
+
     emit('openPaymentModal', {
         invoice_ids: [invoice.id],
-        amount: parseFloat(String(invoice.amount ?? 0)),
-        invoices: [{ id: invoice.id, invoice_number: invoice.invoice_number, amount: parseFloat(String(invoice.amount ?? 0)) }],
+        amount,
+        invoices: [{ id: invoice.id, invoice_number: invoice.invoice_number, amount }],
     })
 }
 
@@ -39,7 +45,7 @@ const openPayAllPending = () => {
         invoices: pendingInvoices.value.map((i: any) => ({
             id: i.id,
             invoice_number: i.invoice_number,
-            amount: parseFloat(String(i.amount ?? 0)),
+            amount: getPendingAmount(i),
         })),
     })
 }
@@ -58,7 +64,7 @@ const formatPrice = (price: number) => {
 }
 
 const formatPriceBs = (priceUSD: number) => {
-    const priceBs = priceUSD * bcvStore.bcv
+    const priceBs = priceUSD * (bcvStore.bcv ?? 0)
     return new Intl.NumberFormat('es-VE', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
@@ -106,6 +112,8 @@ const getInvoiceStateClass = (state: string) => {
             </Button>
         </div>
 
+       <!--  <pre>{{ invoices }}</pre> -->
+
         <div v-if="invoices && invoices.length > 0">
 
             <!-- ── MOBILE: Cards (visible en < md) ── -->
@@ -147,9 +155,9 @@ const getInvoiceStateClass = (state: string) => {
                     <!-- Montos + botón -->
                     <div class="flex items-center justify-between mt-1">
                         <div>
-                            <p class="text-sm font-bold text-green-600">${{ formatPrice(invoice.amount) }}</p>
+                            <p class="text-sm font-bold text-green-600">${{ formatPrice(getPendingAmount(invoice)) }}</p>
                             <p v-if="bcvStore.bcv" class="text-xs font-semibold text-blue-600">
-                                Bs. {{ formatPriceBs(invoice.amount) }}
+                                Bs. {{ formatPriceBs(getPendingAmount(invoice)) }}
                             </p>
                         </div>
                         <Button
@@ -175,8 +183,8 @@ const getInvoiceStateClass = (state: string) => {
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">1ra Vencimiento</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">2da Vencimiento</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estado</th>
-                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Monto USD</th>
-                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Monto Bs</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Saldo USD</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Saldo Bs</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
                         </tr>
                     </thead>
@@ -208,9 +216,9 @@ const getInvoiceStateClass = (state: string) => {
                                     {{ getInvoiceStateLabel(invoice.state) }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-green-600">${{ formatPrice(invoice.amount) }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-green-600">${{ formatPrice(getPendingAmount(invoice)) }}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm font-semibold text-blue-600">
-                                <div v-if="bcvStore.bcv">Bs. {{ formatPriceBs(invoice.amount) }}</div>
+                                <div v-if="bcvStore.bcv">Bs. {{ formatPriceBs(getPendingAmount(invoice)) }}</div>
                                 <span v-else class="text-gray-400">-</span>
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm">

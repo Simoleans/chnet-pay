@@ -152,6 +152,7 @@ class DashboardController extends Controller
         $data = [];
 
         $invoicesResponse = $this->wisproService->getInvoicesByCustomId($userCode, 1, 10);
+        //dd($invoicesResponse);
 
         if ($invoicesResponse['success'] && !empty($invoicesResponse['data']['data'])) {
             $data['user_invoices'] = $invoicesResponse['data']['data'];

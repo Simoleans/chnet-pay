@@ -136,13 +136,8 @@ const parsePaymentAmount = (value: string) => {
     return Number.isFinite(amount) ? amount : 0;
 };
 
-const minimumMarkedPaymentAmountBs = ref(0);
 const enteredPaymentAmountBs = computed(() => {
     return parsePaymentAmount(paymentAmount.value);
-});
-
-const isPaymentAmountTooLow = computed(() => {
-    return minimumMarkedPaymentAmountBs.value > 0 && enteredPaymentAmountBs.value < minimumMarkedPaymentAmountBs.value;
 });
 
 // Watcher para reiniciar estados cuando se abre el modal
@@ -178,7 +173,6 @@ const resetStates = () => {
     showReferenceInput.value = false;
     referenceNumber.value = '';
     paymentAmount.value = '';
-    minimumMarkedPaymentAmountBs.value = 0;
     paymentDate.value = '';
     // showReportLink.value = false;
     manualBankCode.value = '0191';
@@ -396,6 +390,8 @@ const copyPaymentReference = async () => {
 // };
 
 const checkPayment = async () => {
+    const shouldPrefillPaymentAmount = !showReferenceInput.value && !paymentAmount.value;
+
     // Limpiar formulario de C2P si estaba activo
     if (showC2PSection.value) {
         c2pToken.value = '';
@@ -419,11 +415,10 @@ const checkPayment = async () => {
         paymentDate.value = new Date().toISOString().split('T')[0];
     }
 
-    // Precargar monto exacto: total factura(s) o plan
+    // Precargar solo al abrir el formulario; al verificar se respeta lo escrito por el usuario.
     const amountToPay = amountUsdPrimary.value;
-    if (bcv.value && amountToPay) {
+    if (shouldPrefillPaymentAmount && bcv.value && amountToPay) {
         paymentAmount.value = (parseFloat(String(amountToPay)) * parseFloat(bcv.value)).toFixed(2);
-        minimumMarkedPaymentAmountBs.value = parsePaymentAmount(paymentAmount.value);
     }
 
     try {
@@ -516,14 +511,15 @@ const submitReference = async () => {
         return;
     }
 
-    if (isPaymentAmountTooLow.value) {
-        notify({
-            message: `El monto pagado no puede ser menor a ${minimumMarkedPaymentAmountBs.value.toFixed(2)} Bs`,
-            type: 'error',
-            duration: 2500,
-        });
-        return;
-    }
+    // Se permite reportar el monto ingresado por el usuario, aunque sea menor al monto oficial.
+    // if (isPaymentAmountTooLow.value) {
+    //     notify({
+    //         message: `El monto pagado no puede ser menor a ${minimumMarkedPaymentAmountBs.value.toFixed(2)} Bs`,
+    //         type: 'error',
+    //         duration: 2500,
+    //     });
+    //     return;
+    // }
 
     await checkPayment();
 };
@@ -745,12 +741,9 @@ const setYesterday = () => {
                                         />
                                         <div class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-2">
                                             <p class="text-xs text-yellow-800 dark:text-yellow-300 font-medium">
-                                                ⚠️ Este es el monto EXACTO de tu factura. No puedes pagar menos de este monto.
+                                                ⚠️ Verifica que el monto coincida con el pago realizado.
                                             </p>
                                         </div>
-                                        <p v-if="isPaymentAmountTooLow" class="text-xs text-red-600 dark:text-red-400 font-medium">
-                                            El monto no puede ser menor a tu deuda: {{ minimumMarkedPaymentAmountBs.toFixed(2) }} Bs.
-                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -759,11 +752,11 @@ const setYesterday = () => {
                                 <Button
                                     @click="submitReference"
                                     size="sm"
-                                    :disabled="paymentLoading || !referenceNumber.trim() || referenceNumber.trim().length < 4 || !paymentAmount || enteredPaymentAmountBs <= 0 || isPaymentAmountTooLow || !manualBankCode || !/^\d{7}$/.test(manualPhoneNumber.trim()) || !paymentDate"
+                                    :disabled="paymentLoading || !referenceNumber.trim() || referenceNumber.trim().length < 4 || !paymentAmount || enteredPaymentAmountBs <= 0 || !/^\d{7}$/.test(manualPhoneNumber.trim()) || !paymentDate"
                                     class="flex-1"
                                 >
                                     <span v-if="paymentLoading">Verificando...</span>
-                                    <span v-else>Verificar Pago</span>
+                                    <span v-else>Verificar Pago </span>
                                 </Button>
                                 <!-- Botón de reporte manual deshabilitado: el usuario debe revisar sus datos
                                 <Button

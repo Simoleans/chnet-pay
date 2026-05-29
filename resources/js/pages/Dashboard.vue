@@ -107,7 +107,7 @@ banksStore.loadBanks()
 
 // Estado para los modales
 const showReportPaymentModal = ref(false)
-const showBankSelector = ref(false)
+const showBankSelector = ref(true)
 const showUserPaymentModal = ref(false)
 const showBdvPaymentModal  = ref(false)
 const showPaymentDetailsModal = ref(false)

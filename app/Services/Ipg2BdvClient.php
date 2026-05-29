@@ -35,8 +35,8 @@ class Ipg2BdvClient
         $req->reference    = $data['reference'];
         $req->title        = $data['title'];
         $req->description  = $data['description'];
-        $req->idLetter     = $data['idLetter'];      // V/E
-        $req->idNumber     = $data['idNumber'];
+        $req->idLetter     = $data['idLetter'] ?? $data['letter'] ?? null;
+        $req->idNumber     = $data['idNumber'] ?? $data['number'] ?? null;
         $req->email        = $data['email'];
         $req->cellphone    = $data['cellphone'];
         $req->urlToReturn  = $data['urlToReturn'];

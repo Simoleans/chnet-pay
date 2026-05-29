@@ -67,9 +67,46 @@
             <!-- Formulario -->
             <form @submit.prevent="submit" class="flex flex-col gap-5">
 
-                <!-- Cédula -->
+                <!-- Persona jurídica: RIF de la empresa (adicional al representante) -->
+                <div class="flex flex-col gap-2">
+                    <label class="text-sm font-medium">Tipo de pagador</label>
+                    <select
+                        v-model="form.payerType"
+                        class="rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                        <option value="natural">Persona natural</option>
+                        <option value="juridica">Persona jurídica (empresa)</option>
+                    </select>
+
+                    <div v-if="form.payerType === 'juridica'" class="flex flex-col gap-1.5 rounded-lg border border-border bg-muted/30 p-3">
+                        <label class="text-sm font-medium">RIF de la empresa</label>
+                        <div class="flex gap-2">
+                            <select
+                                v-model="form.rifLetter"
+                                class="w-20 rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                :class="{ 'border-destructive': form.errors.rifLetter }"
+                            >
+                                <option value="J" selected>J</option>
+                            </select>
+                            <input
+                                v-model="form.rifNumber"
+                                type="text"
+                                inputmode="numeric"
+                                @input="onRifNumberInput"
+                                placeholder="Número de RIF"
+                                maxlength="10"
+                                class="flex-1 rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                :class="{ 'border-destructive': form.errors.rifNumber }"
+                            />
+                        </div>
+                        <p v-if="form.errors.rifLetter" class="text-xs text-destructive">{{ form.errors.rifLetter }}</p>
+                        <p v-if="form.errors.rifNumber" class="text-xs text-destructive">{{ form.errors.rifNumber }}</p>
+                    </div>
+                </div>
+
+                <!-- Representante del pago (persona natural que autoriza / paga) -->
                 <div class="flex flex-col gap-1.5">
-                    <label class="text-sm font-medium">Cédula</label>
+                    <label class="text-sm font-medium">Cédula del representante</label>
                     <div class="flex gap-2">
                         <select
                             v-model="form.idLetter"
@@ -78,7 +115,6 @@
                         >
                             <option value="V">V</option>
                             <option value="E">E</option>
-                            <option value="J">J</option>
                         </select>
                         <input
                             v-model="form.idNumber"
@@ -91,6 +127,9 @@
                             :class="{ 'border-destructive': form.errors.idNumber }"
                         />
                     </div>
+                    <p class="text-xs text-muted-foreground">
+                        Quien realiza el pago ante el banco (no es el RIF de la empresa).
+                    </p>
                     <p v-if="form.errors.idLetter" class="text-xs text-destructive">{{ form.errors.idLetter }}</p>
                     <p v-if="form.errors.idNumber" class="text-xs text-destructive">{{ form.errors.idNumber }}</p>
                 </div>
@@ -189,8 +228,11 @@ const page = usePage()
 const user = page.props.auth?.user as any
 
 const form = useForm({
-    idLetter:    'V' as 'V' | 'E' | 'J',
+    payerType:   'natural' as 'natural' | 'juridica',
+    idLetter:    'V' as 'V' | 'E',
     idNumber:    '',
+    rifLetter:   'J' as 'J' | 'G' | 'E' | 'V' | 'C' | 'P',
+    rifNumber:   '',
     email:       user?.email ?? '',
     cellphone:   '',
     amount:      '',
@@ -199,6 +241,10 @@ const form = useForm({
 
 const onIdNumberInput = () => {
     form.idNumber = form.idNumber.replace(/\D/g, '').slice(0, 9)
+}
+
+const onRifNumberInput = () => {
+    form.rifNumber = form.rifNumber.replace(/\D/g, '').slice(0, 10)
 }
 
 onMounted(() => {
@@ -217,7 +263,16 @@ const submit = async () => {
     form.clearErrors()
 
     try {
-        const { data } = await axios.post(route('bdv.ipg2.start'), form.data())
+        const payload = { ...form.data() }
+        delete (payload as { payerType?: string }).payerType
+        if (form.payerType !== 'juridica') {
+            delete (payload as { rifLetter?: string }).rifLetter
+            delete (payload as { rifNumber?: string }).rifNumber
+        }
+
+        const { data } = await axios.post(route('bdv.ipg2.start'), payload)
+        //new window
+        //window.open(data.urlPayment, '_blank')
         window.location.href = data.urlPayment
     } catch (error) {
         if (error.response?.status === 422) {

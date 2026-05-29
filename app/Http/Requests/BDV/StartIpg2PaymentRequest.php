@@ -22,8 +22,10 @@ class StartIpg2PaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'idLetter'   => ['required', 'in:V,E,J'],
+            'idLetter'   => ['required', 'in:V,E'],
             'idNumber'   => ['required', 'digits_between:6,9'],
+            'rifLetter'  => ['nullable', 'required_with:rifNumber', 'in:J'],
+            'rifNumber'  => ['nullable', 'required_with:rifLetter', 'digits_between:7,10'],
             'email'      => ['required', 'email:rfc,dns'],
             'cellphone'  => ['required', 'digits:11', 'regex:/^04[0-9]{9}$/'],
             'amount'     => ['required', 'numeric', 'min:0.01'],
@@ -35,8 +37,10 @@ class StartIpg2PaymentRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'idLetter'   => 'Nacionalidad',
-            'idNumber'   => 'Número de cédula',
+            'idLetter'   => 'Letra de la cédula del representante',
+            'idNumber'   => 'Número de cédula del representante',
+            'rifLetter'  => 'Letra del RIF',
+            'rifNumber'  => 'Número del RIF',
             'email'      => 'Correo electrónico',
             'cellphone'  => 'Teléfono',
             'amount'     => 'Monto',

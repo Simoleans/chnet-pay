@@ -10,11 +10,9 @@ use App\Http\Requests\BDV\VerifyP2PRequest;
 use App\Services\BdvApiService;
 use App\Services\WisproApiService;
 use App\Models\BcvRate;
-use App\Models\Invoice;
 use App\Models\Payment;
 use App\Support\WisproInvoiceIds;
 use App\Http\Requests\BDV\StartIpg2PaymentRequest;
-use Inertia\Inertia;
 use App\Helpers\CurrencyHelper;
 use Illuminate\Support\Facades\DB;
 use App\Models\BdvIpg2Payment;
@@ -213,18 +211,13 @@ class BdvPaymentController extends Controller
     {
         $data = $request->validated();
 
-        $payload = [
-            'currency'    => 1,
-            'amount'      => (string) $data['amount'],
-            'reference'   => 'CHNET-' . $data['idLetter'] . $data['idNumber'] . date('YmdHis'),
-            'title'       => 'Pago de Servicios CHNET',
-            'description' => 'Pago de Servicios CHNET',
-            'idLetter'    => $data['idLetter'],
-            'idNumber'    => $data['idNumber'],
-            'email'       => $data['email'],
-            'cellphone'   => $data['cellphone'],
-            'urlToReturn' => route('bdv.ipg2.return'),
-        ];
+        /* $payload = (! empty($data['rifLetter']) && ! empty($data['rifNumber']))
+            ? $this->payloadJuridica($data)
+            : $this->payloadNature($data); */
+
+        $payload = !empty($data['rifLetter']) ?
+            $this->payloadJuridica($data)
+            : $this->payloadNature($data);
 
         $resp = $bdv->createButtonPayment($payload);
 
@@ -234,13 +227,6 @@ class BdvPaymentController extends Controller
             return back()->withErrors(['bdv' => $resp->responseMessage]);
         }
 
-        // Guardamos en sesión para verificar al retorno
-        /* session([
-            'bdv_ipg2_payment_id'  => $resp->paymentId,
-            'bdv_ipg2_invoice_ids' => $data['invoice_ids'] ?? [],
-            'bdv_ipg2_cellphone'   => $data['cellphone'],
-        ]); */
-
         BdvIpg2Payment::create([
             'payment_id'  => $resp->paymentId,
             'user_id'     => Auth::id(),
@@ -249,7 +235,7 @@ class BdvPaymentController extends Controller
             'amount'      => $data['amount'],
             'reference'   => $payload['reference'],
             'status'      => PaymentStatus::Pending,
-            'expires_at'  => now()->addMinutes(10),
+            'expires_at'  => now()->addMinutes(40),
         ]);
 
         return response()->json([
@@ -353,6 +339,14 @@ class BdvPaymentController extends Controller
                         $payment);
             } */
 
+            Auth::guard('web')->login($user);
+            $request->session()->regenerate();
+
+            Log::info('BDV IPG2 RETORNO: Usuario logueado', [
+                'user_id' => $user?->id,
+                'user' => $user,
+            ]);
+
             session()->flash('type', 'success');
             session()->flash('message', $check->responseMessage);
             DB::commit();
@@ -365,5 +359,29 @@ class BdvPaymentController extends Controller
             ]);
             return redirect('/')->withErrors(['bdv' => $e->getMessage()]);
         }
+    }
+
+    private function payloadNature(array $data)
+    {
+        return [
+            'currency'    => 1,
+            'amount'      => (string) $data['amount'],
+            'reference'   => 'CHNET-' . $data['idLetter'] . $data['idNumber'] . date('YmdHis'),
+            'title'       => 'Pago de Servicios CHNET',
+            'description' => 'Pago de Servicios CHNET',
+            'letter'    => $data['idLetter'],
+            'number'    => $data['idNumber'],
+            'email'       => $data['email'],
+            'cellphone'   => $data['cellphone'],
+            'urlToReturn' => route('bdv.ipg2.return'),
+        ];
+    }
+
+    private function payloadJuridica(array $data)
+    {
+        return array_merge($this->payloadNature($data), [
+            'rifLetter' => $data['rifLetter'],
+            'rifNumber' => $data['rifNumber'],
+        ]);
     }
 }

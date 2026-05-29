@@ -19,8 +19,19 @@ class CheckPendingIpg2Payments extends Command
 
     public function handle(BdvApiService $bdv, WisproApiService $wispro): void
     {
+
+        $expired = BdvIpg2Payment::where('status', PaymentStatus::Pending)
+            ->where('expires_at', '<', now())
+            ->update(['status' => PaymentStatus::Expired]);
+
+        if ($expired > 0) {
+            $this->info("⌛ {$expired} pagos expirados.");
+            Log::info("IPG2 CRON: {$expired} pagos expirados.");
+        }
+
+
         $pending = BdvIpg2Payment::where('status', PaymentStatus::Pending)
-            //->where('expires_at', '>', now())
+            ->where('created_at', '<', now()->subMinutes(17))
             ->get();
 
         $this->info("Verificando {$pending->count()} pagos pendientes...");
@@ -31,21 +42,24 @@ class CheckPendingIpg2Payments extends Command
                 // Llama directo al endpoint GET /api/Payments/{paymentId}
                 $check = $bdv->verifyPayment($ipg2Payment->payment_id);
 
-                //log::info('IPG2 CRON: verifyPayment', ['check' => $check]);
+                log::info('IPG2 CRON: verifyPayment', ['check' => $check]);
 
-                /* if ($check->status === 1 && $check->status === 1) {
+                /* if ($check->status === 1 && $check->result === 1) {
                     $ipg2Payment->markApproved();
                 } else {
                     $ipg2Payment->markRejected();
                 } */
 
                 // status 1 = aprobado
-                 if ($check->status === 1 && $check->status === 1) {
+                 if ($check->status === 1 && $check->result === 1) {
                     $amountBs  = (float) $check->amount;
                     $amountUsd = CurrencyHelper::bsToUsd($amountBs);
 
                     $wisproIds = array_values(array_filter(array_map('strval', $ipg2Payment->invoice_ids)));
                     $user      = $ipg2Payment->user;
+
+                    log::info('IPG2 CRON: wisproIds', ['wisproIds' => $wisproIds]);
+
 
                      Payment::safeCreate(
                         $check->reference,

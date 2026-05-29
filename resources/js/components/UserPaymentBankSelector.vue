@@ -36,10 +36,10 @@ const selectBank = (bank: 'bnc' | 'bdv') => {
 };
 
 const goToBiopago = () => {
-    emit('update:open', false);
-    router.visit(route('bdv.ipg2.checkout'));
+   /*  emit('update:open', false);
+    router.visit(route('bdv.ipg2.checkout')); */
 
-    //alert('Próximamente');
+    alert('Próximamente');
 };
 </script>
 

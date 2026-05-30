@@ -24,6 +24,8 @@ class CheckPendingIpg2Payments extends Command
             ->where('expires_at', '<', now())
             ->update(['status' => PaymentStatus::Expired]);
 
+            Log::info('IPG2 CRON: pagos expirados', ['expired' => $expired]);
+
         if ($expired > 0) {
             $this->info("⌛ {$expired} pagos expirados.");
             Log::info("IPG2 CRON: {$expired} pagos expirados.");
@@ -31,7 +33,7 @@ class CheckPendingIpg2Payments extends Command
 
 
         $pending = BdvIpg2Payment::where('status', PaymentStatus::Pending)
-            ->where('created_at', '<', now()->subMinutes(17))
+            ->where('created_at', '<', now()->subMinutes(8))
             ->get();
 
         $this->info("Verificando {$pending->count()} pagos pendientes...");

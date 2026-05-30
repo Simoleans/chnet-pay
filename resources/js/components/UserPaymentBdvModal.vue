@@ -119,7 +119,6 @@ const p2pBancoOrigen     = ref('');
 const p2pReferencia      = ref('');
 const p2pFecha           = ref('');
 const p2pImporte         = ref('');
-const minimumMarkedP2PAmountBs = ref(0);
 
 const parsePaymentAmount = (value: string) => {
     const amount = Number(value.trim().replace(',', '.'));
@@ -128,10 +127,6 @@ const parsePaymentAmount = (value: string) => {
 
 const enteredP2PAmountBs = computed(() => {
     return parsePaymentAmount(p2pImporte.value);
-});
-
-const isP2PAmountTooLow = computed(() => {
-    return minimumMarkedP2PAmountBs.value > 0 && enteredP2PAmountBs.value < minimumMarkedP2PAmountBs.value;
 });
 
 // ── Helpers de fecha ─────────────────────────────────────────────────────────
@@ -195,11 +190,12 @@ const resetStates = () => {
     p2pReferencia.value      = '';
     p2pFecha.value           = '';
     p2pImporte.value         = '';
-    minimumMarkedP2PAmountBs.value = 0;
 };
 
 // ── Abrir sección P2P ────────────────────────────────────────────────────────
 const openP2PForm = () => {
+    const shouldPrefillP2PAmount = !showP2PForm.value && !p2pImporte.value;
+
     showP2PForm.value = true;
 
     if (!banks.value || banks.value.length === 0) {
@@ -215,11 +211,10 @@ const openP2PForm = () => {
         p2pFecha.value = new Date().toISOString().split('T')[0];
     }
 
-    // Pre-cargar monto
+    // Precargar solo al abrir; luego se respeta el monto escrito por el usuario.
     const amountToPay = amountUsdPrimary.value;
-    if (bcv.value && amountToPay) {
+    if (shouldPrefillP2PAmount && bcv.value && amountToPay) {
         p2pImporte.value = (parseFloat(String(amountToPay)) * parseFloat(String(bcv.value))).toFixed(2);
-        minimumMarkedP2PAmountBs.value = parsePaymentAmount(p2pImporte.value);
     }
 };
 
@@ -251,14 +246,7 @@ const submitP2P = async () => {
         notify({ message: 'El monto no es válido', type: 'error', duration: 2500 });
         return;
     }
-    if (isP2PAmountTooLow.value) {
-        notify({
-            message: `El monto no puede ser menor a tu deuda: ${minimumMarkedP2PAmountBs.value.toFixed(2)} Bs`,
-            type: 'error',
-            duration: 2500,
-        });
-        return;
-    }
+    // Se permite reportar el monto ingresado por el usuario, aunque sea menor al monto oficial.
     if (!paymentMobileTlf.value) {
         notify({ message: 'No hay teléfono destino configurado. Contacte al administrador.', type: 'error', duration: 3000 });
         return;
@@ -540,12 +528,9 @@ const handleOpenChange = (open: boolean) => {
                                 />
                                 <div class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-2">
                                     <p class="text-xs text-yellow-800 dark:text-yellow-300 font-medium">
-                                        ⚠️ No puedes pagar menos de tu deuda.
+                                        ⚠️ Verifica que el monto coincida con el pago realizado.
                                     </p>
                                 </div>
-                                <p v-if="isP2PAmountTooLow" class="text-xs text-red-600 dark:text-red-400 font-medium">
-                                    El monto no puede ser menor a tu deuda: {{ minimumMarkedP2PAmountBs.toFixed(2) }} Bs.
-                                </p>
                             </div>
                         </div>
                     </div>
@@ -561,8 +546,7 @@ const handleOpenChange = (open: boolean) => {
                             !/^\d{4}$/.test(p2pReferencia.trim()) ||
                             !p2pFecha ||
                             !p2pImporte ||
-                            enteredP2PAmountBs <= 0 ||
-                            isP2PAmountTooLow
+                            enteredP2PAmountBs <= 0
                         "
                     >
                         <span v-if="loading">Verificando con el banco...</span>

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Payment;
 use App\Helpers\BncHelper;
-use App\Helpers\BncLogger;
 use App\Exports\PaymentsExport;
 use App\Services\WisproApiService;
 use App\Http\Requests\SendC2PRequest;
@@ -15,6 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use App\Models\User;
 use App\Support\WisproInvoiceIds;
+use Carbon\Carbon;
 
 class PaymentController extends Controller
 {
@@ -556,8 +556,21 @@ class PaymentController extends Controller
             // Convertir la fecha al formato ISO 8601 requerido por el banco (Y-m-d\TH:i:s)
             $paymentDate = date('Y-m-d\TH:i:s', strtotime($request->payment_date));
 
+            // Fecha del pago que está enviando el usuario
+            $paymentDateRequest = Carbon::parse($request->payment_date);
+
+            // Ventana de validación: desde 20 días antes hasta el día del pago
+            $fromDate = $paymentDateRequest->copy()->subDays(23)->startOfDay();
+            $toDate = $paymentDateRequest->copy()->endOfDay();
+
+            // Validar referencia repetida SOLO dentro de los últimos 23 días
+            $duplicatedPayment = Payment::where('reference', $reference)
+                ->where('bank', $bank)
+                ->whereBetween('payment_date', [$fromDate, $toDate])
+                ->exists();
+
             // Validar que la referencia no exista previamente del mismo banco
-            if (Payment::where('reference', $reference)->where('bank', $bank)->exists()) {
+            if ($duplicatedPayment) {
                 return response()->json([
                     'success' => false,
                     'error' => 'Esta referencia de pago ya ha sido registrada anteriormente.'

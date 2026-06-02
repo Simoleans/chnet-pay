@@ -13,13 +13,25 @@
             <DialogHeader class="space-y-3">
                 <DialogTitle>Editar Cliente</DialogTitle>
                 <DialogDescription>
-                    Modifica los datos del cliente. 
+                    Modifica los datos del cliente.
                     {{ isWisproClient ? '(Este cliente se sincronizará con Wispro)' : '(Cliente local)' }}
                 </DialogDescription>
             </DialogHeader>
 
             <form class="space-y-6" @submit.prevent="submitForm">
                 <div class="grid grid-cols-1 gap-4">
+                    <!-- Cédula -->
+                    <div class="space-y-2">
+                        <Label for="edit-national-identification-number">Cédula</Label>
+                        <Input
+                            type="text"
+                            id="edit-national-identification-number"
+                            v-model="form.id_number_clean"
+                            placeholder="12345678"
+                            required
+                        />
+                    </div>
+
                     <!-- Nombre -->
                     <div class="space-y-2">
                         <Label for="edit-name">Nombre Completo</Label>
@@ -111,6 +123,7 @@ interface User {
     phone: string | null
     address: string | null
     id_wispro: string | null  // Para identificar si es cliente de Wispro
+    id_number_clean: string | null
 }
 
 const props = defineProps<{
@@ -137,6 +150,7 @@ const form = useForm({
     email: '',
     phone: '',
     address: '',
+    id_number_clean: '',
     password: ''
 })
 
@@ -146,6 +160,7 @@ const openModal = () => {
     form.email = props.userData.email
     form.phone = props.userData.phone || ''
     form.address = props.userData.address || ''
+    form.id_number_clean = props.userData.id_number_clean || ''
     form.password = '' // Siempre vacío para edición
     isOpen.value = true
 }
@@ -162,7 +177,7 @@ const submitForm = () => {
         onSuccess: (page) => {
             // Verificar si hay un mensaje de éxito en el flash
             const successMessage = page.props?.flash?.success
-            
+
             if (successMessage) {
                 notify({
                     message: successMessage,
@@ -189,7 +204,7 @@ const submitForm = () => {
         },
         onError: (errors) => {
             console.error('Error al actualizar:', errors)
-            
+
             // Mostrar mensaje de error
             const errorMessage = errors.wispro || errors.error || 'Error al actualizar el cliente'
             notify({

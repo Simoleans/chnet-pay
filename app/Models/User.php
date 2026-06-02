@@ -42,6 +42,8 @@ class User extends Authenticatable
         'synced_at' => 'datetime',
     ];
 
+
+
     /**
      * Valores por defecto para atributos
      */
@@ -51,8 +53,15 @@ class User extends Authenticatable
     ];
 
     //append due
-    protected $appends = ['due'];
+    protected $appends = ['due', 'id_number_clean'];
 
+
+    public function getIdNumberCleanAttribute()
+    {
+        $value = trim($this->id_number ?? '');
+
+        return preg_replace('/^(?:[A-Za-z]-)+/', '', $value);
+    }
 
     public function getDueAttribute()
     {

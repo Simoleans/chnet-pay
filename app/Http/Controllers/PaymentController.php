@@ -556,8 +556,8 @@ class PaymentController extends Controller
             // Convertir la fecha al formato ISO 8601 requerido por el banco (Y-m-d\TH:i:s)
             $paymentDate = date('Y-m-d\TH:i:s', strtotime($request->payment_date));
 
-            // Validar que la referencia no exista previamente
-            if (Payment::where('reference', $reference)->exists()) {
+            // Validar que la referencia no exista previamente del mismo banco
+            if (Payment::where('reference', $reference)->where('bank', $bank)->exists()) {
                 return response()->json([
                     'success' => false,
                     'error' => 'Esta referencia de pago ya ha sido registrada anteriormente.'

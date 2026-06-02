@@ -39,7 +39,7 @@ class UserController extends Controller
                   ->orWhere('email', 'like', '%' . $localSearch . '%');
         }
 
-        $users = $queryClients->orderBy('id','desc')->paginate(10)->appends($request->query());
+        $users = $queryClients->orderBy('id','desc')->paginate(10)->withQueryString();
 
         // Administradores (role = 1) - Excluir al usuario actual
         $queryAdmins = User::active()->where('id','!=',Auth::user()->id)->where('role', 1);
@@ -55,7 +55,7 @@ class UserController extends Controller
         }
 
         $adminPage = $request->get('admin_page', 1);
-        $admins = $queryAdmins->orderBy('id','desc')->paginate(10, ['*'], 'admin_page', $adminPage)->appends($request->query());
+        $admins = $queryAdmins->orderBy('id','desc')->paginate(10, ['*'], 'admin_page', $adminPage)->withQueryString();
 
         // Clientes de Wispro
         $wisproClients = [];
@@ -77,6 +77,9 @@ class UserController extends Controller
         } else {
             Log::warning('Error al obtener clientes de Wispro API: ' . ($wisproResponse['error'] ?? 'Error desconocido'));
         }
+
+        //dd($users->items());
+
 
         return Inertia::render('User/Index', [
             'data' => $users->items(),
@@ -448,6 +451,7 @@ class UserController extends Controller
      */
     public function update(Request $request, string $id)
     {
+
         $user = User::findOrFail($id);
 
         $request->validate([
@@ -502,6 +506,7 @@ class UserController extends Controller
      */
     public function updateClient(Request $request, string $id)
     {
+       // d($request->all());
         try {
             $user = User::findOrFail($id);
 
@@ -511,6 +516,7 @@ class UserController extends Controller
                 'phone' => 'nullable|string|max:20',
                 'address' => 'required|string|max:500',
                 'password' => 'nullable|string|min:8', // Solo para clientes locales
+                'id_number_clean' => 'required|string|max:20',
             ]);
 
             // Preparar datos para actualizar localmente
@@ -519,6 +525,7 @@ class UserController extends Controller
                 'email' => $request->email,
                 'phone' => $request->phone,
                 'address' => $request->address,
+                'id_number' => $request->id_number_clean,
             ];
 
             // Solo actualizar password si el usuario NO tiene id_wispro (cliente local)
@@ -534,6 +541,7 @@ class UserController extends Controller
                     'email' => $request->email,
                     'phone_mobile' => $request->phone, // Teléfono en Wispro
                     'street' => $request->address, // En Wispro se llama 'street'
+                    'national_identification_number' => $request->id_number_clean,
                 ];
 
                 $wisproResponse = $this->wisproApiService->updateClient($user->id_wispro, $wisproData);
@@ -720,7 +728,7 @@ class UserController extends Controller
                 'first_due_date' => $invoice['first_due_date'] ?? null,
                 'second_due_date' => $invoice['second_due_date'] ?? null,
                 'state' => $invoice['state'] ?? 'pending',
-                'amount' => $invoice['amount'] ?? 0,
+                'amount' => $invoice['balance'] ?? 0,
                 'from' => $invoice['from'] ?? null,
                 'to' => $invoice['to'] ?? null,
                 'issued_at' => $invoice['issued_at'] ?? null,

@@ -63,7 +63,7 @@ class BdvPaymentController extends Controller
         }
 
         // 3. Evitar duplicados internos
-        if (Payment::where('reference', $data['referencia'])->exists()) {
+        if (Payment::where('reference', $data['referencia'])->where('bank', $data['bancoOrigen'])->exists()) {
             return response()->json([
                 'success'            => true,
                 'already_registered' => true,

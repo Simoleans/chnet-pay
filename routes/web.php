@@ -26,6 +26,7 @@ Route::resource('plans', PlanController::class)->middleware(['auth', 'admin']);
 //users - Solo administradores
 Route::resource('users', UserController::class)->middleware(['auth', 'admin']);
 Route::put('/users/{id}/update-client', [UserController::class, 'updateClient'])->middleware(['auth', 'admin'])->name('users.update-client');
+Route::post('/users/{user}/restore-password', [UserController::class, 'restorePassword'])->middleware(['auth', 'admin'])->name('users.restore-password');
 Route::get('/users/wispro/{wisproId}/show', [UserController::class, 'showWispro'])->middleware(['auth', 'admin'])->name('users.show-wispro');
 Route::post('/users/wispro/{wisproId}/sync', [UserController::class, 'syncSingleWisproClient'])->middleware(['auth', 'admin'])->name('users.sync-wispro-single');
 Route::delete('/users/wispro/{wisproId}', [UserController::class, 'deleteWisproClient'])->middleware(['auth', 'admin'])->name('users.delete-wispro');

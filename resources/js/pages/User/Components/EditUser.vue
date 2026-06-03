@@ -22,14 +22,20 @@
                 <div class="grid grid-cols-1 gap-4">
                     <!-- Cédula -->
                     <div class="space-y-2">
-                        <Label for="edit-national-identification-number">Cédula</Label>
+                        <Label for="edit-national-identification-number">Cédula / RIF</Label>
                         <Input
                             type="text"
                             id="edit-national-identification-number"
-                            v-model="form.id_number_clean"
-                            placeholder="12345678"
+                            v-model="form.id_number"
+                            placeholder="V-12345678"
                             required
+                            maxlength="12"
+                            @input="formatIdNumber"
                         />
+
+                        <p class="text-xs text-gray-500">
+                            Formato requerido: V-12345678, J-123456789 o E-12345678
+                        </p>
                     </div>
 
                     <!-- Nombre -->
@@ -123,7 +129,7 @@ interface User {
     phone: string | null
     address: string | null
     id_wispro: string | null  // Para identificar si es cliente de Wispro
-    id_number_clean: string | null
+    id_number: string | null
 }
 
 const props = defineProps<{
@@ -150,7 +156,7 @@ const form = useForm({
     email: '',
     phone: '',
     address: '',
-    id_number_clean: '',
+    id_number: '',
     password: ''
 })
 
@@ -160,9 +166,14 @@ const openModal = () => {
     form.email = props.userData.email
     form.phone = props.userData.phone || ''
     form.address = props.userData.address || ''
-    form.id_number_clean = props.userData.id_number_clean || ''
+    form.id_number = props.userData.id_number || ''
     form.password = '' // Siempre vacío para edición
+
+    formatIdNumber()
+
     isOpen.value = true
+
+
 }
 
 const closeModal = () => {
@@ -170,7 +181,26 @@ const closeModal = () => {
     form.reset()
 }
 
+const formatIdNumber = () => {
+    let value = form.id_number || ''
+
+    value = value
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+
+    if (!value) {
+        form.id_number = ''
+        return
+    }
+
+    const letter = value.charAt(0)
+    const numbers = value.slice(1).replace(/\D/g, '')
+
+    form.id_number = `${letter}-${numbers}`
+}
+
 const submitForm = () => {
+    formatIdNumber()
     // Usar la ruta update-client que maneja tanto locales como Wispro
     form.put(route('users.update-client', props.userData.id), {
         preserveScroll: true,

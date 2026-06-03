@@ -208,4 +208,17 @@ class User extends Authenticatable
     {
         return self::where('id_wispro', $wisproId)->exists();
     }
+
+    /**
+     * Restaura la contraseña con una clave numérica temporal.
+     */
+    public function restorePasswordWithRandomNumbers(): string
+    {
+        $password = str_pad((string) random_int(0, 99999999), 8, '0', STR_PAD_LEFT);
+
+        $this->password = $password;
+        $this->save();
+
+        return $password;
+    }
 }

@@ -506,18 +506,37 @@ class UserController extends Controller
      */
     public function updateClient(Request $request, string $id)
     {
-       // d($request->all());
+
+        //separar X-XXXX
+        $idNumber = explode('-', $request->id_number);
+        $details = $idNumber[0];
+        $idNumber = $idNumber[1];
+
+        $fullIdNumber = $details . '-' . $idNumber;
+
         try {
             $user = User::findOrFail($id);
 
-            $request->validate([
+            $request->merge([
+                'id_number' => strtoupper(trim($request->id_number)),
+            ]);
+
+            $validated = $request->validate([
                 'name' => 'required|string|max:255',
                 'email' => 'required|string|email|max:255',
                 'phone' => 'nullable|string|max:20',
                 'address' => 'required|string|max:500',
-                'password' => 'nullable|string|min:8', // Solo para clientes locales
-                'id_number_clean' => 'required|string|max:20',
+                'password' => 'nullable|string|min:8',
+                'id_number' => [
+                    'required',
+                    'string',
+                    'max:20',
+                    'regex:/^[VJEG]-[0-9]+$/',
+                ],
+            ], [
+                'id_number.regex' => 'La cédula/RIF debe tener el formato V-12345678, J-123456789, E-12345678 o G-123456789.',
             ]);
+
 
             // Preparar datos para actualizar localmente
             $updateData = [
@@ -525,7 +544,7 @@ class UserController extends Controller
                 'email' => $request->email,
                 'phone' => $request->phone,
                 'address' => $request->address,
-                'id_number' => $request->id_number_clean,
+                'id_number' => $fullIdNumber,
             ];
 
             // Solo actualizar password si el usuario NO tiene id_wispro (cliente local)
@@ -541,7 +560,8 @@ class UserController extends Controller
                     'email' => $request->email,
                     'phone_mobile' => $request->phone, // Teléfono en Wispro
                     'street' => $request->address, // En Wispro se llama 'street'
-                    'national_identification_number' => $request->id_number_clean,
+                    'national_identification_number' => $request->id_number,
+                    'details' => $details,
                 ];
 
                 $wisproResponse = $this->wisproApiService->updateClient($user->id_wispro, $wisproData);
@@ -567,8 +587,22 @@ class UserController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Error al actualizar cliente: ' . $e->getMessage());
-            return back()->withErrors(['error' => 'Error al actualizar el cliente.']);
+            return back()->withErrors(['error' => 'Error al actualizar el cliente. ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Restaurar contraseña del usuario y devolver la clave temporal.
+     */
+    public function restorePassword(User $user)
+    {
+        $password = $user->restorePasswordWithRandomNumbers();
+
+        return response()->json([
+            'success' => true,
+            'password' => $password,
+            'message' => 'Clave restaurada exitosamente.',
+        ]);
     }
 
     /**

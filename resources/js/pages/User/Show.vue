@@ -15,6 +15,15 @@
                         ← Volver
                     </Button>
 
+                    <Button
+                        v-if="canRestorePassword"
+                        @click="restorePassword"
+                        :disabled="isRestoringPassword"
+                        class="bg-orange-600 hover:bg-orange-700"
+                    >
+                        {{ isRestoringPassword ? 'Restaurando...' : '🔐 Restaurar Clave' }}
+                    </Button>
+
                     <!-- Botones según estado -->
                     <template v-if="isWispro">
                         <!-- Cliente Wispro NO está en BD local -->
@@ -189,6 +198,33 @@
                     </div>
                 </div>
             </div>
+
+            <Dialog v-model:open="passwordDialogOpen">
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Clave restaurada</DialogTitle>
+                        <DialogDescription>
+                            Copia esta clave temporal y envíasela al usuario. Solo se mostrará en este momento.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div class="rounded-lg border bg-gray-50 p-4 text-center dark:bg-gray-900">
+                        <p class="text-sm text-gray-500">Nueva clave</p>
+                        <p class="mt-2 font-mono text-3xl font-bold tracking-widest text-gray-900 dark:text-gray-100">
+                            {{ temporaryPassword }}
+                        </p>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" @click="copyTemporaryPassword">
+                            Copiar clave
+                        </Button>
+                        <Button @click="passwordDialogOpen = false">
+                            Listo
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     </AppLayout>
 </template>
@@ -197,6 +233,14 @@
 import AppLayout from '@/layouts/AppLayout.vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
 import { Button } from '@/components/ui/button'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { ref, computed } from 'vue'
 import EditUser from './Components/EditUser.vue'
 import WisproInvoicesTable from './Components/WisproInvoicesTable.vue'
@@ -224,9 +268,72 @@ const bcvStore = useBcvStore()
 
 const isSyncing = ref(false)
 const isUpdating = ref(false)
+const isRestoringPassword = ref(false)
+const passwordDialogOpen = ref(false)
+const temporaryPassword = ref('')
+const passwordError = ref('')
+
+const canRestorePassword = computed(() => !props.isWispro || props.existsInLocal)
+const restorePasswordUserId = computed(() => props.isWispro ? props.localUser?.id : props.user.id)
 
 const goBack = () => {
     router.visit(route('users.index'))
+}
+
+const getCsrfToken = () => {
+    return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || ''
+}
+
+const restorePassword = async () => {
+    if (!restorePasswordUserId.value) {
+        alert('Este cliente debe estar sincronizado para restaurar su clave.')
+        return
+    }
+
+    if (!confirm('¿Deseas restaurar la clave de este usuario?')) {
+        return
+    }
+
+    isRestoringPassword.value = true
+    passwordError.value = ''
+
+    try {
+        const response = await fetch(route('users.restore-password', restorePasswordUserId.value), {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken(),
+            },
+        })
+
+        const data = await response.json()
+
+        if (!response.ok || !data.password) {
+            throw new Error(data.message || 'No se pudo restaurar la clave.')
+        }
+
+        temporaryPassword.value = data.password
+        passwordDialogOpen.value = true
+    } catch (error) {
+        passwordError.value = error instanceof Error ? error.message : 'No se pudo restaurar la clave.'
+        alert(passwordError.value)
+    } finally {
+        isRestoringPassword.value = false
+    }
+}
+
+const copyTemporaryPassword = async () => {
+    if (!temporaryPassword.value) {
+        return
+    }
+
+    try {
+        await navigator.clipboard.writeText(temporaryPassword.value)
+        alert('Clave copiada al portapapeles.')
+    } catch {
+        alert(`Copia esta clave manualmente: ${temporaryPassword.value}`)
+    }
 }
 
 const syncClient = async () => {

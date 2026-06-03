@@ -596,7 +596,7 @@ class UserController extends Controller
      */
     public function restorePassword(User $user)
     {
-        $password = $user->restorePasswordWithRandomNumbers();
+        $password = $user->restorePasswordWithIdNumber();
 
         return response()->json([
             'success' => true,

@@ -210,11 +210,11 @@ class User extends Authenticatable
     }
 
     /**
-     * Restaura la contraseña con una clave numérica temporal.
+     * Restaura la contraseña usando solo los números de la cédula/RIF.
      */
-    public function restorePasswordWithRandomNumbers(): string
+    public function restorePasswordWithIdNumber(): string
     {
-        $password = str_pad((string) random_int(0, 99999999), 8, '0', STR_PAD_LEFT);
+        $password = preg_replace('/\D+/', '', $this->id_number ?? '');
 
         $this->password = $password;
         $this->save();

@@ -546,6 +546,8 @@ class PaymentController extends Controller
     {
         try {
 
+            Log::info('VALIDATE P2P: Request', ['request' => $request->all()]);
+
             $user = Auth::user();
 
             $reference = $request->reference;
@@ -585,6 +587,8 @@ class PaymentController extends Controller
                 $bank,
                 $phoneNumber
             );
+
+            Log::info('VALIDATE P2P: Result', ['result' => $result]);
 
             if (!$result) {
                 return response()->json([

@@ -1,5 +1,6 @@
 <script setup>
 import InputError from '@/components/InputError.vue';
+import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -196,8 +197,20 @@ const submit = () => {
 </script>
 
 <template>
-    <AuthBase title="Entra con tu cuenta" description="Ingresa tu cédula o RIF y contraseña para iniciar sesión">
+    <AuthBase>
         <Head title="Iniciar sesión" />
+
+        <div class="overflow-hidden rounded-2xl border bg-card shadow-sm">
+            <div class="flex justify-center bg-neutral-950 px-6 py-4">
+                <AppLogoIcon class="h-14 w-auto object-contain" />
+            </div>
+            <div class="space-y-1 px-6 py-4 text-center">
+                <h1 class="text-xl font-semibold tracking-tight">Centro de pagos</h1>
+                <p class="text-sm text-muted-foreground">
+                    Ingresa tus datos para iniciar sesión
+                </p>
+            </div>
+        </div>
 
         <div v-if="status" class="mb-4 text-center text-sm font-medium text-green-600">
             {{ status }}
@@ -248,76 +261,70 @@ const submit = () => {
             </div>
         </div>
 
-        <form @submit.prevent="submit" class="flex flex-col gap-6">
-            <div class="grid gap-6">
+        <form @submit.prevent="submit" class="flex flex-col gap-4">
+            <div class="grid gap-4">
                 <!-- <pre>{{ props }}</pre> -->
-                <!-- <div class="grid gap-2">
-                    <Label for="nationality">Nacionalidad</Label>
-                    <select
-                        id="nationality"
-                        v-model="form.nationality"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        :tabindex="1"
-                        required
-                    >
-                        <option value="V">V - Venezolano</option>
-                        <option value="E">E - Extranjero</option>
-                        <option value="J">J - Jurídico</option>
-                    </select>
-                    <InputError :message="form.errors.nationality" />
-                </div> -->
-
                 <!-- Tipo de identificación -->
                 <div class="grid gap-2">
-                    <Label for="id_type">Tipo de identificación</Label>
-                    <select
-                        id="id_type"
-                        v-model.number="form.id_type"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        :tabindex="1"
-                        required
-                    >
-                        <option :value="ID_TYPE_CEDULA_RIF">Cédula / RIF</option>
-                        <option :value="ID_TYPE_ABONADO">Número de Abonado</option>
-                    </select>
+                    <Label>Identifícate con</Label>
+                    <div class="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
+                        <button
+                            type="button"
+                            class="rounded-md px-3 py-2 text-sm font-medium transition-colors"
+                            :class="form.id_type === ID_TYPE_CEDULA_RIF ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+                            :tabindex="1"
+                            @click="form.id_type = ID_TYPE_CEDULA_RIF"
+                        >
+                            Cédula / RIF
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-md px-3 py-2 text-sm font-medium transition-colors"
+                            :class="form.id_type === ID_TYPE_ABONADO ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+                            :tabindex="1"
+                            @click="form.id_type = ID_TYPE_ABONADO"
+                        >
+                            Abonado
+                        </button>
+                    </div>
                     <InputError :message="form.errors.id_type" />
                 </div>
-
-                <!-- Nacionalidad (solo si es cédula/RIF) -->
-                <!-- <div v-if="form.id_type === ID_TYPE_CEDULA_RIF" class="grid gap-2">
-                    <Label for="nationality">Nacionalidad</Label>
-                    <select
-                        id="nationality"
-                        v-model="form.nationality"
-                        class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        :tabindex="2"
-                        required
-                    >
-                        <option value="V">V - Venezolano</option>
-                        <option value="E">E - Extranjero</option>
-                        <option value="J">J - Jurídico</option>
-                    </select>
-                    <InputError :message="form.errors.nationality" />
-                </div> -->
 
                 <!-- Número de identificación -->
                 <div class="grid gap-2">
                     <Label for="id_number">
                         {{ form.id_type === ID_TYPE_CEDULA_RIF ? 'Número de Cédula o RIF' : 'Número de Abonado' }}
                     </Label>
-                    <Input
-                        id="id_number"
-                        type="number"
-                        required
-                        :tabindex="3"
-                        autocomplete="id_number"
-                        v-model="form.id_number"
-                        placeholder="Solo números"
-                        @input="form.id_number = String(form.id_number).replace(/[^0-9]/g, '')"
-                    />
+                    <div class="flex">
+                        <select
+                            v-if="form.id_type === ID_TYPE_CEDULA_RIF"
+                            id="nationality"
+                            v-model="form.nationality"
+                            aria-label="Nacionalidad"
+                            class="flex w-20 items-center rounded-l-md border border-r-0 border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 h-[36px]"
+                            :tabindex="2"
+                            required
+                        >
+                            <option value="V">V</option>
+                            <option value="E">E</option>
+                            <option value="J">J</option>
+                        </select>
+                        <Input
+                            id="id_number"
+                            type="number"
+                            required
+                            :tabindex="3"
+                            autocomplete="id_number"
+                            v-model="form.id_number"
+                            placeholder="Solo números"
+                            :class="form.id_type === ID_TYPE_CEDULA_RIF ? 'rounded-l-none' : ''"
+                            @input="form.id_number = String(form.id_number).replace(/[^0-9]/g, '')"
+                        />
+                    </div>
                     <small class="text-xs text-muted-foreground">
                         {{ form.id_type === ID_TYPE_CEDULA_RIF ? 'Ejemplo: 12345678 o 123456789' : 'Ingresa tu número de abonado' }}
                     </small>
+                    <InputError :message="form.errors.nationality" />
                    <!--  <InputError :message="form.errors.id_number" /> -->
                 </div>
 

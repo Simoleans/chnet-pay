@@ -90,6 +90,7 @@ class LoginRequest extends FormRequest
         $password = $this->validated()['password'];
         $idType = $this->validated()['id_type'];
 
+
         // Construir credenciales según el tipo de identificación usando match expression
         $credentials = match ($idType) {
             self::ID_TYPE_ABONADO => [

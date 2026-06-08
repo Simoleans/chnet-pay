@@ -546,7 +546,7 @@ class PaymentController extends Controller
     {
         try {
 
-            Log::info('VALIDATE P2P: Request', ['request' => $request->all()]);
+            //Log::info('validateAndStorePayment::VALIDATE P2P BNC: Request', ['request' => $request->all()]);
 
             $user = Auth::user();
 

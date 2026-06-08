@@ -76,7 +76,7 @@ const { bcv } = storeToRefs(bcvStore);
 const banksStore = useBanksStore();
 const { banks, loading: banksLoading, error: banksError } = storeToRefs(banksStore as any);
 
-const PHONE_PREFIXES = ['0412', '0414', '0424', '0426', '0416'];
+const PHONE_PREFIXES = ['0412', '0414', '0424', '0426', '0416', '0422'];
 
 // Estados para el pago
 const paymentLoading = ref(false);

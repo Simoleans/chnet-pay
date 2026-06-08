@@ -105,7 +105,7 @@ const suggestedAmountBs = computed(() => {
     return '';
 });
 
-const PHONE_PREFIXES = ['0412', '0414', '0424', '0426', '0416'];
+const PHONE_PREFIXES = ['0412', '0414', '0424', '0426', '0416','0422'];
 
 // ── Estados del formulario P2P ───────────────────────────────────────────────
 const loading       = ref(false);

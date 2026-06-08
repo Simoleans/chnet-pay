@@ -44,11 +44,13 @@ class BdvPaymentController extends Controller
         // 2. El banco debe responder con code 1000 o 1010 para considerar el pago válido
         $code = $resp['code'] ?? null;
 
+        Log::info('BDV verify::code and message', ['resp' => $resp]);
+
        // 1010 = ya conciliado, rechazar directo
         if ($code === self::BDV_CODE_RECONCILED) {
             return response()->json([
                 'success'  => false,
-                'message'  => 'Este pago ya fue procesado anteriormente.',
+                'message'  => $resp['message'] ?? 'Este pago ya fue procesado anteriormente.',
                 'bdv_code' => $code,
             ], 422);
         }

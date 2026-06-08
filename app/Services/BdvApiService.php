@@ -26,7 +26,13 @@ class BdvApiService
         ];
 
         $response = Http::withApiHeadersBDV()
+         ->connectTimeout(30)
             ->timeout(30)
+            ->withOptions([
+                'curl' => [
+                    CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+                ],
+            ])
             ->post(config('app.bdv.base_url') . '/getMovement', $body);
 
         return $response->json();
@@ -39,7 +45,7 @@ class BdvApiService
             "customerNumberInstrument" => $customerNumberInstrument,
         ];
         $response = Http::withApiHeadersBDV()
-            ->timeout(30)
+            ->timeout(60)
             ->post(config('app.bdv.base_url') . '/BankMobilePaymentC2P/paymentkey', $body);
 
         return $response->json();
@@ -60,7 +66,7 @@ class BdvApiService
         ];
 
         $response = Http::withApiHeadersBDV()
-            ->timeout(20)
+            ->timeout(30)
             ->post(config('app.bdv.base_url') . '/BankMobilePaymentC2P/process', $body);
 
         return $response->json();

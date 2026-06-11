@@ -546,7 +546,7 @@ class PaymentController extends Controller
     {
         try {
 
-            //Log::info('validateAndStorePayment::VALIDATE P2P BNC: Request', ['request' => $request->all()]);
+            Log::info('validateAndStorePayment::VALIDATE P2P BNC: Request', ['request' => $request->all()]);
 
             $user = Auth::user();
 
@@ -588,7 +588,7 @@ class PaymentController extends Controller
                 $phoneNumber
             );
 
-            Log::info('VALIDATE P2P: Result', ['result' => $result]);
+            Log::info('VALIDATE P2P: Result BNC', [ 'result' => $result]);
 
             if (!$result) {
                 return response()->json([
@@ -673,7 +673,7 @@ class PaymentController extends Controller
             ]);
 
             // Registrar el pago en Wispro SIEMPRE que la validación fue exitosa (si vienen los datos necesarios)
-            if ($result['status'] === 'OK' && count($wisproIds) > 0 && $request->filled('client_id')) {
+            if ($result['status'] === 'OK') {
                 try {
                     $paymentDate = now()->format('c'); // Formato ISO8601
                     $wisproApiService = new WisproApiService();
@@ -810,8 +810,6 @@ class PaymentController extends Controller
                 (string) $request->token,
                 (string) $terminal
             );
-
-            Log::info('SEND C2P: ResultadoXXX', ['result' => $result]);
 
             // Si no hay resultado, retornar error
             if (!$result) {

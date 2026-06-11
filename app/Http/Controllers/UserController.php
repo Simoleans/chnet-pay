@@ -507,12 +507,7 @@ class UserController extends Controller
     public function updateClient(Request $request, string $id)
     {
 
-        //separar X-XXXX
-        $idNumber = explode('-', $request->id_number);
-        $details = $idNumber[0];
-        $idNumber = $idNumber[1];
 
-        $fullIdNumber = $details . '-' . $idNumber;
 
         try {
             $user = User::findOrFail($id);
@@ -536,6 +531,13 @@ class UserController extends Controller
             ], [
                 'id_number.regex' => 'La cédula/RIF debe tener el formato V-12345678, J-123456789, E-12345678 o G-123456789.',
             ]);
+
+            //separar X-XXXX
+            $idNumber = explode('-', $request->id_number);
+            $details = $idNumber[0];
+            $idNumber = $idNumber[1];
+
+            $fullIdNumber = $details . '-' . $idNumber;
 
 
             // Preparar datos para actualizar localmente

@@ -53,10 +53,10 @@ class ValidatePaymentRequest extends FormRequest
             'bank' => 'required|string',
             'phone' => ['required', 'string', 'max:20'],
             'payment_date' => 'required|date',
-            'invoice_id' => 'nullable|string',
-            'invoice_ids' => 'nullable|array',
-            'invoice_ids.*' => 'string',
-            'client_id' => 'nullable|string',
+            'invoice_id' => 'required_without:invoice_ids|nullable|string',
+            'invoice_ids' => 'required_without:invoice_id|nullable|array|min:1',
+            'invoice_ids.*' => 'required|string|distinct',
+            'client_id' => 'required|string',
         ];
     }
 
@@ -93,5 +93,19 @@ class ValidatePaymentRequest extends FormRequest
                 'errors' => $validator->errors()
             ], 422)
         );
+    }
+
+    public function messages(): array
+    {
+        return [
+            'client_id.required' => 'El cliente es obligatorio para procesar el pago.',
+
+            'invoice_id.required_without' => 'Debe indicar al menos una factura.',
+            'invoice_ids.required_without' => 'Debe indicar al menos una factura.',
+            'invoice_ids.array' => 'Las facturas deben enviarse como una lista.',
+            'invoice_ids.min' => 'Debe indicar al menos una factura.',
+            'invoice_ids.*.required' => 'Cada factura debe tener un valor.',
+            'invoice_ids.*.distinct' => 'No debe repetir facturas.',
+        ];
     }
 }

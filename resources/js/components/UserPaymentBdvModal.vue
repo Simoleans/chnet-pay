@@ -423,22 +423,44 @@ const handleOpenChange = (open: boolean) => {
 
                 <!-- Formulario P2P -->
                 <div v-if="showP2PForm" class="border rounded-lg p-4 space-y-4">
-                    <p class="font-medium text-sm">Datos del pago móvil P2P</p>
+                  <!--   <p class="font-medium text-sm">Datos del pago móvil P2P</p> -->
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <!-- Banco origen -->
+                        <div class="space-y-1">
+                            <label class="text-sm font-medium">Banco de origen</label>
+                            <select
+                                v-model="p2pBancoOrigen"
+                                class="w-full border rounded-md p-2 bg-background text-sm"
+                            >
+                                <option value="" disabled>Seleccione su banco</option>
+                                <option
+                                    v-for="b in banks"
+                                    :key="b.Code"
+                                    :value="String(b.Code).padStart(4, '0')"
+                                >
+                                    {{ String(b.Code).padStart(4, '0') }} - {{ b.Name }}
+                                </option>
+                            </select>
+                            <p v-if="banksLoading" class="text-xs text-muted-foreground">Cargando bancos...</p>
+                            <p v-if="banksError" class="text-xs text-red-500">{{ banksError }}</p>
+                        </div>
+
+                        <!-- Cédula pagador -->
+                        <div class="space-y-1">
+                            <label class="text-sm font-medium">Cédula pagador</label>
+                            <Input
+                                v-model="p2pCedula"
+                                placeholder="V23795133"
+                                class="w-full uppercase text-sm"
+                            />
+                            <p class="text-xs text-muted-foreground">Formato: V o E seguido de números</p>
+                        </div>
+                    </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <!-- Columna izquierda -->
                         <div class="space-y-3">
-                            <!-- Cédula pagador -->
-                            <div class="space-y-1">
-                                <label class="text-sm font-medium">Cédula pagador</label>
-                                <Input
-                                    v-model="p2pCedula"
-                                    placeholder="V23795133"
-                                    class="w-full uppercase text-sm"
-                                />
-                                <p class="text-xs text-muted-foreground">Formato: V o E seguido de números</p>
-                            </div>
-
                             <!-- Teléfono pagador -->
                             <div class="space-y-1">
                                 <label class="text-sm font-medium">Teléfono pagador</label>
@@ -462,24 +484,22 @@ const handleOpenChange = (open: boolean) => {
                                 <p class="text-xs text-muted-foreground">7 dígitos — número registrado en tu pago móvil</p>
                             </div>
 
-                            <!-- Banco origen -->
+                            <!-- Fecha -->
                             <div class="space-y-1">
-                                <label class="text-sm font-medium">Banco de origen</label>
-                                <select
-                                    v-model="p2pBancoOrigen"
-                                    class="w-full border rounded-md p-2 bg-background text-sm"
-                                >
-                                    <option value="" disabled>Seleccione su banco</option>
-                                    <option
-                                        v-for="b in banks"
-                                        :key="b.Code"
-                                        :value="String(b.Code).padStart(4, '0')"
-                                    >
-                                        {{ String(b.Code).padStart(4, '0') }} - {{ b.Name }}
-                                    </option>
-                                </select>
-                                <p v-if="banksLoading" class="text-xs text-muted-foreground">Cargando bancos...</p>
-                                <p v-if="banksError" class="text-xs text-red-500">{{ banksError }}</p>
+                                <label class="text-sm font-medium">Fecha del pago</label>
+                                <Input
+                                    v-model="p2pFecha"
+                                    type="date"
+                                    class="w-full text-sm"
+                                />
+                                <div class="flex gap-2">
+                                    <Button @click="setToday" size="sm" variant="outline" type="button" class="flex-1 text-xs">
+                                        Hoy
+                                    </Button>
+                                    <Button @click="setYesterday" size="sm" variant="outline" type="button" class="flex-1 text-xs">
+                                        Ayer
+                                    </Button>
+                                </div>
                             </div>
                         </div>
 
@@ -498,24 +518,6 @@ const handleOpenChange = (open: boolean) => {
                                     inputmode="numeric"
                                 />
                                 <p class="text-xs text-muted-foreground">Solo los últimos 4 dígitos del comprobante</p>
-                            </div>
-
-                            <!-- Fecha -->
-                            <div class="space-y-1">
-                                <label class="text-sm font-medium">Fecha del pago</label>
-                                <Input
-                                    v-model="p2pFecha"
-                                    type="date"
-                                    class="w-full text-sm"
-                                />
-                                <div class="flex gap-2">
-                                    <Button @click="setToday" size="sm" variant="outline" type="button" class="flex-1 text-xs">
-                                        Hoy
-                                    </Button>
-                                    <Button @click="setYesterday" size="sm" variant="outline" type="button" class="flex-1 text-xs">
-                                        Ayer
-                                    </Button>
-                                </div>
                             </div>
 
                             <!-- Monto -->

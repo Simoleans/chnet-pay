@@ -87,7 +87,7 @@ const paymentAmount = ref('');
 const paymentDate = ref('');
 // const showReportLink = ref(false); // deshabilitado: ya no se muestra el link de reporte manual
 // Estados para validación manual
-const manualBankCode = ref('0191');
+const manualBankCode = ref('');
 const manualPhonePrefix = ref('0412');
 const manualPhoneNumber = ref('');
 // Estados para C2P
@@ -175,7 +175,7 @@ const resetStates = () => {
     paymentAmount.value = '';
     paymentDate.value = '';
     // showReportLink.value = false;
-    manualBankCode.value = '0191';
+    manualBankCode.value = '';
     manualPhonePrefix.value = '0412';
     manualPhoneNumber.value = '';
     showC2PSection.value = false;

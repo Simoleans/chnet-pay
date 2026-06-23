@@ -116,10 +116,14 @@ class DashboardController extends Controller
         if ($contractsResponse['success'] && !empty($contractsResponse['data']['data'])) {
             $contractData = $contractsResponse['data']['data'][0];
 
+            //dd($contractData);
+
             // Obtener plan si existe
             $plan = null;
             if (!empty($contractData['plan_id'])) {
                 $planResponse = $this->wisproService->getPlanById($contractData['plan_id']);
+
+                //dd($planResponse);
 
                 if ($planResponse['success']) {
                     $planData = $planResponse['data']['data'] ?? $planResponse['data'];

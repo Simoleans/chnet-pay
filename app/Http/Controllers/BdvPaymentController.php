@@ -302,6 +302,9 @@ class BdvPaymentController extends Controller
             //$user      = Auth::user();
             $user      = $ipg2Payment->user;
 
+            logger('BDV IPG2 RETORNO: wisproIds', ['wisproIds' => $wisproIds, 'user' => $user, 'amountUsd' => $amountUsd, 'reference' => $check->reference, 'idLetter' => $check->idLetter, 'idNumber' => $check->idNumber, 'cellphone' => $cellphone, 'type_bank' => Payment::TYPE_BANK_BDV]);
+
+
             $payment = Payment::safeCreate(
                 $check->reference,
                 $user,
@@ -325,7 +328,7 @@ class BdvPaymentController extends Controller
             ]);
 
             // 4. Registrar en Wispro
-           /*  if (count($wisproIds) > 0 && $user?->id_wispro) {
+             if (count($wisproIds) > 0 && $user->id_wispro) {
                 Log::info('BDV IPG2 RETORNO: Registrando en Wispro', [
                     'wispro_ids' => $wisproIds,
                     'client_id' => $user->id_wispro,
@@ -339,7 +342,7 @@ class BdvPaymentController extends Controller
                         $amountUsd,
                         "Pago IPG2 {$check->reference}",
                         $payment);
-            } */
+            }
 
             Auth::guard('web')->login($user);
             $request->session()->regenerate();

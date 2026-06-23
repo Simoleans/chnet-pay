@@ -63,7 +63,7 @@ class CheckPendingIpg2Payments extends Command
                     log::info('IPG2 CRON: wisproIds', ['wisproIds' => $wisproIds]);
 
 
-                     Payment::safeCreate(
+                    $payment = Payment::safeCreate(
                         $check->reference,
                         $user,
                         $wisproIds,
@@ -76,7 +76,7 @@ class CheckPendingIpg2Payments extends Command
 
                     $ipg2Payment->markApproved();
 
-                  /*   if (count($wisproIds) > 0 && $user?->id_wispro) {
+                    if (count($wisproIds) > 0 && $user->id_wispro) {
                         $wispro->registerPaymentSafe(
                             $wisproIds,
                             $user->id_wispro,
@@ -84,7 +84,7 @@ class CheckPendingIpg2Payments extends Command
                             "Pago IPG2 {$check->reference}",
                             $payment
                         );
-                    } */
+                    }
 
                     Log::info('IPG2 CRON: pago aprobado', [
                         'payment_id' => $ipg2Payment->payment_id,

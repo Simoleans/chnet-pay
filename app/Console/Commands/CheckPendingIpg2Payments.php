@@ -44,13 +44,6 @@ class CheckPendingIpg2Payments extends Command
                 // Llama directo al endpoint GET /api/Payments/{paymentId}
                 $check = $bdv->verifyPayment($ipg2Payment->payment_id);
 
-                log::info('IPG2 CRON: verifyPayment', ['check' => $check]);
-
-                /* if ($check->status === 1 && $check->result === 1) {
-                    $ipg2Payment->markApproved();
-                } else {
-                    $ipg2Payment->markRejected();
-                } */
 
                 // status 1 = aprobado
                  if ($check->status === 1 && $check->result === 1) {

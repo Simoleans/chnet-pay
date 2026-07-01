@@ -247,6 +247,7 @@ import WisproInvoicesTable from './Components/WisproInvoicesTable.vue'
 import LocationMap from './Components/LocationMap.vue'
 import PaymentsInvoicesHistory from './Components/PaymentsInvoicesHistory.vue'
 import { useBcvStore } from '@/stores/bcv'
+import axios from 'axios'
 
 interface Props {
     user: any
@@ -280,10 +281,6 @@ const goBack = () => {
     router.visit(route('users.index'))
 }
 
-const getCsrfToken = () => {
-    return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || ''
-}
-
 const restorePassword = async () => {
     if (!restorePasswordUserId.value) {
         alert('Este cliente debe estar sincronizado para restaurar su clave.')
@@ -298,25 +295,20 @@ const restorePassword = async () => {
     passwordError.value = ''
 
     try {
-        const response = await fetch(route('users.restore-password', restorePasswordUserId.value), {
-            method: 'POST',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': getCsrfToken(),
-            },
-        })
+        const { data } = await axios.post(route('users.restore-password', restorePasswordUserId.value))
 
-        const data = await response.json()
-
-        if (!response.ok || !data.password) {
+        if (!data.password) {
             throw new Error(data.message || 'No se pudo restaurar la clave.')
         }
 
         temporaryPassword.value = data.password
         passwordDialogOpen.value = true
-    } catch (error) {
-        passwordError.value = error instanceof Error ? error.message : 'No se pudo restaurar la clave.'
+    } catch (error: any) {
+        if (axios.isAxiosError<{ message?: string }>(error)) {
+            passwordError.value = error.response?.data?.message || 'No se pudo restaurar la clave.'
+        } else {
+            passwordError.value = error instanceof Error ? error.message : 'No se pudo restaurar la clave.'
+        }
         alert(passwordError.value)
     } finally {
         isRestoringPassword.value = false

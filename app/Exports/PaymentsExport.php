@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Helpers\BncHelper;
+use App\Models\BcvRate;
 use App\Models\Payment;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,14 +21,14 @@ class PaymentsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
     protected ?string $search;
     protected ?string $dateFrom;
     protected ?string $dateTo;
-    protected float $bcvRate;
+    protected float $fallbackBcvRate;
 
     public function __construct(?string $search, ?string $dateFrom, ?string $dateTo)
     {
         $this->search = $search ?: null;
         $this->dateFrom = $dateFrom ?: null;
         $this->dateTo = $dateTo ?: null;
-        $this->bcvRate = (float) (BncHelper::getBcvRatesCached()['Rate'] ?? 1);
+        $this->fallbackBcvRate = (float) (BncHelper::getBcvRatesCached()['Rate'] ?? 1);
     }
 
     public function query()
@@ -80,7 +81,7 @@ class PaymentsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
     {
         /** @var \App\Models\Payment $payment */
         $amountUsd = (float) $payment->amount;
-        $amountBs = $amountUsd * $this->bcvRate;
+        $amountBs = $amountUsd * $this->getPaymentBcvRate($payment);
 
         return [
             $payment->id,
@@ -109,6 +110,19 @@ class PaymentsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
                 return 'Banco de Venezuela';
         }
         return 'No se ha registrado el banco';
+    }
+
+    private function getPaymentBcvRate(Payment $payment): float
+    {
+        if ($payment->payment_date) {
+            $historicalRate = BcvRate::getRateForDate($payment->payment_date);
+
+            if ($historicalRate && isset($historicalRate['Rate'])) {
+                return (float) $historicalRate['Rate'];
+            }
+        }
+
+        return $this->fallbackBcvRate;
     }
 }
 

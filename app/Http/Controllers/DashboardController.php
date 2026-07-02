@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helpers\BncHelper;
 use App\Enums\PaymentStatus;
 use App\Models\BdvIpg2Payment;
+use App\Models\BcvRate;
 use App\Models\Payment;
 use App\Models\User;
 use App\Services\WisproApiService;
@@ -55,7 +56,7 @@ class DashboardController extends Controller
             ->limit(10)
             ->get();
 
-        $data['user_payments'] = $this->formatPayments($payments);
+        $data['user_payments'] = $this->formatPayments($payments, true);
 
         // Obtener contrato y plan desde Wispro
         if ($user->id_wispro) {
@@ -198,14 +199,16 @@ class DashboardController extends Controller
     /**
      * Formatear pagos para mostrar en el frontend
      */
-    private function formatPayments($payments)
+    private function formatPayments($payments, bool $useHistoricalBcvRate = false)
     {
-        return $payments->map(function ($payment) {
+        return $payments->map(function ($payment) use ($useHistoricalBcvRate) {
+            $bcvRate = $this->getPaymentBcvRate($payment, $useHistoricalBcvRate);
+
             return [
                 'id' => $payment->id,
                 'reference' => $payment->reference,
                 'amount' => $payment->amount,
-                'amount_bs' => $payment->amount * (BncHelper::getBcvRatesCached()['Rate'] ?? 1),
+                'amount_bs' => $payment->amount * $bcvRate,
                 'payment_date' => $payment->payment_date ? $payment->payment_date->format('d/m/Y') : null,
                 'bank' => $payment->bank,
                 'phone' => $payment->phone,
@@ -220,6 +223,19 @@ class DashboardController extends Controller
                 'type_bank' => $payment->type_bank,
             ];
         });
+    }
+
+    private function getPaymentBcvRate($payment, bool $useHistoricalBcvRate): float
+    {
+        if ($useHistoricalBcvRate && $payment->payment_date) {
+            $historicalRate = BcvRate::getRateForDate($payment->payment_date);
+
+            if ($historicalRate && isset($historicalRate['Rate'])) {
+                return (float) $historicalRate['Rate'];
+            }
+        }
+
+        return (float) (BncHelper::getBcvRatesCached()['Rate'] ?? 1);
     }
 
     /**

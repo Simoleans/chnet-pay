@@ -34,4 +34,29 @@ class BcvRate extends Model
             'source' => 'database',
         ];
     }
+
+    /**
+     * Obtener la tasa vigente para una fecha de pago.
+     */
+    public static function getRateForDate($date): ?array
+    {
+        if (!$date) {
+            return null;
+        }
+
+        $rate = self::whereDate('date', '<=', $date)
+            ->orderByDesc('date')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if (!$rate) {
+            return null;
+        }
+
+        return [
+            'Rate' => floatval($rate->rate),
+            'Date' => $rate->date->format('Y-m-d'),
+            'source' => 'database',
+        ];
+    }
 }

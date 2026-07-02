@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\BncHelper;
+use App\Models\BcvRate;
 use Illuminate\Http\Request;
 use App\Models\User;
-use App\Models\Zone;
-use App\Models\Plan;
 use App\Services\WisproApiService;
 use App\Jobs\SyncWisproClients;
 use Inertia\Inertia;
@@ -185,6 +185,7 @@ class UserController extends Controller
                     'id' => $payment->id,
                     'reference' => $payment->reference,
                     'amount' => $payment->amount,
+                    'amount_bs' => $payment->amount * $this->getPaymentBcvRate($payment),
                     'payment_date' => $payment->payment_date ? $payment->payment_date->format('d/m/Y') : null,
                     'bank' => $payment->bank,
                     'phone' => $payment->phone,
@@ -290,6 +291,7 @@ class UserController extends Controller
                             'id' => $payment->id,
                             'reference' => $payment->reference,
                             'amount' => $payment->amount,
+                            'amount_bs' => $payment->amount * $this->getPaymentBcvRate($payment),
                             'payment_date' => $payment->payment_date ? $payment->payment_date->format('d/m/Y') : null,
                             'bank' => $payment->bank,
                             'phone' => $payment->phone,
@@ -770,6 +772,19 @@ class UserController extends Controller
                 'issued_at' => $invoice['issued_at'] ?? null,
             ];
         })->toArray();
+    }
+
+    private function getPaymentBcvRate($payment): float
+    {
+        if ($payment->payment_date) {
+            $historicalRate = BcvRate::getRateForDate($payment->payment_date);
+
+            if ($historicalRate && isset($historicalRate['Rate'])) {
+                return (float) $historicalRate['Rate'];
+            }
+        }
+
+        return (float) (BncHelper::getBcvRatesCached()['Rate'] ?? 1);
     }
 
 }

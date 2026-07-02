@@ -99,7 +99,7 @@ class DashboardController extends Controller
             ->limit(30)
             ->get();
 
-        $data['admin_payments'] = $this->formatPayments($allPayments);
+        $data['admin_payments'] = $this->formatPayments($allPayments, true);
         $data['bdv_ipg2_payments'] = $this->formatBdvIpg2Payments();
 
         return $data;

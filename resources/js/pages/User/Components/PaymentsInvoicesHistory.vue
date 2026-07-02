@@ -4,7 +4,7 @@ interface Props {
     invoices: any[]
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
 </script>
 
 <template>
@@ -27,7 +27,14 @@ const props = defineProps<Props>()
                     <tbody class="bg-white divide-y divide-gray-200">
                         <tr v-for="payment in payments" :key="payment.id">
                             <td class="px-4 py-3">{{ payment.reference }}</td>
-                            <td class="px-4 py-3">${{ payment.amount }}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-col">
+                                    <span class="font-medium">${{ Number(payment.amount).toFixed(2) }}</span>
+                                    <span class="text-xs text-gray-500">
+                                        Bs. {{ Number(payment.amount_bs).toLocaleString('es-VE', { minimumFractionDigits: 2 }) }}
+                                    </span>
+                                </div>
+                            </td>
                             <td class="px-4 py-3">{{ payment.payment_date }}</td>
                             <td class="px-4 py-3">{{ payment.bank }}</td>
                             <td class="px-4 py-3">
@@ -48,7 +55,7 @@ const props = defineProps<Props>()
         </div>
 
         <!-- Tabla de Facturas -->
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+        <!-- <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
             <h2 class="text-lg font-semibold mb-4">Historial de Facturas</h2>
 
             <div v-if="invoices && invoices.length > 0" class="overflow-x-auto">
@@ -89,7 +96,7 @@ const props = defineProps<Props>()
             <div v-else class="text-center py-8 text-gray-500">
                 No hay facturas registradas
             </div>
-        </div>
+        </div> -->
     </div>
 </template>
 

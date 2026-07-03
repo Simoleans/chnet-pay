@@ -564,7 +564,8 @@ class PaymentController extends Controller
 
             $user = Auth::user();
 
-            $reference = $request->reference;
+            $reference = trim((string) $request->reference);
+            $referenceForBank = substr($reference, -5);
             $amountBs = $request->amount;
             $bank = $request->bank;
             $phoneNumber = $request->phone;
@@ -595,7 +596,7 @@ class PaymentController extends Controller
 
             // Validar la referencia con el banco
             $result = BncHelper::validateOperationReference(
-                $reference,
+                $referenceForBank,
                 $paymentDate,
                 $amountBs,
                 $bank,

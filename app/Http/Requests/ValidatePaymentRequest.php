@@ -48,7 +48,7 @@ class ValidatePaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'reference' => 'required|string|max:255',
+            'reference' => ['required', 'string', 'regex:/^\d{6}$/'],
             'amount' => 'required|numeric|min:0.01',
             'bank' => 'required|string',
             'phone' => ['required', 'string', 'max:20'],
@@ -98,6 +98,7 @@ class ValidatePaymentRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'reference.regex' => 'La referencia debe tener exactamente 6 números.',
             'client_id.required' => 'El cliente es obligatorio para procesar el pago.',
 
             'invoice_id.required_without' => 'Debe indicar al menos una factura.',

@@ -495,16 +495,16 @@ const submitReference = async () => {
 
     if (!trimmedRef) {
         notify({
-            message: 'Por favor ingrese los últimos 5 números de la referencia',
+            message: 'Por favor ingrese los últimos 6 números de la referencia',
             type: 'error',
             duration: 2000,
         });
         return;
     }
 
-    if (!/^\d{5}$/.test(trimmedRef)) {
+    if (!/^\d{6}$/.test(trimmedRef)) {
         notify({
-            message: 'La referencia debe tener exactamente 5 números',
+            message: 'La referencia debe tener exactamente 6 números',
             type: 'error',
             duration: 2000,
         });
@@ -715,17 +715,17 @@ const setYesterday = () => {
                                 <!-- Columna derecha -->
                                 <div class="space-y-3">
                                     <div class="space-y-2">
-                                        <label for="referenceNumber" class="text-sm font-medium">Últimos 5 números de la referencia</label>
+                                        <label for="referenceNumber" class="text-sm font-medium">Últimos 6 números de la referencia</label>
                                         <Input
                                             id="referenceNumber"
                                             v-model="referenceNumber"
-                                            placeholder="Ingrese los últimos 5 números"
+                                            placeholder="Ingrese los últimos 6 números"
                                             class="w-full text-sm"
                                             type="text"
-                                            maxlength="5"
-                                            pattern="[0-9]{5}"
+                                            maxlength="6"
+                                            pattern="[0-9]{6}"
                                         />
-<!--                                         <p class="text-xs text-muted-foreground">Solo los últimos 5 dígitos</p> -->
+<!--                                         <p class="text-xs text-muted-foreground">Solo los últimos 6 dígitos</p> -->
                                     </div>
 
                                     <div class="space-y-2">
@@ -752,7 +752,7 @@ const setYesterday = () => {
                                 <Button
                                     @click="submitReference"
                                     size="sm"
-                                    :disabled="paymentLoading || !referenceNumber.trim() || referenceNumber.trim().length < 4 || !paymentAmount || enteredPaymentAmountBs <= 0 || !/^\d{7}$/.test(manualPhoneNumber.trim()) || !paymentDate"
+                                    :disabled="paymentLoading || !referenceNumber.trim() || referenceNumber.trim().length < 6 || !paymentAmount || enteredPaymentAmountBs <= 0 || !/^\d{7}$/.test(manualPhoneNumber.trim()) || !paymentDate"
                                     class="flex-1"
                                 >
                                     <span v-if="paymentLoading">Verificando...</span>

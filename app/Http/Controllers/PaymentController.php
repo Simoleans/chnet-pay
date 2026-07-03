@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Payment;
+use App\Models\BcvRate;
 use App\Helpers\BncHelper;
 use App\Exports\PaymentsExport;
 use App\Services\WisproApiService;
@@ -53,7 +54,7 @@ class PaymentController extends Controller
                 'id' => $payment->id,
                 'reference' => $payment->reference,
                 'amount' => $payment->amount,
-                'amount_bs' => $payment->amount * (\App\Helpers\BncHelper::getBcvRatesCached()['Rate'] ?? 1),
+                'amount_bs' => $payment->amount * $this->getPaymentBcvRate($payment),
                 'payment_date' => $payment->payment_date ? $payment->payment_date->format('d/m/Y') : null,
                 'bank' => $payment->bank,
                 'phone' => $payment->phone,
@@ -85,6 +86,19 @@ class PaymentController extends Controller
                 'date_to' => $request->date_to ?? '',
             ],
         ]);
+    }
+
+    private function getPaymentBcvRate(Payment $payment): float
+    {
+        if ($payment->payment_date) {
+            $historicalRate = BcvRate::getRateForDate($payment->payment_date);
+
+            if ($historicalRate && isset($historicalRate['Rate'])) {
+                return (float) $historicalRate['Rate'];
+            }
+        }
+
+        return (float) (BncHelper::getBcvRatesCached()['Rate'] ?? 1);
     }
 
     /**

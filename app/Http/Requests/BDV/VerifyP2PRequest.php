@@ -39,7 +39,7 @@ class VerifyP2PRequest extends FormRequest
             'cedulaPagador'   => ['required', 'string'],
             'telefonoPagador' => ['required', 'string'],
             'telefonoDestino' => ['required', 'string'],
-            'referencia'      => ['required', 'string'],
+            'referencia'      => ['required', 'string', 'regex:/^\d{5}$/'],
             'fechaPago'       => ['required', 'string'],
             'importe'         => ['required', 'string'],
             'bancoOrigen'     => ['required', 'string'],
@@ -60,5 +60,12 @@ class VerifyP2PRequest extends FormRequest
                 'errors'  => $validator->errors(),
             ], 422)
         );
+    }
+
+    public function messages(): array
+    {
+        return [
+            'referencia.regex' => 'La referencia debe tener exactamente 5 dígitos.',
+        ];
     }
 }

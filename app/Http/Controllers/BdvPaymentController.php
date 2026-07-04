@@ -29,13 +29,15 @@ class BdvPaymentController extends Controller
 
         $telefonoPagador = $data['telefonoPagador'];
         $telefonoDestino = $data['telefonoDestino'];
+        $referencia = trim((string) $data['referencia']);
+        $referenciaParaBanco = substr($referencia, -4);
 
         // 1. Consultar al BDV
         $resp = $bdv->verifyP2P(
             $data['cedulaPagador'],
             $telefonoPagador,
             $telefonoDestino,
-            $data['referencia'],
+            $referenciaParaBanco,
             $data['fechaPago'],
             $data['importe'],
             $data['bancoOrigen'],
@@ -65,7 +67,7 @@ class BdvPaymentController extends Controller
         }
 
         // 3. Evitar duplicados internos
-        if (Payment::where('reference', $data['referencia'])->where('bank', $data['bancoOrigen'])->exists()) {
+        if (Payment::where('reference', $referencia)->where('bank', $data['bancoOrigen'])->exists()) {
             return response()->json([
                 'success'            => true,
                 'already_registered' => true,
@@ -98,7 +100,7 @@ class BdvPaymentController extends Controller
         // 5. Guardar el pago como verificado (el banco ya lo confirmó)
         $user    = Auth::user();
         $payment = Payment::create([
-            'reference'        => $data['referencia'],
+            'reference'        => $referencia,
             'user_id'          => $user?->id,
             'invoice_wispro'   => WisproInvoiceIds::encode($wisproIds),
             'amount'           => $amountUsd,
@@ -120,7 +122,7 @@ class BdvPaymentController extends Controller
                     $data['client_id'],
                     now()->format('c'),
                     $amountUsd,
-                    "Referencia {$data['referencia']}"
+                    "Referencia {$referencia}"
                 );
 
                 if ($wisproPaymentResponse['success']) {

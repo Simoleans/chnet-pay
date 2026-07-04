@@ -234,8 +234,8 @@ const submitP2P = async () => {
         notify({ message: 'Seleccione el banco de origen', type: 'error', duration: 2500 });
         return;
     }
-    if (!/^\d{4}$/.test(p2pReferencia.value.trim())) {
-        notify({ message: 'La referencia debe tener exactamente 4 dígitos', type: 'error', duration: 2500 });
+    if (!/^\d{5}$/.test(p2pReferencia.value.trim())) {
+        notify({ message: 'La referencia debe tener exactamente 5 dígitos', type: 'error', duration: 2500 });
         return;
     }
     if (!p2pFecha.value) {
@@ -507,17 +507,17 @@ const handleOpenChange = (open: boolean) => {
                         <div class="space-y-3">
                             <!-- Referencia -->
                             <div class="space-y-1">
-                                <label class="text-sm font-medium">Últimos 4 dígitos de la referencia</label>
+                                <label class="text-sm font-medium">Últimos 5 dígitos de la referencia</label>
                                 <Input
                                     v-model="p2pReferencia"
-                                    placeholder="Ej: 2908"
+                                    placeholder="Ej: 12908"
                                     class="w-full text-sm"
                                     type="text"
-                                    maxlength="4"
-                                    pattern="[0-9]{4}"
+                                    maxlength="5"
+                                    pattern="[0-9]{5}"
                                     inputmode="numeric"
                                 />
-                                <p class="text-xs text-muted-foreground">Solo los últimos 4 dígitos del comprobante</p>
+                                <p class="text-xs text-muted-foreground">Solo los últimos 5 dígitos del comprobante</p>
                             </div>
 
                             <!-- Monto -->
@@ -545,7 +545,7 @@ const handleOpenChange = (open: boolean) => {
                             !p2pCedula.trim() ||
                             !/^\d{7}$/.test(p2pTelefonoNumber.trim()) ||
                             !p2pBancoOrigen ||
-                            !/^\d{4}$/.test(p2pReferencia.trim()) ||
+                            !/^\d{5}$/.test(p2pReferencia.trim()) ||
                             !p2pFecha ||
                             !p2pImporte ||
                             enteredP2PAmountBs <= 0

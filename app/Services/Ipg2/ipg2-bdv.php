@@ -2,16 +2,22 @@
 class IpgBdv2
 {
 	private const ACCESS_TOKEN = 'accessToken';
-	
-	private const URL_API = 'https://biodemo.ex-cle.com:4443/Biopago2/IPG2/api/Payments';
-	private const URL_AUTH = 'https://biodemo.ex-cle.com:4443/Biopago2/IPG2/connect/token';	
+
+	private $urlApi;
+	private $urlAuth;
+	private $user;
+	private $pass;
+	private $messages;
 
 	function __construct($user,$pass){
-	
-		session_start();		
+
+		session_start();
 		if(!isset($_SESSION[self::ACCESS_TOKEN])){
 			$_SESSION[self::ACCESS_TOKEN] = '';
 		}
+
+		$this->urlApi = config('app.ipg2.url_api_payments');
+		$this->urlAuth = config('app.ipg2.base_url');
 
 		$this->user = $user;
 		$this->pass = $pass;
@@ -55,49 +61,49 @@ class IpgBdv2
 			);
 
 	}
-	
+
 	public function checkPayment($paymentToken) {
-		
+
 		if($_SESSION[self::ACCESS_TOKEN] == ''){
-			$this->refreshToken();	
+			$this->refreshToken();
 		}
-		
-		$response = $this->getPayment($paymentToken);		
-		
-		if($response->responseCode == 401){				
-			$this->refreshToken();				
+
+		$response = $this->getPayment($paymentToken);
+
+		if($response->responseCode == 401){
+			$this->refreshToken();
 			$response = $this->getPayment($paymentToken);
 		}
-	    
+
 		return $response;
 	}
-	
+
     public function createPayment($paymentRequest) {
-		
+
 		if($_SESSION[self::ACCESS_TOKEN] == ''){
-			$this->refreshToken();	
+			$this->refreshToken();
 		}
 
 		$response = $this->postPayment($paymentRequest);
-	
-		if($response->responseCode == 401){		
-			$this->refreshToken();				
+
+		if($response->responseCode == 401){
+			$this->refreshToken();
 			$response = $this->postPayment($paymentRequest);
 		}
-	    
-		return $response;		
-    }	
+
+		return $response;
+    }
 
 	private function getMessageDescription($code) {
 		 return $this->messages[$code];
 	}
 
 	private function refreshToken() {
-			
+
 		$curl = curl_init();
 
 		$params = [
-			CURLOPT_URL =>  self::URL_AUTH,
+			CURLOPT_URL =>  $this->urlAuth,
 			CURLOPT_USERAGENT => 'IPG',
 			CURLOPT_RETURNTRANSFER => true,
 			CURLOPT_MAXREDIRS => 10,
@@ -113,29 +119,29 @@ class IpgBdv2
 			CURLOPT_POSTFIELDS => "grant_type=client_credentials&client_id=".$this->user."&client_secret=".$this->pass
 		];
 
-		curl_setopt_array($curl, $params);		
-		
+		curl_setopt_array($curl, $params);
+
 		curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
 		curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-		
+
 		$resp = curl_exec($curl);
-		
+
 		$httpcode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-		
+
 		if ($httpcode == 200)
 		{
 			$auxResp = json_decode($resp);
 			$_SESSION[self::ACCESS_TOKEN] = $auxResp->access_token;
 		}
     }
-	 
+
 	private function postPayment($paymentRequest){
 		 $curl = curl_init();
 
 		$headers = [
 			'Content-Type: application/json',
 		    'Authorization: Bearer '.$_SESSION[self::ACCESS_TOKEN],
-		];		
+		];
 
 		$data = array(
 				"currency" => $paymentRequest->currency,
@@ -150,13 +156,13 @@ class IpgBdv2
 				"urlToReturn" => $paymentRequest->urlToReturn,
 				"rifLetter" => $paymentRequest->rifLetter,
 				"rifNumber" => $paymentRequest->rifNumber);
-		
+
 		$str_data = json_encode($data);
-		
+
 		curl_setopt_array($curl, array(
 			CURLOPT_HTTPHEADER=> $headers,
 			CURLOPT_RETURNTRANSFER => 1,
-			CURLOPT_URL => self::URL_API,
+			CURLOPT_URL => $this->urlApi,
 			CURLOPT_USERAGENT => 'IPG',
 			CURLOPT_POST => 1,
 			CURLOPT_POSTFIELDS => $str_data,
@@ -166,16 +172,16 @@ class IpgBdv2
 
 		curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
 		curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-			
+
 		$resp = curl_exec($curl);
-		
+
 		$httpcode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-		
-		$response = new IpgBdvPaymentResponse();		
-	
+
+		$response = new IpgBdvPaymentResponse();
+
 		if ($httpcode == 200)
 		{
-			$auxResp = json_decode($resp); 
+			$auxResp = json_decode($resp);
 			$response->responseCode = $auxResp->responseCode;
 			if ($auxResp->responseCode == 0)
 			{
@@ -188,29 +194,29 @@ class IpgBdv2
 				$response->success = false;
 			}
 		}
-		else if( $httpcode == 401 )  
-		{ 
+		else if( $httpcode == 401 )
+		{
 			$response->responseCode = 401;
 			$response->success = false;
-		} 
-		else if( $httpcode == 500 )  
-		{ 
+		}
+		else if( $httpcode == 500 )
+		{
 			$response->responseCode = 500;
 			$response->success = false;
-		} 
+		}
 		else
-		{ 
+		{
 			$response->responseCode = 404;
 			$response->success = false;
-		} 
-		
+		}
+
 		$response->responseMessage = $this->getMessageDescription($response->responseCode);
-		
-		curl_close($curl); 
-				
+
+		curl_close($curl);
+
 		return $response;
-	}	
-	
+	}
+
 	private function getPayment($paymentToken)
 	{
 		$curl = curl_init();
@@ -219,13 +225,13 @@ class IpgBdv2
 			'Content-Type: application/json',
 			  'Authorization: Bearer '.$_SESSION[self::ACCESS_TOKEN],
 		];
-		
-		$url = self::URL_API;
-		
+
+		$url = $this->urlApi;
+
 		curl_setopt_array($curl, array(
 			CURLOPT_HTTPHEADER=> $headers,
 			CURLOPT_RETURNTRANSFER => 1,
-			CURLOPT_URL => self::URL_API.'/'.$paymentToken,
+			CURLOPT_URL => $this->urlApi.'/'.$paymentToken,
 			CURLOPT_USERAGENT => 'IPG',
 			CURLOPT_HTTPGET => TRUE,
 			CURLOPT_HTTPAUTH=> CURLAUTH_ANY,
@@ -234,7 +240,7 @@ class IpgBdv2
 
 		curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
 		curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-		
+
 		$response = new IpgBdvCheckPaymentResponse();
 		$resp = curl_exec($curl);
 		$httpcode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
@@ -242,13 +248,13 @@ class IpgBdv2
 		if ($httpcode == 200)
 		{
 			$auxResp = json_decode($resp);
-			
-			$response->responseCode = $auxResp->responseCode;			
+
+			$response->responseCode = $auxResp->responseCode;
 
 			if ($auxResp->responseCode == 0)
 			{
-				$response->status = $auxResp->status;			
-				$response->success = true;				
+				$response->status = $auxResp->status;
+				$response->success = true;
 				$response->idLetter = $auxResp->letter;
 	 			$response->idNumber = $auxResp->number;
 	 			$response->amount = $auxResp->amount;
@@ -268,36 +274,36 @@ class IpgBdv2
 				$response->success = false;
 			}
 		}
-		else if( $httpcode == 401 )  
-		{ 
+		else if( $httpcode == 401 )
+		{
 			$response->responseCode = 401;
 			$response->success = false;
-		} 
-		else if( $httpcode == 500 )  
-		{ 
+		}
+		else if( $httpcode == 500 )
+		{
 			$response->responseCode = 500;
 			$response->success = false;
-		} 
+		}
 		else
-		{ 
+		{
 			$response->responseCode = 404;
 			$response->success = false;
-		} 
-		
+		}
+
 		$response->responseMessage = $this->getMessageDescription($response->responseCode);
-		
+
 		curl_close($curl);
-				
+
 		return $response;
 
-		curl_close($curl); 
+		curl_close($curl);
 
 		return $resp;
 	}
 }
 
 class IpgBdvPaymentRequest
-{	
+{
 	// propiedades
 	public $idLetter;
 	public $idNumber;
@@ -314,7 +320,7 @@ class IpgBdvPaymentRequest
 }
 
 class IpgBdvPaymentResponse
-{	
+{
     // propiedades
 	public $success;
 	public $responseCode;
@@ -324,7 +330,7 @@ class IpgBdvPaymentResponse
 }
 
 class IpgBdvCheckPaymentResponse
-{	
+{
     // propiedades
 	public $status;
 	public $currency;

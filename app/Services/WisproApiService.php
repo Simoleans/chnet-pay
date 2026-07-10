@@ -568,6 +568,9 @@ class WisproApiService
             ];
 
             $response = Http::withHeaders($this->getHeaders())
+                ->connectTimeout(5)
+                ->timeout(20)
+                ->retry(2, 1500)
                 ->post($this->baseUrl . $endpoint, $data);
 
             Log::info('REGISTER PAYMENT wispro: Respuesta recibida', ['response' => $response->json()]);

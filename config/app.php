@@ -158,6 +158,7 @@ return [
         'client_id' => env('IPG2_CLIENT_ID', ''),
         'client_secret' => env('IPG2_CLIENT_SECRET', ''),
         'base_url' => env('IPG2_BASE_URL', ''),
+        'url_api_payments' => env('IPG2_URL_API_PAYMENTS', ''),
     ],
 
     'recaptcha' => [

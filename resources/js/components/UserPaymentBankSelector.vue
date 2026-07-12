@@ -36,12 +36,12 @@ const selectBank = (bank: 'bnc' | 'bdv') => {
 };
 
 const goToBiopago = () => {
-    const password = window.prompt('Ingrese la clave para continuar');
+    /* const password = window.prompt('Ingrese la clave para continuar');
 
     if (password !== '123') {
         window.alert('Clave incorrecta');
         return;
-    }
+    } */
 
     emit('update:open', false);
     router.visit(route('bdv.ipg2.checkout'));
@@ -107,17 +107,17 @@ const goToBiopago = () => {
             </div>
 
             <div class="relative">
-                <span class="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-amber-100 dark:bg-amber-950/60 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400 shadow-sm ring-1 ring-amber-200 dark:ring-amber-800 z-10">
+               <!--  <span class="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-amber-100 dark:bg-amber-950/60 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400 shadow-sm ring-1 ring-amber-200 dark:ring-amber-800 z-10">
                     Próximamente
-                </span>
+                </span> -->
                 <button
                     @click="goToBiopago"
-                    class="w-full flex items-center justify-center gap-3 rounded-xl border-2 p-4 transition-all duration-200 hover:border-primary hover:bg-primary/5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary bg-primary/2 border-primary"
+                    class="w-full flex items-center justify-center gap-3 rounded-xl border-2 border-primary bg-primary p-4 text-primary-foreground shadow-xs transition-all duration-200 hover:bg-primary/90 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                     <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 dark:bg-red-950/30 overflow-hidden">
                         <img src="/img/bdv.webp" alt="BDV" class="h-8 w-8 object-contain" />
                     </div>
-                    <span class="text-sm font-semibold text-gray-300">Botón de pago BDV</span>
+                    <span class="text-sm font-semibold">Botón de pago BDV</span>
                 </button>
             </div>
 

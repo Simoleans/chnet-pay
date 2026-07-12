@@ -249,7 +249,6 @@ class BdvPaymentController extends Controller
 
     public function retorno(Request $request, BdvApiService $bdv, WisproApiService $wispro)
     {//try catch dcon db transaction
-        DB::beginTransaction();
         try {
             $paymentId  = $request->query('id');
 
@@ -259,9 +258,9 @@ class BdvPaymentController extends Controller
                 return redirect('/')->withErrors(['bdv' => 'Sin paymentId']);
             }
 
-            //Buscar en BD el registro pendiente
-            $ipg2Payment = BdvIpg2Payment::where('payment_id', $paymentId)
-                ->where('status', PaymentStatus::Pending)
+            // Buscar el registro aunque ya haya sido procesado: BDV puede llamar el retorno mas de una vez.
+            $ipg2Payment = BdvIpg2Payment::with('user')
+                ->where('payment_id', $paymentId)
                 ->first();
 
 
@@ -269,6 +268,7 @@ class BdvPaymentController extends Controller
                 'query_params' => $request->all(),
                 'paymentId'    => $paymentId,
                 'invoiceIds'   => $ipg2Payment?->invoice_ids,
+                'status'       => $ipg2Payment?->status?->value,
             ]);
 
             if (!$ipg2Payment) {
@@ -277,6 +277,40 @@ class BdvPaymentController extends Controller
                 ]);
                 return redirect('/')->withErrors(['bdv' => 'Pago no encontrado o ya procesado']);
             }
+
+            if ($ipg2Payment->status === PaymentStatus::Approved) {
+                $user = $ipg2Payment->user;
+
+                if (!$user) {
+                    Log::error('BDV IPG2 RETORNO: pago aprobado sin usuario asociado', [
+                        'paymentId' => $paymentId,
+                    ]);
+                    return redirect('/')->withErrors(['bdv' => 'Pago aprobado, pero no se encontró el usuario asociado']);
+                }
+
+                Auth::guard('web')->login($user);
+                $request->session()->regenerate();
+
+                Log::info('BDV IPG2 RETORNO: Pago ya aprobado, usuario logueado', [
+                    'paymentId' => $paymentId,
+                    'user_id' => $user->id,
+                ]);
+
+                session()->flash('type', 'success');
+                session()->flash('message', 'Pago procesado correctamente.');
+
+                return redirect()->route('dashboard');
+            }
+
+            if (!$ipg2Payment->isPending()) {
+                Log::error('BDV IPG2 RETORNO: pago con estado no procesable', [
+                    'paymentId' => $paymentId,
+                    'status' => $ipg2Payment->status?->value,
+                ]);
+                return redirect('/')->withErrors(['bdv' => 'Pago no aprobado o rechazado']);
+            }
+
+            DB::beginTransaction();
 
             // 1. Verificar estado real con BDV
             $check = $bdv->checkButtonPayment($paymentId);
@@ -303,6 +337,14 @@ class BdvPaymentController extends Controller
             $cellphone = $ipg2Payment->cellphone;
             //$user      = Auth::user();
             $user      = $ipg2Payment->user;
+
+            if (!$user) {
+                Log::error('BDV IPG2 RETORNO: pago pendiente sin usuario asociado', [
+                    'paymentId' => $paymentId,
+                ]);
+                DB::rollBack();
+                return redirect('/')->withErrors(['bdv' => 'No se encontró el usuario asociado al pago']);
+            }
 
             logger('BDV IPG2 RETORNO: wisproIds', ['wisproIds' => $wisproIds, 'user' => $user, 'amountUsd' => $amountUsd, 'reference' => $check->reference, 'idLetter' => $check->idLetter, 'idNumber' => $check->idNumber, 'cellphone' => $cellphone, 'type_bank' => Payment::TYPE_BANK_BDV]);
 
@@ -360,7 +402,9 @@ class BdvPaymentController extends Controller
             // 5. Redirigir al usuario con resultado
             return redirect()->route('dashboard');
         } catch (\Exception $e) {
-            DB::rollBack();
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
             Log::error('BDV IPG2 RETORNO: Excepción', [
                 'message' => $e->getMessage(),
             ]);

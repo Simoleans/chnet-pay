@@ -128,10 +128,6 @@ const getBankName = (typeBank) => {
                         <p>{{ payment.payment_date }}</p>
                     </div>
                     <div>
-                        <span class="font-medium text-muted-foreground">Período:</span>
-                        <p>{{ payment.invoice_period }}</p>
-                    </div>
-                    <div>
                         <span class="font-medium text-muted-foreground">Registrado:</span>
                         <p>{{ payment.created_at }}</p>
                     </div>

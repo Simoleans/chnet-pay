@@ -140,7 +140,7 @@ const getInvoiceStateClass = (state: string) => {
                     </div>
 
                     <!-- Período y vencimientos -->
-                    <div class="grid grid-cols-2 gap-1 text-xs text-gray-600 dark:text-gray-400">
+                    <!-- <div class="grid grid-cols-2 gap-1 text-xs text-gray-600 dark:text-gray-400">
                         <div v-if="invoice.from && invoice.to">
                             <span class="font-medium text-gray-500 uppercase tracking-wide">Período</span><br>
                             {{ formatDate(invoice.from) }} → {{ formatDate(invoice.to) }}
@@ -150,7 +150,7 @@ const getInvoiceStateClass = (state: string) => {
                             {{ formatDate(invoice.first_due_date) }}
                             <span v-if="invoice.second_due_date"> / {{ formatDate(invoice.second_due_date) }}</span>
                         </div>
-                    </div>
+                    </div> -->
 
                     <!-- Montos + botón -->
                     <div class="flex items-center justify-between mt-1">
@@ -179,9 +179,9 @@ const getInvoiceStateClass = (state: string) => {
                         <tr>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Factura #</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Cliente</th>
-                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Período</th>
+<!--                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Período</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">1ra Vencimiento</th>
-                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">2da Vencimiento</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">2da Vencimiento</th> -->
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estado</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Saldo USD</th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Saldo Bs</th>
@@ -195,22 +195,22 @@ const getInvoiceStateClass = (state: string) => {
                                 <div class="font-medium">{{ invoice.client_name }}</div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400">{{ invoice.client_address }}</div>
                             </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                           <!--  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                                 <div v-if="invoice.from && invoice.to">
                                     {{ formatDate(invoice.from) }}<br>
                                     <span class="text-xs text-gray-500">hasta</span><br>
                                     {{ formatDate(invoice.to) }}
                                 </div>
                                 <span v-else class="text-gray-400">-</span>
-                            </td>
-                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                            </td> -->
+                           <!--  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                                 <span v-if="invoice.first_due_date">{{ formatDate(invoice.first_due_date) }}</span>
                                 <span v-else class="text-gray-400">-</span>
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                                 <span v-if="invoice.second_due_date">{{ formatDate(invoice.second_due_date) }}</span>
                                 <span v-else class="text-gray-400">-</span>
-                            </td>
+                            </td> -->
                             <td class="px-4 py-3 whitespace-nowrap text-sm">
                                 <span :class="['px-2 py-1 text-xs rounded font-semibold', getInvoiceStateClass(invoice.state)]">
                                     {{ getInvoiceStateLabel(invoice.state) }}

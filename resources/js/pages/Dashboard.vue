@@ -87,6 +87,10 @@ const props = defineProps({
             per_page: 10,
             total: 0,
         })
+    },
+    total_amount_plan: {
+        type: Number,
+        default: 0
     }
 });
 
@@ -219,6 +223,7 @@ const handleBankSelected = (bank: 'bnc' | 'bdv') => {
                     <PlanCard
                         :user-plan="user_plan"
                         :pending-invoices-count="pending_invoices_count"
+                        :total-amount-plan="total_amount_plan"
                     />
                 </div>
 

@@ -61,11 +61,10 @@ class PaymentController extends Controller
                 'id_number' => $payment->id_number,
                 'user_name' => $payment->user ? $payment->user->name : 'N/A',
                 'user_code' => $payment->user ? $payment->user->code : 'N/A',
-                'invoice_period' => $payment->invoice && $payment->invoice->period ?
-                    $payment->invoice->period->format('Y-m') : 'Sin factura',
                 'created_at' => $payment->created_at ? $payment->created_at->format('d/m/Y H:i') : null,
                 'image_path' => $payment->image_path,
                 'verify_payments' => $payment->verify_payments,
+                'wispro_registered' => $payment->wispro_registered,
                 'type_bank' => $payment->type_bank,
             ];
         });

@@ -29,7 +29,6 @@ const paymentColumns = [
     { key: 'amount', label: 'Monto' },
     { key: 'payment_date', label: 'Fecha Pago' },
     { key: 'bank', label: 'Banco' },
-    { key: 'invoice_period', label: 'Período' },
     { key: 'verification_status', label: 'Verificación' },
     { key: 'created_at', label: 'Registrado' },
     { key: 'actions', label: 'Acciones' },

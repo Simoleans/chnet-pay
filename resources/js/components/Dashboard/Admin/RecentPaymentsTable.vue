@@ -17,6 +17,7 @@ interface Payment {
     created_at: string
     image_path?: string
     verify_payments: boolean
+    wispro_registered: number
 }
 
 interface BdvIpg2Payment {
@@ -56,6 +57,7 @@ const paymentColumns = [
     { key: 'bank', label: 'Banco' },
     { key: 'invoice_period', label: 'Período' },
     { key: 'verification_status', label: 'Verificación' },
+    { key: 'wispro_registered', label: 'Verificado en Wispro' },
     { key: 'created_at', label: 'Registrado' },
     { key: 'actions', label: 'Acciones' },
 ]
@@ -196,6 +198,24 @@ const goToBdvPage = (page: number) => {
                                             ]"
                                         >
                                             {{ item.verify_payments ? 'Verificado' : 'Sin verificar' }}
+                                        </span>
+                                    </div>
+                                </template>
+                                <template v-else-if="column.key === 'wispro_registered'">
+                                    <div class="flex items-center gap-2">
+                                        <div
+                                            :class="[
+                                                'w-2 h-2 rounded-full',
+                                                item.wispro_registered ? 'bg-green-500' : 'bg-red-500'
+                                            ]"
+                                        ></div>
+                                        <span
+                                            :class="[
+                                                'text-xs font-medium',
+                                                item.wispro_registered ? 'text-green-600' : 'text-red-600'
+                                            ]"
+                                        >
+                                            {{ item.wispro_registered ? 'Verificado' : 'Sin verificar' }}
                                         </span>
                                     </div>
                                 </template>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Helpers\BncHelper;
 use App\Enums\PaymentStatus;
+use App\Enums\PlanPriceAdjustment;
 use App\Models\BdvIpg2Payment;
 use App\Models\BcvRate;
 use App\Models\Payment;
@@ -14,6 +15,8 @@ use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
+    private const IVA_RATE = 0.16;
+
     protected $wisproService;
 
     public function __construct(WisproApiService $wisproService)
@@ -128,9 +131,14 @@ class DashboardController extends Controller
 
                 if ($planResponse['success']) {
                     $planData = $planResponse['data']['data'] ?? $planResponse['data'];
+                    $planName = $planData['name'] ?? 'N/A';
+                    $planPrice = (float) ($planData['price'] ?? 0);
+                    $planPriceAdjustment = PlanPriceAdjustment::fromPlanName($planName)->amount();
+
                     $plan = [
-                        'name' => $planData['name'] ?? 'N/A',
-                        'price' => $planData['price'] ?? 0,
+                        'name' => $planName,
+                        'price' => $this->applyIva($planPrice) + $planPriceAdjustment,
+                        'iva_rate' => self::IVA_RATE,
                     ];
                 }
             }
@@ -147,6 +155,11 @@ class DashboardController extends Controller
         }
 
         return $data;
+    }
+
+    private function applyIva(float $price): float
+    {
+        return round($price * (1 + self::IVA_RATE), 2);
     }
 
     /**
@@ -220,6 +233,7 @@ class DashboardController extends Controller
                 'created_at' => $payment->created_at ? $payment->created_at->format('d/m/Y H:i') : null,
                 'image_path' => $payment->image_path,
                 'verify_payments' => $payment->verify_payments,
+                'wispro_registered' => $payment->wispro_registered,
                 'type_bank' => $payment->type_bank,
             ];
         });

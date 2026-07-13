@@ -118,6 +118,24 @@
                                         </span>
                                     </div>
                                 </template>
+                                <template v-else-if="column.key === 'wispro_registered'">
+                                    <div class="flex items-center gap-2">
+                                        <div
+                                            :class="[
+                                                'w-2 h-2 rounded-full',
+                                                item.wispro_registered ? 'bg-green-500' : 'bg-red-500'
+                                            ]"
+                                        ></div>
+                                        <span
+                                            :class="[
+                                                'text-xs font-medium',
+                                                item.wispro_registered ? 'text-green-600' : 'text-red-600'
+                                            ]"
+                                        >
+                                            {{ item.wispro_registered ? 'Verificado' : 'Sin verificar' }}
+                                        </span>
+                                    </div>
+                                </template>
                                 <template v-else>
                                     {{ getValue(item, column.key) }}
                                 </template>
@@ -201,8 +219,8 @@ const columns = [
     { key: 'payment_date', label: 'Fecha Pago' },
     { key: 'bank', label: 'Banco' },
     { key: 'contact_info', label: 'Contacto' },
-    { key: 'invoice_period', label: 'Período' },
     { key: 'verification_status', label: 'Verificación' },
+    { key: 'wispro_registered', label: 'Verificado en Wispro' },
     { key: 'created_at', label: 'Registrado' },
     { key: 'actions', label: 'Acciones' },
 ]
@@ -311,6 +329,8 @@ const getValue = (item, key) => {
             return item.invoice_period
         case 'created_at':
             return item.created_at
+        case 'wispro_registered':
+            return item.wispro_registered ? 'Verificado' : 'Sin verificar'
         default:
             return item[key]
     }

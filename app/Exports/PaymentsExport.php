@@ -71,7 +71,6 @@ class PaymentsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
             'Banco',
             'Cédula',
             'Teléfono',
-            'Periodo Factura',
             'Verificación',
             'Registrado',
         ];
@@ -95,7 +94,6 @@ class PaymentsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
             $payment->bank,
             $payment->id_number,
             $payment->phone,
-            ($payment->invoice && $payment->invoice->period) ? $payment->invoice->period->format('Y-m') : 'Sin factura',
             $payment->verify_payments ? 'Verificado' : 'Sin verificar',
             optional($payment->created_at)->format('Y-m-d H:i:s'),
         ];

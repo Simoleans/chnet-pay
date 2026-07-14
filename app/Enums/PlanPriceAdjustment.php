@@ -13,6 +13,10 @@ enum PlanPriceAdjustment: string
     {
         $normalizedName = strtoupper($planName);
 
+        if (str_contains($normalizedName, 'SUPERNET SIN TV')) {
+            return self::SuperNetSinTv;
+        }
+
         if (str_contains($normalizedName, 'TV COAXIAL')) {
             return self::TvCoaxial;
         }
@@ -21,9 +25,7 @@ enum PlanPriceAdjustment: string
             return self::Tv;
         }
 
-        if (str_contains($normalizedName, 'SUPERNET SIN TV')) {
-            return self::SuperNetSinTv;
-        }
+
 
         return self::Internet;
     }

@@ -7,6 +7,7 @@ enum PlanPriceAdjustment: string
     case TvCoaxial = 'tv_coaxial';
     case Tv = 'tv';
     case Internet = 'internet';
+    case SuperNetSinTv = 'super_net_sin_tv';
 
     public static function fromPlanName(string $planName): self
     {
@@ -20,6 +21,10 @@ enum PlanPriceAdjustment: string
             return self::Tv;
         }
 
+        if (str_contains($normalizedName, 'SUPERNET SIN TV')) {
+            return self::SuperNetSinTv;
+        }
+
         return self::Internet;
     }
 
@@ -29,6 +34,7 @@ enum PlanPriceAdjustment: string
             self::TvCoaxial => 0.0,
             self::Tv => 3.0,
             self::Internet => 4.5,
+            self::SuperNetSinTv => 0.0,
         };
     }
 }

@@ -98,8 +98,6 @@ class SyncWisproClientsPage implements ShouldQueue
                 $existingUser = User::where('id_wispro', $client['id'])->first()
                 ?? User::where('id_number', $detail.'-'. $idNumber)->first();
 
-                Log::info('SyncWisproClientsPage::State existingUser', ['id_number' => $idNumber,'id_wispro' => $client['id'],'state' => $client['state'] ?? 'N/A','city' => $client['city'] ?? 'N/A']);
-
                 if ($existingUser) {
                     // UPDATE: Actualizar todos los campos que pueden cambiar en Wispro
                     $existingUser->update([

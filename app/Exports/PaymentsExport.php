@@ -47,11 +47,11 @@ class PaymentsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
         }
 
         if ($this->dateFrom) {
-            $query->whereDate('payment_date', '>=', $this->dateFrom);
+            $query->whereDate('created_at', '>=', $this->dateFrom);
         }
 
         if ($this->dateTo) {
-            $query->whereDate('payment_date', '<=', $this->dateTo);
+            $query->whereDate('created_at', '<=', $this->dateTo);
         }
 
         return $query;

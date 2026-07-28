@@ -312,6 +312,42 @@ class BdvPaymentController extends Controller
 
             DB::beginTransaction();
 
+            $ipg2Payment = BdvIpg2Payment::with('user')
+                ->where('payment_id', $paymentId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$ipg2Payment) {
+                DB::rollBack();
+                return redirect('/')->withErrors(['bdv' => 'Pago no encontrado o ya procesado']);
+            }
+
+            if ($ipg2Payment->status === PaymentStatus::Approved) {
+                DB::commit();
+
+                $user = $ipg2Payment->user;
+
+                if (!$user) {
+                    Log::error('BDV IPG2 RETORNO: pago aprobado sin usuario asociado', [
+                        'paymentId' => $paymentId,
+                    ]);
+                    return redirect('/')->withErrors(['bdv' => 'Pago aprobado, pero no se encontró el usuario asociado']);
+                }
+
+                Auth::guard('web')->login($user);
+                $request->session()->regenerate();
+
+                session()->flash('type', 'success');
+                session()->flash('message', 'Pago procesado correctamente.');
+
+                return redirect()->route('dashboard');
+            }
+
+            if (!$ipg2Payment->isPending()) {
+                DB::rollBack();
+                return redirect('/')->withErrors(['bdv' => 'Pago no aprobado o rechazado']);
+            }
+
             // 1. Verificar estado real con BDV
             $check = $bdv->checkButtonPayment($paymentId);
 

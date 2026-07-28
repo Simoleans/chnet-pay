@@ -41,6 +41,16 @@ class CheckPendingIpg2Payments extends Command
        foreach ($pending as $ipg2Payment) {
             DB::beginTransaction();
             try {
+                $ipg2Payment = BdvIpg2Payment::with('user')
+                    ->whereKey($ipg2Payment->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $ipg2Payment || ! $ipg2Payment->isPending()) {
+                    DB::commit();
+                    continue;
+                }
+
                 // Llama directo al endpoint GET /api/Payments/{paymentId}
                 $check = $bdv->verifyPayment($ipg2Payment->payment_id);
 

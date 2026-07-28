@@ -46,19 +46,23 @@ class Payment extends Model
 
     public static function safeCreate(string $reference, User $user, array $invoiceIds, float $amountUsd, string $idNumber, string $bank, string $typeBank, $phone = null): self
     {
-        return self::create([
-            'reference'         => $reference,
-            'user_id'           => $user?->id,
-            'invoice_wispro'    => WisproInvoiceIds::encode($invoiceIds),
-            'amount'            => $amountUsd,
-            'id_number'         => $idNumber,
-            'bank'              => $bank,
-            'phone'             => $phone,
-            'payment_date'      => now()->format('Y-m-d'),
-            'verify_payments'   => true,
-            'wispro_registered' => false,
-            'type_bank'         => $typeBank,
-        ]);
+        return self::firstOrCreate(
+            [
+                'reference' => $reference,
+                'bank'      => $bank,
+                'type_bank' => $typeBank,
+            ],
+            [
+                'user_id'           => $user?->id,
+                'invoice_wispro'    => WisproInvoiceIds::encode($invoiceIds),
+                'amount'            => $amountUsd,
+                'id_number'         => $idNumber,
+                'phone'             => $phone,
+                'payment_date'      => now()->format('Y-m-d'),
+                'verify_payments'   => true,
+                'wispro_registered' => false,
+            ]
+        );
     }
 
 }

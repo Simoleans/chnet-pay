@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\WisproApiService;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
@@ -170,8 +171,6 @@ class DashboardController extends Controller
         $data = [];
 
         $invoicesResponse = $this->wisproService->getInvoicesByCustomId($userCode, 1, 10);
-        //dd($invoicesResponse);
-
         if ($invoicesResponse['success'] && !empty($invoicesResponse['data']['data'])) {
             $data['user_invoices'] = $invoicesResponse['data']['data'];
 

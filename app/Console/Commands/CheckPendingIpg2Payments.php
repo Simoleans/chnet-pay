@@ -79,7 +79,13 @@ class CheckPendingIpg2Payments extends Command
 
                     $ipg2Payment->markApproved();
 
-                    if (count($wisproIds) > 0 && $user->id_wispro) {
+                    $shouldRegisterInWispro = $payment->wasRecentlyCreated
+                        && count($wisproIds) > 0
+                        && $user->id_wispro;
+
+                    DB::commit();
+
+                    if ($shouldRegisterInWispro) {
                         $wispro->registerPaymentSafe(
                             $wisproIds,
                             $user->id_wispro,
@@ -97,6 +103,8 @@ class CheckPendingIpg2Payments extends Command
 
                     $this->info("✅ Aprobado: {$ipg2Payment->payment_id}");
 
+                    continue;
+
                 } else {
                     Log::info('IPG2 CRON: pago aún pendiente o rechazado', [
                         'payment_id' => $ipg2Payment->payment_id,
@@ -111,7 +119,9 @@ class CheckPendingIpg2Payments extends Command
                 DB::commit();
 
             } catch (\Exception $e) {
-                DB::rollBack();
+                if (DB::transactionLevel() > 0) {
+                    DB::rollBack();
+                }
                 Log::error('IPG2 CRON: Excepción', [
                     'payment_id' => $ipg2Payment->payment_id,
                     'message'    => $e->getMessage(),

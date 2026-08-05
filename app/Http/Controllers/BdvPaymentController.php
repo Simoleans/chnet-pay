@@ -407,8 +407,14 @@ class BdvPaymentController extends Controller
                 'all_user_ids' => $user,
             ]);
 
-            // 4. Registrar en Wispro
-             if (count($wisproIds) > 0 && $user->id_wispro) {
+            $shouldRegisterInWispro = $payment->wasRecentlyCreated
+                && count($wisproIds) > 0
+                && $user->id_wispro;
+
+            DB::commit();
+
+            // 4. Registrar en Wispro solo cuando el pago local fue creado en este retorno.
+             if ($shouldRegisterInWispro) {
                 Log::info('BDV IPG2 RETORNO: Registrando en Wispro', [
                     'wispro_ids' => $wisproIds,
                     'client_id' => $user->id_wispro,
@@ -434,7 +440,6 @@ class BdvPaymentController extends Controller
 
             session()->flash('type', 'success');
             session()->flash('message', $check->responseMessage);
-            DB::commit();
             // 5. Redirigir al usuario con resultado
             return redirect()->route('dashboard');
         } catch (\Exception $e) {

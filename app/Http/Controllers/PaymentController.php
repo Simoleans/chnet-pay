@@ -744,30 +744,17 @@ class PaymentController extends Controller
     }
 
     /**
-     * Obtiene la lista de bancos desde el BNC
+     * Obtiene la lista de bancos configurada para pagos
      */
     public function getBanks()
     {
         try {
-            // Verificar configuraciones básicas antes de proceder
-            $clientId = config('app.bnc.client_id');
-            $baseUrl = config('app.bnc.base_url');
-            $clientGuid = config('app.bnc.client_guid');
-            $masterKey = config('app.bnc.master_key');
-
-            if (empty($clientId) || empty($baseUrl) || empty($clientGuid) || empty($masterKey)) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Configuración BNC incompleta'
-                ], 500);
-            }
-
-            $banks = BncHelper::getBanks();
+            $banks = config('banks', []);
 
             if (!$banks) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No se pudo obtener la lista de bancos'
+                    'message' => 'No hay bancos configurados'
                 ]);
             }
 

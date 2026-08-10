@@ -31,6 +31,7 @@ class Payment extends Model
     ];
 
     const TYPE_BANK_BNC = 'bnc';
+    const TYPE_BANK_BNC_FLA = 'bnc-fla';
     const TYPE_BANK_BDV = 'bdv';
 
 

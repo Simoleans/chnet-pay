@@ -39,6 +39,18 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
+        $paymentMobile = [
+            'name' => config('app.payment_mobile.name'),
+            'banco' => config('app.payment_mobile.banco'),
+            'tlf' => config('app.payment_mobile.tlf'),
+            'rif' => config('app.payment_mobile.rif'),
+        ];
+        $paymentMobileBnc2 = [
+            'name' => config('app.payment_mobile_bnc2.name'),
+            'banco' => config('app.payment_mobile_bnc2.banco'),
+            'tlf' => config('app.payment_mobile_bnc2.tlf'),
+            'rif' => config('app.payment_mobile_bnc2.rif'),
+        ];
 
         return [
             ...parent::share($request),
@@ -61,11 +73,12 @@ class HandleInertiaRequests extends Middleware
                'success' => fn () => $request->session()->get('success'),
                'error' => fn () => $request->session()->get('error'),
             ],
-            'paymentMobile' => [
-                'name' => config('app.payment_mobile.name'),
-                'banco' => config('app.payment_mobile.banco'),
-                'tlf' => config('app.payment_mobile.tlf'),
-                'rif' => config('app.payment_mobile.rif'),
+            'paymentMobile' => $paymentMobile,
+            'paymentMobileBnc2' => $paymentMobileBnc2,
+            // Mapa usado por el modal: cada invoicing_firm_id apunta a su pago móvil.
+            'paymentMobileByFirm' => [
+                config('app.invoicing_firms.empresa_1') => $paymentMobile,
+                config('app.invoicing_firms.empresa_2') => $paymentMobileBnc2,
             ],
             'paymentBdv' => [
                 'name' => config('app.bdv.name'),

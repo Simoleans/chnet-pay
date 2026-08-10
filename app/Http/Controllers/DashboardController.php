@@ -81,6 +81,8 @@ class DashboardController extends Controller
             $data['pending_invoices_count'] = 0;
         }
 
+        //dd($data);
+
         return $data;
     }
 
@@ -171,6 +173,8 @@ class DashboardController extends Controller
         $data = [];
 
         $invoicesResponse = $this->wisproService->getInvoicesByCustomId($userCode, 1, 10);
+
+        //dd($invoicesResponse);
         if ($invoicesResponse['success'] && !empty($invoicesResponse['data']['data'])) {
             $data['user_invoices'] = $invoicesResponse['data']['data'];
 
@@ -184,6 +188,11 @@ class DashboardController extends Controller
             $data['user_invoices'] = [];
             $data['pending_invoices_count'] = 0;
         }
+
+       /*  dd($data['user_invoices'],[
+            'paymentMobileBnc2' => config('app.payment_mobile_bnc2'),
+        ]); */
+
 
         return $data;
     }

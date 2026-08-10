@@ -35,14 +35,11 @@ class SyncWisproClients implements ShouldQueue
             $totalPages   = $data['meta']['pagination']['total_pages']   ?? 1;
             $totalRecords = $data['meta']['pagination']['total_records'] ?? 0;
 
-            Log::info("📊 Se encolarán {$totalPages} jobs (páginas) para {$totalRecords} registros");
-
             // 2. Despachar un job por página
             for ($page = 1; $page <= $totalPages; $page++) {
                 dispatch(new SyncWisproClientsPage($page, self::PER_PAGE));
             }
 
-            Log::info("✅ Orquestador completado. Jobs por página encolados correctamente.");
         } catch (\Exception $e) {
             Log::error("❌ Error en orquestador de sincronización Wispro: " . $e->getMessage(), [
                 'exception' => $e->getTraceAsString()

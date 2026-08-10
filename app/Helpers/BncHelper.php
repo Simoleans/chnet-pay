@@ -141,57 +141,21 @@ class BncHelper
         }
 
         return null;
-        /* return Cache::remember('bnc_bcv_rate', now()->addMinutes(10), function () {
-            $clientGuid = config('app.bnc.client_guid');
-
-
-            if (!$clientGuid) {
-                Log::error('BNC BCV: ClientGUID no definido');
-                return null;
-            }
-
-            Log::info('BNC BCV: ClientGUID', ['base_url' => config('app.bnc.base_url')]);
-
-            try {
-                $response = Http::timeout(10)->post(config('app.bnc.base_url') . 'Services/BCVRates');
-
-                if ($response->ok() && $response['status'] === 'OK') {
-                    return [
-                        'Rate' => floatval($response['value']['PriceRateBCV']),
-                        'Date' => $response['value']['dtRate'],
-                        'source' => 'bnc',
-                    ];
-
-                }
-
-                Log::error('BNC BCV: Respuesta no OK', [
-                    'status' => $response->status(),
-                    'body' => $response->body()
-                ]);
-            } catch (\Throwable $e) {
-                Log::error('BNC BCV: Fallo de conexion', ['message' => $e->getMessage()]);
-            }
-
-            return null;
-        }); */
     }
 
-    public static function validateOperationReference(string $reference, string $dateMovement, float $expectedAmount, int $bank, string $phoneNumber): ?array
+    public static function validateOperationReference(
+        string $reference,
+        string $dateMovement,
+        float $expectedAmount,
+        string $bank,
+        string $phoneNumber,
+        ?string $accountNumber = null
+    ): ?array
     {
         try {
             $key = self::getWorkingKey();
             $clientId = config('app.bnc.client_id');
-            $account = config('app.bnc.account');
-
-            /* $body = array_filter([
-                'ClientID' => $clientId,
-                'AccountNumber' => $account,
-                'Reference' => $reference,
-                'Amount' => $expectedAmount,
-                'DateMovement' => $dateMovement,
-                'ChildClientID' => '',
-                'BranchID' => '',
-            ], fn($v) => !is_null($v)); */
+            $account = $accountNumber ?: config('app.bnc.account');
 
             $body = [
                 'ClientID' => $clientId,
@@ -205,10 +169,12 @@ class BncHelper
                 'BranchID' => '',
             ];
 
+            Log::info('BNC VALIDACION REF: Body', ['body' => $body]);
+
             //$response = BncApiService::send('Position/Validate', $body);
             $response = BncApiService::send('Position/ValidateP2P', $body);
 
-            //Log::info('BNC VALIDACION REF: Respuesta recibidaxXXXX', ['response' => $response->json(),'status' => $response->status()]);
+            Log::info('BNC VALIDACION REF: Respuesta recibidaxXXXX', ['response' => $response->json(),'status' => $response->status()]);
 
             if ($response->ok() || $response->status() === 202) {
                 $json = $response->json();
@@ -311,7 +277,7 @@ class BncHelper
 /**
      * Envía un pago C2P (Comercio a Persona) al endpoint MobPayment/SendC2P
      *
-     * @param string $debtorBankCode   Código del banco emisor (por ejemplo, "0134", "0191")
+     * @param int $debtorBankCode   Código del banco emisor (por ejemplo, "0134", "0191")
      * @param string $debtorCellPhone  Teléfono móvil del emisor (formato internacional sin "+", ej: 584241234567)
      * @param string $debtorID         Cédula o RIF del emisor (ej: V12345678)
      * @param float $amount            Monto del pago
@@ -322,7 +288,7 @@ class BncHelper
      * @return array|null              Respuesta desencriptada o null si falla
      */
     public static function sendC2PPayment(
-        string $debtorBankCode,
+        int $debtorBankCode,
         string $debtorCellPhone,
         string $debtorID,
         float $amount,
@@ -344,8 +310,6 @@ class BncHelper
                 'ChildClientID'   => $childClientID,
                 'BranchID'        => $branchID,
             ];
-
-
 
             $response = BncApiService::send('MobPayment/SendC2P', $body);
 

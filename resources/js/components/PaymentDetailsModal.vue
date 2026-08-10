@@ -69,6 +69,8 @@ const getBankName = (typeBank) => {
             return 'Banco Nacional de Crédito'
         case 'bdv':
             return 'Banco de Venezuela'
+        case 'bnc-fla':
+            return 'Banco Nacional de Crédito (FLA)'
         default:
             return 'No se ha registrado el banco'
     }

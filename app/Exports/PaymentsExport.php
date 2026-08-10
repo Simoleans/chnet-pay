@@ -5,9 +5,7 @@ namespace App\Exports;
 use App\Helpers\BncHelper;
 use App\Models\BcvRate;
 use App\Models\Payment;
-use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon;
 use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
@@ -61,14 +59,14 @@ class PaymentsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
     {
         return [
             'ID',
-            'Banco',
+            'Banco Emisor',
             'Referencia',
             'Cliente',
             'Código',
             'Monto USD',
             'Monto Bs',
             'Fecha Pago',
-            'Banco',
+            'Banco Receptor',
             'Cédula',
             'Teléfono',
             'Verificación',
@@ -78,7 +76,6 @@ class PaymentsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
 
     public function map($payment): array
     {
-        /** @var \App\Models\Payment $payment */
         $amountUsd = (float) $payment->amount;
         $amountBs = $amountUsd * $this->getPaymentBcvRate($payment);
 
@@ -106,6 +103,8 @@ class PaymentsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
                 return 'Banco Nacional de Crédito';
             case 'bdv':
                 return 'Banco de Venezuela';
+            case 'bnc-fla':
+                return 'Banco Nacional de Crédito (FLA)';
         }
         return 'No se ha registrado el banco';
     }

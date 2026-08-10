@@ -358,7 +358,7 @@ const handleOpenChange = (open: boolean) => {
                 <!-- Monto a pagar -->
                 <div class="bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-950/20 dark:to-rose-950/20 border-2 border-red-200 dark:border-red-800 rounded-lg p-4">
                     <div class="flex flex-col items-center justify-center space-y-1">
-                        <p class="text-sm font-medium text-gray-700 dark:text-gray-300">💰 Monto Exacto a Pagar</p>
+                        <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Monto Exacto a Pagar</p>
                         <div v-if="bcv && amountUsdPrimary" class="text-center">
                             <p class="text-4xl font-bold text-red-600 dark:text-red-400">
                                 {{ suggestedAmountBs }} Bs

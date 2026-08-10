@@ -101,6 +101,27 @@ class PaymentController extends Controller
     }
 
     /**
+     * Solo account y terminal cambian por empresa; credenciales/base URL BNC siguen iguales.
+     */
+    private function getBncConfigByFirm(?string $firmId): array
+    {
+        $configKey = match ($firmId) {
+            config('app.invoicing_firms.empresa_2') => 'app.bnc_bnc2',
+            default => 'app.bnc',
+        };
+        $typeBank = match ($firmId) {
+            config('app.invoicing_firms.empresa_2') => Payment::TYPE_BANK_BNC_FLA,
+            default => Payment::TYPE_BANK_BNC,
+        };
+
+        return [
+            'account' => config("{$configKey}.account"),
+            'terminal' => config("{$configKey}.terminal"),
+            'type_bank' => $typeBank,
+        ];
+    }
+
+    /**
      * Show the form for creating a new resource.
      */
     public function create()
@@ -559,8 +580,6 @@ class PaymentController extends Controller
     {
         try {
 
-            Log::info('validateAndStorePayment::VALIDATE P2P BNC: Request', ['request' => $request->all()]);
-
             $user = Auth::user();
 
             $reference = trim((string) $request->reference);
@@ -568,6 +587,16 @@ class PaymentController extends Controller
             $amountBs = $request->amount;
             $bank = $request->bank;
             $phoneNumber = $request->phone;
+            $bncConfig = $this->getBncConfigByFirm($request->input('invoicing_firm_id'));
+
+            Log::info('VALIDATE P2P: Datos de la solicitud', [
+                'reference' => $reference,
+                'referenceForBank' => $referenceForBank,
+                'amountBs' => $amountBs,
+                'bank' => $bank,
+                'phoneNumber' => $phoneNumber,
+                'bncConfig' => $bncConfig
+            ]);
 
             // Convertir la fecha al formato ISO 8601 requerido por el banco (Y-m-d\TH:i:s)
             $paymentDate = date('Y-m-d\TH:i:s', strtotime($request->payment_date));
@@ -593,16 +622,22 @@ class PaymentController extends Controller
                 ], 422);
             }
 
+            if (empty($bncConfig['account'])) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Cuenta BNC no configurada para esta empresa.'
+                ], 500);
+            }
+
             // Validar la referencia con el banco
             $result = BncHelper::validateOperationReference(
                 $referenceForBank,
                 $paymentDate,
                 $amountBs,
                 $bank,
-                $phoneNumber
+                $phoneNumber,
+                $bncConfig['account']
             );
-
-            Log::info('VALIDATE P2P: Result BNC', [ 'result' => $result]);
 
             if (!$result) {
                 return response()->json([
@@ -683,7 +718,7 @@ class PaymentController extends Controller
                 'payment_date' => $request->payment_date,
                 'verify_payments' => true,
                 'wispro_registered' => false,
-                'type_bank' => Payment::TYPE_BANK_BNC,
+                'type_bank' => $bncConfig['type_bank'],
             ]);
 
             // Registrar el pago en Wispro SIEMPRE que la validación fue exitosa (si vienen los datos necesarios)
@@ -701,11 +736,7 @@ class PaymentController extends Controller
 
                     if ($wisproPaymentResponse['success']) {
                         $payment->update(['wispro_registered' => true]);
-                       /*  Log::info('VALIDATE P2P: Pago registrado exitosamente en Wispro', [
-                            'invoice_ids' => $wisproIds,
-                            'client_id' => $request->client_id,
-                            'response' => $wisproPaymentResponse['data']
-                        ]); */
+
                     } else {
                         Log::error('VALIDATE P2P: Error al registrar pago en Wispro', [
                             'invoice_ids' => $wisproIds,
@@ -777,25 +808,13 @@ class PaymentController extends Controller
     {
         try {
             $user = Auth::user();
-            if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Usuario no autenticado'
-                ], 401);
-            }
-
-            Log::info('BNC send-c2p: payload recibido en controlador', [
-                'user_id' => $user->id,
-                'payload' => $request->all(),
-            ]);
 
             $debtorPhoneDigits = $request->debtor_phone;
             $normalizedId = $request->debtor_id;
 
-            Log::info('request', ['request' => $request->all()]);
-
-            // Obtener el terminal desde la configuración
-            $terminal = config('app.bnc.terminal');
+            // El terminal cambia por empresa; las credenciales BNC quedan iguales.
+            $bncConfig = $this->getBncConfigByFirm($request->input('invoicing_firm_id'));
+            $terminal = $bncConfig['terminal'];
             if (empty($terminal)) {
                 return response()->json([
                     'success' => false,
@@ -804,7 +823,7 @@ class PaymentController extends Controller
             }
 
             $result = BncHelper::sendC2PPayment(
-                $request->debtor_bank_code,
+                (int) $request->debtor_bank_code,
                 $debtorPhoneDigits,
                 $normalizedId,
                 (float) $request->amount,
@@ -875,7 +894,7 @@ class PaymentController extends Controller
                 'payment_date' => $currentDate,
                 'verify_payments' => true,
                 'wispro_registered' => false,
-                'type_bank' => Payment::TYPE_BANK_BNC,
+                'type_bank' => $bncConfig['type_bank'],
             ]);
 
             // Registrar el pago en Wispro SIEMPRE que el C2P fue exitoso (si vienen los datos necesarios)

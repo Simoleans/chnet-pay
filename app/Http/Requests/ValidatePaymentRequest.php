@@ -40,6 +40,7 @@ class ValidatePaymentRequest extends FormRequest
                 'phone' => $phoneDigits
             ]);
         }
+
     }
 
     /**
@@ -57,6 +58,7 @@ class ValidatePaymentRequest extends FormRequest
             'invoice_ids' => 'required_without:invoice_id|nullable|array|min:1',
             'invoice_ids.*' => 'required|string|distinct',
             'client_id' => 'required|string',
+            'invoicing_firm_id' => 'nullable|string',
         ];
     }
 

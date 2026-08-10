@@ -133,16 +133,41 @@ return [
         'terminal' => env('BNC_TERMINAL', ''),
     ],
 
+    'bnc_bnc2' => [
+        'client_guid' => env('BNC_CLIENT_GUID', ''),
+        'master_key' => env('BNC_MASTER_KEY', ''),
+        'base_url' => env('BNC_BASE_URL', ''),
+        'phone' => env('BNC_PHONE_FLA', ''),
+        'account' => env('BNC_ACCOUNT_FLA', ''),
+        'terminal' => env('BNC_TERMINAL_FLA', ''),
+        //'client_id' => env('BNC_CLIENT_ID_FLA', ''),
+    ],
+
     'bdv' => [
         'api_key' => env('API_KEY', ''),
         'base_url' => env('BDV_BASE_URL', ''),
     ],
 
+    // Pago móvil actual: se usa para la empresa 1 de Wispro.
     'payment_mobile' => [
         'name' => env('PM_NAME', ''),
         'banco' => env('PM_BANCO', ''),
         'tlf' => env('PM_TLF', ''),
         'rif' => env('PM_RIF', ''),
+    ],
+
+    // Pago móvil nuevo: se usa para la empresa 2 de Wispro.
+    'payment_mobile_bnc2' => [
+        'name' => env('PM_NAME_BNC2', ''),
+        'banco' => env('PM_BANCO_BNC2', ''),
+        'tlf' => env('PM_TLF_BNC2', ''),
+        'rif' => env('PM_RIF_BNC2', ''),
+    ],
+
+    // IDs de empresas de facturación que vienen en invoicing_firm_id.
+    'invoicing_firms' => [
+        'empresa_1' => env('WISPRO_INVOICING_FIRM_EMPRESA_1', '1f1f8229-0526-4104-819c-c264abe5e727'),//cablehogar
+        'empresa_2' => env('WISPRO_INVOICING_FIRM_EMPRESA_2', 'd6db69fd-d5b4-4418-aff9-f662f78d8717'),//cablehogar FLA
     ],
 
     'bdv' => [

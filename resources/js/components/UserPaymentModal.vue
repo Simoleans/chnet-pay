@@ -21,6 +21,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 
+type PaymentMobileData = {
+    name?: string;
+    banco?: string;
+    tlf?: string;
+    rif?: string;
+};
+
 interface Props {
     open?: boolean;
     userPlan?: {
@@ -34,6 +41,13 @@ interface Props {
         amount?: number;
         invoice_number?: string;
         client_id?: number | string;
+        invoicing_firm_id?: string | null;
+        invoices?: Array<{
+            id?: number | string;
+            invoice_number?: string;
+            amount?: number;
+            invoicing_firm_id?: string | null;
+        }>;
     } | null;
 }
 
@@ -54,13 +68,38 @@ const emit = defineEmits<Emits>();
 const page = usePage();
 
 // Obtener datos de pago móvil desde las props compartidas
+// La llave del mapa es el invoicing_firm_id que viene en cada factura de Wispro.
+const paymentMobileByFirm = computed(() => {
+    return (page.props.paymentMobileByFirm as Record<string, PaymentMobileData> | undefined) || {};
+});
+
+// Para una factura simple toma su firm id; para "Pagar todo" exige que todas coincidan.
+const selectedInvoiceFirmId = computed(() => {
+    if (props.selectedInvoice?.invoicing_firm_id) {
+        return String(props.selectedInvoice.invoicing_firm_id);
+    }
+
+    const firmIds = Array.from(
+        new Set(
+            (props.selectedInvoice?.invoices || [])
+                .map((invoice: { invoicing_firm_id?: string | null }) => invoice.invoicing_firm_id)
+                .filter(Boolean)
+                .map(String)
+        )
+    );
+
+    return firmIds.length === 1 ? firmIds[0] : null;
+});
+
 const paymentMobile = computed(() => {
-    return (page.props.paymentMobile as {
-        name?: string;
-        banco?: string;
-        tlf?: string;
-        rif?: string;
-    } | undefined) || {};
+    const firmId = selectedInvoiceFirmId.value;
+
+    // Si la empresa tiene un pago móvil configurado, se usa ese; si no, queda el actual.
+    if (firmId && paymentMobileByFirm.value[firmId]) {
+        return paymentMobileByFirm.value[firmId];
+    }
+
+    return (page.props.paymentMobile as PaymentMobileData | undefined) || {};
 });
 
 const paymentMobileName = computed(() => paymentMobile.value.name);
@@ -271,6 +310,10 @@ const sendC2P = async () => {
         } else if (ids.length > 1) {
             payload.invoice_ids = ids;
         }
+        // Backend puede usar este firm id para elegir la cuenta/validación correcta.
+        if (selectedInvoiceFirmId.value) {
+            payload.invoicing_firm_id = selectedInvoiceFirmId.value;
+        }
         // Intentar obtener client_id de la factura o del usuario
         if (props.selectedInvoice?.client_id) {
             payload.client_id = props.selectedInvoice.client_id;
@@ -302,8 +345,8 @@ const sendC2P = async () => {
 const copyPaymentReference = async () => {
     console.log('Intentando copiar...', { bcv: bcv.value, userPlan: props.userPlan });
 
-    if (bcv.value && props.userPlan?.price) {
-        const total = (parseFloat(String(props.userPlan.price)) * parseFloat(bcv.value)).toFixed(2);
+    if (bcv.value && amountUsdPrimary.value) {
+        const total = (parseFloat(String(amountUsdPrimary.value)) * parseFloat(bcv.value)).toFixed(2);
 
         // Obtener datos de pago móvil desde las props compartidas
         const banco = paymentMobileBanco.value;
@@ -375,9 +418,9 @@ const copyPaymentReference = async () => {
             alert(`No se pudo copiar automáticamente. Copia estos datos manualmente:\n\n${bankingData}`);
         }
     } else {
-        console.error('Faltan datos:', { bcv: bcv.value, userPlan: props.userPlan });
+        console.error('Faltan datos:', { bcv: bcv.value, amountUsdPrimary: amountUsdPrimary.value });
         notify({
-            message: '❌ No hay datos disponibles para copiar. Verifica que tengas un plan asignado y que la tasa BCV esté cargada.',
+            message: '❌ No hay datos disponibles para copiar. Verifica que tengas una factura o plan y que la tasa BCV esté cargada.',
             type: 'error',
             duration: 3000,
         });
@@ -445,6 +488,10 @@ const checkPayment = async () => {
                 payload.invoice_id = ids[0];
             } else if (ids.length > 1) {
                 payload.invoice_ids = ids;
+            }
+            // Backend puede usar este firm id para elegir la cuenta/validación correcta.
+            if (selectedInvoiceFirmId.value) {
+                payload.invoicing_firm_id = selectedInvoiceFirmId.value;
             }
             // Intentar obtener client_id de la factura o del usuario
             if (props.selectedInvoice?.client_id) {
@@ -555,6 +602,11 @@ const setYesterday = () => {
                 <input type="hidden" :value="$page.props.auth.user?.id" />
 
                 <div class="space-y-3">
+                    <div class="rounded-lg border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-900 dark:border-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-200">
+                        <p class="font-semibold">Atención antes de pagar</p>
+                        <p>Verifica que los datos de pago móvil correspondan a tu factura antes de realizar el pago.</p>
+                    </div>
+
                     <p class="font-medium">🏦 {{ paymentMobileName }}</p>
                     <p class="text-sm"><span class="font-medium">👤 RIF:</span> {{ paymentMobileRif }}</p>
                     <p class="text-sm"><span class="font-medium">📞 Teléfono:</span> {{ paymentMobileTlf }}</p>
@@ -562,7 +614,7 @@ const setYesterday = () => {
                     <!-- Monto a pagar destacado -->
                     <div class="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-2 border-green-200 dark:border-green-800 rounded-lg p-4 mt-3">
                         <div class="flex flex-col items-center justify-center space-y-2">
-                            <p class="text-sm font-medium text-gray-700 dark:text-gray-300">💰 Monto Exacto a Pagar</p>
+                            <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Monto Exacto a Pagar</p>
                             <div v-if="bcv && amountUsdPrimary" class="text-center">
                                 <p class="text-4xl font-bold text-green-600 dark:text-green-400">
                                     {{ suggestedAmountBs }} Bs

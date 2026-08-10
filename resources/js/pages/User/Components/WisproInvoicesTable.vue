@@ -20,6 +20,20 @@ const getPendingAmount = (invoice: any) => {
     return parseFloat(String(invoice.balance ?? invoice.amount ?? 0))
 }
 
+/* Devuelve un firm id solo si todas las facturas pertenecen a la misma empresa. */
+const getUniqueInvoicingFirmId = (invoices: any[]) => {
+    const firmIds = Array.from(
+        new Set(
+            invoices
+                .map((invoice: any) => invoice.invoicing_firm_id)
+                .filter(Boolean)
+                .map(String)
+        )
+    )
+
+    return firmIds.length === 1 ? firmIds[0] : null
+}
+
 const totalPendingUsd = computed(() =>
     pendingInvoices.value.reduce(
         (sum: number, inv: any) => sum + getPendingAmount(inv),
@@ -27,25 +41,40 @@ const totalPendingUsd = computed(() =>
     )
 )
 
+/* "Pagar todo" solo es seguro cuando todas las facturas usan el mismo pago móvil. */
+const pendingInvoicesFirmId = computed(() => getUniqueInvoicingFirmId(pendingInvoices.value))
+const canPayAllPending = computed(() => pendingInvoices.value.length > 0 && pendingInvoicesFirmId.value !== null)
+
 const openPaymentModal = (invoice: any) => {
     const amount = getPendingAmount(invoice)
 
     emit('openPaymentModal', {
         invoice_ids: [invoice.id],
         amount,
-        invoices: [{ id: invoice.id, invoice_number: invoice.invoice_number, amount }],
+        /* El modal usa este dato para escoger entre el pago móvil actual y el nuevo. */
+        invoicing_firm_id: invoice.invoicing_firm_id ?? null,
+        client_id: invoice.client_id ?? null,
+        invoices: [{
+            id: invoice.id,
+            invoice_number: invoice.invoice_number,
+            amount,
+            invoicing_firm_id: invoice.invoicing_firm_id ?? null,
+        }],
     })
 }
 
 const openPayAllPending = () => {
-    if (pendingInvoices.value.length === 0) return
+    if (!canPayAllPending.value) return
     emit('openPaymentModal', {
         invoice_ids: pendingInvoices.value.map((i: any) => i.id),
         amount: totalPendingUsd.value,
+        /* Ya fue validado arriba: todas las pendientes tienen esta misma empresa. */
+        invoicing_firm_id: pendingInvoicesFirmId.value,
         invoices: pendingInvoices.value.map((i: any) => ({
             id: i.id,
             invoice_number: i.invoice_number,
             amount: getPendingAmount(i),
+            invoicing_firm_id: i.invoicing_firm_id ?? null,
         })),
     })
 }
@@ -103,7 +132,7 @@ const getInvoiceStateClass = (state: string) => {
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             <h2 class="text-lg font-semibold">Mis Facturas</h2>
             <Button
-                v-if="pendingInvoices.length > 0 && $page.props.auth.user.role === 0"
+                v-if="canPayAllPending && $page.props.auth.user.role === 0"
                 type="button"
                 class="w-full sm:w-auto shrink-0 bg-green-600 hover:bg-green-700"
                 @click="openPayAllPending"
@@ -112,7 +141,6 @@ const getInvoiceStateClass = (state: string) => {
             </Button>
         </div>
 
-       <!--  <pre>{{ invoices }}</pre> -->
 
         <div v-if="invoices && invoices.length > 0">
 
@@ -188,7 +216,7 @@ const getInvoiceStateClass = (state: string) => {
                     </thead>
                     <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         <tr v-for="invoice in invoices" :key="invoice.id" class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{{ invoice.invoice_number }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{{ invoice.invoice_number }}  - {{ invoice.invoicing_firm_company_name }}</td>
                             <td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
                                 <div class="font-medium">{{ invoice.client_name }}</div>
                                 <div class="text-xs text-gray-500 dark:text-gray-400">{{ invoice.client_address }}</div>

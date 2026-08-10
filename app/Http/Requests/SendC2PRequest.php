@@ -54,6 +54,7 @@ class SendC2PRequest extends FormRequest
             'invoice_ids' => 'nullable|array',
             'invoice_ids.*' => 'string',
             'client_id' => 'required|string',
+            'invoicing_firm_id' => 'nullable|string',
         ];
     }
 

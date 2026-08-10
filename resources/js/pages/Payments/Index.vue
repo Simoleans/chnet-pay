@@ -217,7 +217,7 @@ const columns = [
     { key: 'user_info', label: 'Abonado' },
     { key: 'amount', label: 'Monto' },
     { key: 'payment_date', label: 'Fecha Pago' },
-    { key: 'bank', label: 'Banco' },
+    { key: 'bank', label: 'Banco Emisor' },
     { key: 'contact_info', label: 'Contacto' },
     { key: 'verification_status', label: 'Verificación' },
     { key: 'wispro_registered', label: 'Verificado en Wispro' },

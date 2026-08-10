@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, usePage } from '@inertiajs/vue3';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useCheckoutStore } from '@/stores/checkout';
 import { useNotifications } from '@/composables/useNotifications';
 
@@ -96,6 +96,11 @@ const props = defineProps({
 
 const page = usePage()
 
+type InvoicingFirmIds = {
+    empresa_1?: string;
+    empresa_2?: string;
+};
+
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Mi CHNET',
@@ -119,6 +124,30 @@ const showReceiptModal = ref(false)
 const showPendingInvoiceAlert = ref(props.show_pending_invoice_alert || false)
 const selectedPayment = ref<any>(null)
 const selectedInvoice = ref<any>(null)
+
+const selectedInvoiceFirmId = computed(() => {
+    if (selectedInvoice.value?.invoicing_firm_id) {
+        return String(selectedInvoice.value.invoicing_firm_id);
+    }
+
+    const firmIds = Array.from(
+        new Set(
+            (selectedInvoice.value?.invoices || [])
+                .map((invoice: any) => invoice.invoicing_firm_id)
+                .filter(Boolean)
+                .map(String)
+        )
+    );
+
+    return firmIds.length === 1 ? firmIds[0] : null;
+});
+
+const isBdvPaymentDisabled = computed(() => {
+    const firmIds = (page.props.invoicingFirmIds as InvoicingFirmIds | undefined) || {};
+    const empresa2FirmId = firmIds.empresa_2;
+
+    return Boolean(empresa2FirmId && selectedInvoiceFirmId.value === String(empresa2FirmId));
+});
 
 // Funciones para manejar los modales
 const handleOpenReportModal = () => {
@@ -183,6 +212,15 @@ const handleBankSelected = (bank: 'bnc' | 'bdv') => {
     if (bank === 'bnc') {
         showUserPaymentModal.value = true
     } else if (bank === 'bdv') {
+        if (isBdvPaymentDisabled.value) {
+            notify({
+                message: 'Banco de Venezuela no disponible para esta empresa',
+                type: 'warning',
+                duration: 2500,
+            })
+            return
+        }
+
         showBdvPaymentModal.value = true
     }
 }
@@ -249,6 +287,7 @@ const handleBankSelected = (bank: 'bnc' | 'bdv') => {
         <!-- Selector de banco -->
         <UserPaymentBankSelector
             v-model:open="showBankSelector"
+            :disable-bdv-payment="isBdvPaymentDisabled"
             @select-bank="handleBankSelected"
         />
 

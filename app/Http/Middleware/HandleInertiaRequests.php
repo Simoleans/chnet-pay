@@ -75,6 +75,10 @@ class HandleInertiaRequests extends Middleware
             ],
             'paymentMobile' => $paymentMobile,
             'paymentMobileBnc2' => $paymentMobileBnc2,
+            'invoicingFirmIds' => [
+                'empresa_1' => config('app.invoicing_firms.empresa_1'),
+                'empresa_2' => config('app.invoicing_firms.empresa_2'),
+            ],
             // Mapa usado por el modal: cada invoicing_firm_id apunta a su pago móvil.
             'paymentMobileByFirm' => [
                 config('app.invoicing_firms.empresa_1') => $paymentMobile,

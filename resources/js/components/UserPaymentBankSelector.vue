@@ -13,6 +13,7 @@ import { router } from '@inertiajs/vue3';
 
 interface Props {
     open?: boolean;
+    disableBdvPayment?: boolean;
 }
 
 interface Emits {
@@ -22,6 +23,7 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
     open: false,
+    disableBdvPayment: false,
 });
 
 const emit = defineEmits<Emits>();
@@ -31,11 +33,19 @@ const handleOpenChange = (open: boolean) => {
 };
 
 const selectBank = (bank: 'bnc' | 'bdv') => {
+    if (bank === 'bdv' && props.disableBdvPayment) {
+        return;
+    }
+
     emit('update:open', false);
     emit('select-bank', bank);
 };
 
 const goToBiopago = () => {
+    if (props.disableBdvPayment) {
+        return;
+    }
+
     /* const password = window.prompt('Ingrese la clave para continuar');
 
     if (password !== '123') {
@@ -78,7 +88,13 @@ const goToBiopago = () => {
                 <!-- BDV -->
                 <button
                     @click="selectBank('bdv')"
-                    class="group flex flex-col items-center gap-3 rounded-xl border-2 p-5 text-center transition-all duration-200 hover:border-primary hover:bg-primary/6 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary bg-primary/2 border-primary"
+                    :disabled="disableBdvPayment"
+                    :class="[
+                        'group flex flex-col items-center gap-3 rounded-xl border-2 p-5 text-center transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary bg-primary/2 border-primary',
+                        disableBdvPayment
+                            ? 'cursor-not-allowed opacity-50'
+                            : 'hover:border-primary hover:bg-primary/6 hover:shadow-md'
+                    ]"
                 >
                     <div class="flex h-16 w-16 items-center justify-center rounded-xl bg-red-50 dark:bg-red-950/30 overflow-hidden">
                         <img src="/img/bdv.webp" alt="BDV" class="h-14 w-14 object-contain" />
@@ -89,6 +105,9 @@ const goToBiopago = () => {
                     </div>
                 </button>
             </div>
+            <p v-if="disableBdvPayment" class="text-xs text-muted-foreground">
+                Banco de Venezuela no disponible para esta empresa.
+            </p>
 
             <div class="relative my-1">
                 <div class="absolute inset-0 flex items-center">
@@ -112,7 +131,13 @@ const goToBiopago = () => {
                 </span> -->
                 <button
                     @click="goToBiopago"
-                    class="w-full flex items-center justify-center gap-3 rounded-xl border-2 border-primary bg-primary p-4 text-primary-foreground shadow-xs transition-all duration-200 hover:bg-primary/90 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    :disabled="disableBdvPayment"
+                    :class="[
+                        'w-full flex items-center justify-center gap-3 rounded-xl border-2 border-primary bg-primary p-4 text-primary-foreground shadow-xs transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                        disableBdvPayment
+                            ? 'cursor-not-allowed opacity-50'
+                            : 'hover:bg-primary/90 hover:shadow-md'
+                    ]"
                 >
                     <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50 dark:bg-red-950/30 overflow-hidden">
                         <img src="/img/bdv.webp" alt="BDV" class="h-8 w-8 object-contain" />

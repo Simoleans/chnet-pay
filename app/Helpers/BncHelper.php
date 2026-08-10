@@ -169,7 +169,7 @@ class BncHelper
                 'BranchID' => '',
             ];
 
-            Log::info('BNC VALIDACION REF: Body', ['body' => $body]);
+            //Log::info('BNC VALIDACION REF: Body', ['body' => $body]);
 
             //$response = BncApiService::send('Position/Validate', $body);
             $response = BncApiService::send('Position/ValidateP2P', $body);

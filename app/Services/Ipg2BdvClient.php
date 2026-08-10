@@ -68,8 +68,6 @@ class Ipg2BdvClient
                 'client_secret' => $this->clientSecret,
             ]);
 
-            Log::info('IPG2: Access token response', ['response' => $response->json(),'url' => "{$this->baseUrl}"]);
-
             if (!$response->successful()) {
                 Log::error('IPG2: Error obteniendo token', [
                     'status' => $response->status(),

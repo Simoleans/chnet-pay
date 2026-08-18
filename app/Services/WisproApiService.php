@@ -577,8 +577,8 @@ class WisproApiService
 
             if ($response->successful()) {
                 //enable contract
-                $contractId = $this->getClientContracts($clientId);
-                $this->activateContract($contractId['data']['data'][0]['id']);
+                //$contractId = $this->getClientContracts($clientId);
+                //$this->activateContract($contractId['data']['data'][0]['id']);
                 return [
                     'success' => true,
                     'data' => $response->json()

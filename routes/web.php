@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 //use App\Http\Controllers\TestApiController;
-use App\Http\Controllers\{PlanController,UserController,ZoneController,PaymentController,ClientImportController,PublicPaymentController,DashboardController};
+use App\Http\Controllers\{PlanController,UserController,ZoneController,PaymentController,PaymentWisproController,ClientImportController,PublicPaymentController,DashboardController};
 use App\Helpers\BncHelper;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Http\Request;
@@ -46,6 +46,16 @@ Route::post('/payments', [PaymentController::class, 'store'])
 
 Route::patch('/payments/{payment}/verify', [PaymentController::class, 'toggleVerification'])->middleware(['auth', 'admin'])->name('payments.toggle-verification');
 Route::get('/payments-export', [PaymentController::class, 'export'])->middleware(['auth', 'admin'])->name('payments.export');
+
+Route::get('/payments-wispro', [PaymentWisproController::class, 'index'])
+    ->middleware(['auth', 'admin'])
+    ->name('payments-wispro.index');
+Route::post('/payments-wispro/invoices', [PaymentWisproController::class, 'invoices'])
+    ->middleware(['auth', 'admin'])
+    ->name('payments-wispro.invoices');
+Route::get('/payments-wispro/invoices/{invoiceId}/pdf', [PaymentWisproController::class, 'downloadPdf'])
+    ->middleware(['auth', 'admin'])
+    ->name('payments-wispro.invoice-pdf');
 
 // Ruta especial para pago rápido desde login (sin autenticación)
 Route::post('/quick-payment', [PaymentController::class, 'store'])->name('quick-payment.store');

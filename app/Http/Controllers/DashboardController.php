@@ -61,6 +61,7 @@ class DashboardController extends Controller
             ->get();
 
         $data['user_payments'] = $this->formatPayments($payments, true);
+        $data['payments_by_wispro'] = $this->getPaymentsByWispro('2026-08-01');
 
         // Obtener contrato y plan desde Wispro
         if ($user->id_wispro) {
@@ -81,7 +82,7 @@ class DashboardController extends Controller
             $data['pending_invoices_count'] = 0;
         }
 
-        //dd($data);
+       // dd($data);
 
         return $data;
     }
@@ -107,6 +108,8 @@ class DashboardController extends Controller
 
         $data['admin_payments'] = $this->formatPayments($allPayments, true);
         $data['bdv_ipg2_payments'] = $this->formatBdvIpg2Payments();
+
+
 
         return $data;
     }
@@ -307,6 +310,13 @@ class DashboardController extends Controller
             'per_page' => $paginator->perPage(),
             'total' => $paginator->total(),
         ];
+    }
+
+    private function getPaymentsByWispro($from)
+    {
+        $wisproApiService = new WisproApiService();
+        $payments = $wisproApiService->getPaymentsWithInvoices($from);
+        return $payments;
     }
 }
 

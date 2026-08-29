@@ -5,6 +5,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Models\Payment;
+use Carbon\Carbon;
 /**
  * Servicio para consumir la API de Wispro
  *
@@ -655,6 +656,139 @@ class WisproApiService
                 'message' => $e->getMessage()
             ];
         }
+    }
+
+    public function getPayments(
+        $from = null,
+        $page = 1,
+        $perPage = 10,
+        $to = null
+    ) {
+        try {
+            $params = $this->buildPaginationParams($page, $perPage);
+
+            $from = $from
+                ? Carbon::parse($from)->startOfDay()
+                : Carbon::create(now()->year, 7, 1)->startOfDay();
+
+            $params['payment_date_after'] = $from->toIso8601String();
+
+            if ($to) {
+                $params['payment_date_before'] = Carbon::parse($to)->endOfDay()->toIso8601String();
+            }
+
+            $endpoint = '/invoicing/payments';
+
+            $response = Http::withHeaders($this->getHeaders())
+                ->get($this->baseUrl . $endpoint, $params);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'data' => $response->json()
+                ];
+            }
+
+            return [
+                'success' => false,
+                'error' => 'Error en la respuesta de la API: ' . $response->status()
+            ];
+
+        } catch (\Exception $e) {
+
+            Log::error(
+                'Error en WisproApiService::getPayments: ' . $e->getMessage()
+            );
+
+            return [
+                'success' => false,
+                'error' => 'Error de conexión con la API',
+                'message' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function getInvoiceById($invoiceId)
+    {
+        try {
+
+            $endpoint = '/invoicing/invoices/' . $invoiceId;
+
+            $response = Http::withHeaders($this->getHeaders())
+                ->get($this->baseUrl . $endpoint);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'data' => $response->json()
+                ];
+            }
+
+            return [
+                'success' => false,
+                'error' => 'Error en la respuesta de la API: ' . $response->status(),
+                'data' => null
+            ];
+
+        } catch (\Exception $e) {
+
+            Log::error(
+                'Error en WisproApiService::getInvoiceById: ' . $e->getMessage()
+            );
+
+            return [
+                'success' => false,
+                'error' => 'Error de conexión con la API',
+                'message' => $e->getMessage(),
+                'data' => null
+            ];
+        }
+    }
+
+    public function downloadInvoicePdf($invoiceId)
+    {
+        try {
+            $endpoint = '/invoicing/invoices/' . $invoiceId . '/download_pdf';
+
+            $response = Http::withHeaders([
+                'Accept' => 'application/pdf',
+                'Authorization' => $this->apiKey,
+            ])
+                ->timeout(30)
+                ->get($this->baseUrl . $endpoint);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'body' => $response->body(),
+                    'content_type' => $response->header('Content-Type') ?: 'application/pdf',
+                ];
+            }
+
+            return [
+                'success' => false,
+                'error' => 'Error en la respuesta de la API: ' . $response->status(),
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error en WisproApiService::downloadInvoicePdf: ' . $e->getMessage());
+
+            return [
+                'success' => false,
+                'error' => 'Error de conexión con la API',
+                'message' => $e->getMessage(),
+            ];
+        }
+    }
+
+    public function getPaymentsWithInvoices($from)
+    {
+        $payments = $this->getPayments($from);
+        $invoiceData = [];
+        foreach ($payments['data']['data'] as $payment) {
+            $invoice = $this->getInvoiceById($payment['payment_transactions'][0]['invoice_id']);
+            $invoiceData[] = $invoice['data']['data'];
+        }
+        return $invoiceData;
     }
 
 }

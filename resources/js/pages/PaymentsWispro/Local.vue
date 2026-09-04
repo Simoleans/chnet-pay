@@ -1,15 +1,15 @@
 <template>
     <AppLayout>
-        <Head title="Pagos Wispro" />
+        <Head title="Pagos Wispro Local" />
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <div class="flex justify-between flex-col md:lg:flex-row">
-                <h1 class="text-2xl font-semibold">Pagos Wispro</h1>
+                <h1 class="text-2xl font-semibold">Pagos Wispro Local</h1>
             </div>
 
             <div class="flex flex-col gap-4 mb-2 md:flex-row md:justify-between md:items-end">
-                <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+                <div class="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-end">
                     <div class="flex flex-col">
-                        <label class="text-xs text-muted-foreground mb-1">Fecha de pago:</label>
+                        <label class="text-xs text-muted-foreground mb-1">Desde</label>
                         <input
                             v-model="fromDate"
                             @change="submitFilter"
@@ -17,8 +17,47 @@
                             class="p-2 border rounded-md dark:text-black text-sm"
                         />
                     </div>
+                    <div class="flex flex-col">
+                        <label class="text-xs text-muted-foreground mb-1">Hasta</label>
+                        <input
+                            v-model="toDate"
+                            @change="submitFilter"
+                            type="date"
+                            class="p-2 border rounded-md dark:text-black text-sm"
+                        />
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-xs text-muted-foreground mb-1">Código de cliente</label>
+                        <input
+                            v-model="clientCode"
+                            @change="submitFilter"
+                            type="text"
+                            placeholder="Ej: 1913"
+                            class="p-2 border rounded-md dark:text-black text-sm"
+                        />
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-xs text-muted-foreground mb-1">Tipo</label>
+                        <select
+                            v-model="transactionKind"
+                            @change="submitFilter"
+                            class="p-2 border rounded-md dark:text-black text-sm"
+                        >
+                            <option value="">Todos</option>
+                            <option
+                                v-for="kind in transaction_kinds"
+                                :key="kind"
+                                :value="kind"
+                            >
+                                {{ kind }}
+                            </option>
+                        </select>
+                    </div>
                     <Button variant="outline" @click="restoreFilters">
                         Restaurar filtro
+                    </Button>
+                    <Button :disabled="!pending_download" @click="downloadExcel">
+                        Descargar Reporte Lesys
                     </Button>
                 </div>
             </div>
@@ -87,6 +126,18 @@
                                     ]"
                                 >
                                     {{ payment.state === 'success' ? 'Exitoso' : (payment.state || 'N/A') }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                <span
+                                    :class="[
+                                        'px-2 py-1 text-xs rounded font-medium',
+                                        payment.download
+                                            ? 'bg-green-100 text-green-800'
+                                            : 'bg-yellow-100 text-yellow-800'
+                                    ]"
+                                >
+                                    {{ payment.download ? 'Sí' : 'No' }}
                                 </span>
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap">
@@ -165,7 +216,7 @@
                 <DialogHeader>
                     <DialogTitle>Factura Wispro</DialogTitle>
                     <DialogDescription>
-                        Datos principales de la factura y sus ítems
+                        Datos guardados en la base local
                     </DialogDescription>
                 </DialogHeader>
 
@@ -270,17 +321,6 @@
                     <div v-if="invoiceDetails.length === 0" class="text-sm text-gray-500">
                         No se encontraron datos de factura.
                     </div>
-
-                    <div>
-                        <Button variant="outline" size="sm" @click="showFullResponse = !showFullResponse">
-                            {{ showFullResponse ? 'Ocultar respuesta' : 'Ver respuesta completa' }}
-                        </Button>
-                    </div>
-
-                    <pre
-                        v-if="showFullResponse"
-                        class="max-h-[40vh] overflow-auto rounded-md bg-muted p-4 text-xs whitespace-pre-wrap"
-                    >{{ JSON.stringify(invoiceResponse, null, 2) }}</pre>
                 </div>
 
                 <DialogFooter>
@@ -333,6 +373,7 @@ interface WisproPayment {
     credit_amount: string
     name_collector: string | null
     transaction_kind: string | null
+    download: boolean
     payment_transactions: PaymentTransaction[]
 }
 
@@ -381,11 +422,18 @@ const props = defineProps<{
     payments: WisproResponse
     filters: {
         from?: string
+        to?: string
+        client_code?: string
+        transaction_kind?: string
     }
+    transaction_kinds: string[]
+    pending_download: number
 }>()
 
-const defaultFrom = `${new Date().getFullYear()}-07-01`
-const fromDate = ref(props.filters?.from || defaultFrom)
+const fromDate = ref(props.filters?.from || '')
+const toDate = ref(props.filters?.to || '')
+const clientCode = ref(props.filters?.client_code || '')
+const transactionKind = ref(props.filters?.transaction_kind || '')
 
 const columns = [
     { key: 'client_name', label: 'Cliente' },
@@ -395,21 +443,17 @@ const columns = [
     { key: 'comment', label: 'Comentario' },
     { key: 'invoice', label: 'Factura' },
     { key: 'state', label: 'Estado' },
+    { key: 'download', label: 'Reportado a Lesys' },
     { key: 'actions', label: '' },
 ]
 
 const showInvoiceModal = ref(false)
-const showFullResponse = ref(false)
 const invoiceResponse = ref<unknown>(null)
 const invoiceError = ref('')
-const loadingPaymentId = ref<string | null>(null)
+const loadingPaymentId = ref<string | number | null>(null)
 
 const invoiceDetails = computed((): WisproInvoice[] => {
-    const entries = (invoiceResponse.value as { data?: any[] } | null)?.data || []
-
-    return entries
-        .map((entry) => entry?.data?.data)
-        .filter(Boolean)
+    return (invoiceResponse.value as { data?: WisproInvoice[] } | null)?.data || []
 })
 
 const paymentsData = computed((): WisproPayment[] => {
@@ -438,9 +482,12 @@ const visiblePages = computed(() => {
 })
 
 const navigate = (page: number) => {
-    router.get(route('payments-wispro.index'), {
+    router.get(route('payments-wispro-local.index'), {
         page,
         from: fromDate.value,
+        to: toDate.value,
+        client_code: clientCode.value,
+        transaction_kind: transactionKind.value,
     }, {
         preserveState: true,
         replace: true,
@@ -452,8 +499,30 @@ const submitFilter = () => {
 }
 
 const restoreFilters = () => {
-    fromDate.value = defaultFrom
+    fromDate.value = ''
+    toDate.value = ''
+    clientCode.value = ''
+    transactionKind.value = ''
     navigate(1)
+}
+
+const downloadExcel = () => {
+    if (!props.pending_download) {
+        return
+    }
+
+    const params = new URLSearchParams({
+        from: fromDate.value || '',
+        to: toDate.value || '',
+        client_code: clientCode.value || '',
+        transaction_kind: transactionKind.value || '',
+    })
+
+    window.location.href = route('payments-wispro-local.export') + '?' + params.toString()
+
+    setTimeout(() => {
+        router.reload({ only: ['pending_download'] })
+    }, 2000)
 }
 
 const previousPage = () => {
@@ -546,12 +615,9 @@ const viewInvoice = async (payment: WisproPayment) => {
     loadingPaymentId.value = payment.id
     invoiceError.value = ''
     invoiceResponse.value = null
-    showFullResponse.value = false
 
     try {
-        const response = await axios.post(route('payments-wispro.invoices'), {
-            invoice_ids: invoiceIds,
-        })
+        const response = await axios.get(route('payments-wispro-local.invoices', payment.id))
 
         invoiceResponse.value = response.data
         showInvoiceModal.value = true

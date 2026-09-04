@@ -57,6 +57,16 @@ Route::get('/payments-wispro/invoices/{invoiceId}/pdf', [PaymentWisproController
     ->middleware(['auth', 'admin'])
     ->name('payments-wispro.invoice-pdf');
 
+Route::get('/payments-wispro-local', [PaymentWisproController::class, 'indexLocal'])
+    ->middleware(['auth', 'admin'])
+    ->name('payments-wispro-local.index');
+Route::get('/payments-wispro-local/export', [PaymentWisproController::class, 'exportLocal'])
+    ->middleware(['auth', 'admin'])
+    ->name('payments-wispro-local.export');
+Route::get('/payments-wispro-local/{payment}/invoices', [PaymentWisproController::class, 'localInvoices'])
+    ->middleware(['auth', 'admin'])
+    ->name('payments-wispro-local.invoices');
+
 // Ruta especial para pago rápido desde login (sin autenticación)
 Route::post('/quick-payment', [PaymentController::class, 'store'])->name('quick-payment.store');
 

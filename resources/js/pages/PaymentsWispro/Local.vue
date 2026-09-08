@@ -130,7 +130,7 @@
                                     {{ payment.state === 'success' ? 'Exitoso' : (payment.state || 'N/A') }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3 whitespace-nowrap">
+                            <!-- <td class="px-4 py-3 whitespace-nowrap">
                                 <span
                                     :class="[
                                         'px-2 py-1 text-xs rounded font-medium',
@@ -141,7 +141,7 @@
                                 >
                                     {{ payment.download ? 'Sí' : 'No' }}
                                 </span>
-                            </td>
+                            </td> -->
                             <td class="px-4 py-3 whitespace-nowrap">
                                 <Button
                                     size="sm"
@@ -445,7 +445,7 @@ const columns = [
     { key: 'comment', label: 'Comentario' },
     { key: 'invoice', label: 'Factura' },
     { key: 'state', label: 'Estado' },
-    { key: 'download', label: 'Reportado a Lesys' },
+    /* { key: 'download', label: 'Reportado a Lesys' }, */
     { key: 'actions', label: '' },
 ]
 

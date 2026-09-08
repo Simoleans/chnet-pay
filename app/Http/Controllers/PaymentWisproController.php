@@ -155,7 +155,7 @@ class PaymentWisproController extends Controller
                     $amountUsd = (float) $item->gross_amount;
 
                     $rows->push([
-                        $payment->public_id,
+                        $payment->client_public_id,
                         $item->product_code ?: '',
                         number_format($amountUsd, 2, '.', ''),
                         number_format($amountUsd * $bcvRate, 2, '.', ''),

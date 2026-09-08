@@ -70,6 +70,8 @@
                 </p>
             </div>
 
+
+
             <div class="w-full overflow-auto rounded-xl border bg-background shadow-sm">
                 <table class="min-w-max w-full text-sm text-left border-collapse">
                     <thead class="border-b bg-muted">
@@ -95,7 +97,7 @@
                                         {{ payment.client_name || 'N/A' }}
                                     </span>
                                     <span class="text-xs text-muted-foreground">
-                                        ID {{ payment.public_id || 'N/A' }}
+                                        ID {{ payment.client_public_id || 'N/A' }}
                                     </span>
                                 </div>
                             </td>

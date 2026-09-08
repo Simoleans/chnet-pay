@@ -128,7 +128,7 @@ class PaymentWisproController extends Controller
     public function exportLocal(Request $request)
     {
         $payments = $this->localPaymentsQuery($request)
-            ->where('download', false)
+            //->where('download', false)
             ->with(['invoiceLinks.invoice.items'])
             ->orderBy('public_id')
             ->get();

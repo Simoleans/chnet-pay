@@ -56,7 +56,10 @@
                     <Button variant="outline" @click="restoreFilters">
                         Restaurar filtro
                     </Button>
-                    <Button :disabled="!pending_download" @click="downloadExcel">
+                   <!--  <Button :disabled="!pending_download" @click="downloadExcel">
+                        Descargar Reporte Lesys
+                    </Button> -->
+                    <Button @click="downloadExcel">
                         Descargar Reporte Lesys
                     </Button>
                 </div>
@@ -509,9 +512,9 @@ const restoreFilters = () => {
 }
 
 const downloadExcel = () => {
-    if (!props.pending_download) {
+    /* if (!props.pending_download) {
         return
-    }
+    } */
 
     const params = new URLSearchParams({
         from: fromDate.value || '',

@@ -24,7 +24,7 @@ class SyncWisproPayments implements ShouldQueue, ShouldBeUnique
     public int $timeout = 900;
     public int $uniqueFor = 1800;
 
-    public const PER_PAGE = 100;
+    public const PER_PAGE = 50;
     public const LOOKBACK_DAYS = 10;
 
     public function handle(WisproApiService $wisproApiService): void
@@ -98,6 +98,9 @@ class SyncWisproPayments implements ShouldQueue, ShouldBeUnique
                 'client_id' => $paymentData['client_id'] ?? null,
                 'client_name' => $paymentData['client_name'] ?? null,
                 'client_public_id' => $paymentData['client_public_id'] ?? null,
+                'custom_client_id' => $paymentData['client_id']
+                    ? ($wisproApiService->getClient($paymentData['client_id'])['data']['data']['custom_id'] ?? null)
+                    : null,
                 'amount' => $paymentData['amount'] ?? 0,
                 'credit_amount' => $paymentData['credit_amount'] ?? 0,
                 'payment_date' => $this->parseDate($paymentData['payment_date'] ?? null),

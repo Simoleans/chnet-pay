@@ -155,10 +155,11 @@ class PaymentWisproController extends Controller
                     $amountUsd = (float) $item->gross_amount;
 
                     $rows->push([
-                        $payment->client_public_id,
+                        $payment->custom_client_id,
                         $item->product_code ?: '',
-                        number_format($amountUsd, 2, '.', ''),
                         number_format($amountUsd * $bcvRate, 2, '.', ''),
+                        '',
+                        number_format($amountUsd, 2, '.', ''),
                     ]);
                     $addedRow = true;
                 }
@@ -191,7 +192,7 @@ class PaymentWisproController extends Controller
             ->where('state', '!=', 'void')
             ->when($from, fn ($query) => $query->whereDate('payment_date', '>=', $from))
             ->when($to, fn ($query) => $query->whereDate('payment_date', '<=', $to))
-            ->when($clientCode, fn ($query) => $query->where('public_id', $clientCode))
+            ->when($clientCode, fn ($query) => $query->where('client_public_id', $clientCode))
             ->when($transactionKind, fn ($query) => $query->where('transaction_kind', $transactionKind));
     }
 

@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Models\Payment;
 use Carbon\Carbon;
+use Illuminate\Http\Client\ConnectionException;
+
 /**
  * Servicio para consumir la API de Wispro
  *
@@ -102,6 +104,11 @@ class WisproApiService
     {
         try {
             $response = Http::withHeaders($this->getHeaders())
+                ->connectTimeout(15)
+                ->timeout(90)
+                ->retry(3, 2000, function ($exception) {
+                    return $exception instanceof ConnectionException;
+                })
                 ->get($this->baseUrl . '/clients/' . $clientId);
 
             if ($response->successful()) {
@@ -680,6 +687,11 @@ class WisproApiService
             $endpoint = '/invoicing/payments';
 
             $response = Http::withHeaders($this->getHeaders())
+                ->connectTimeout(15)
+                ->timeout(90)
+                ->retry(3, 2000, function ($exception) {
+                    return $exception instanceof ConnectionException;
+                })
                 ->get($this->baseUrl . $endpoint, $params);
 
             if ($response->successful()) {

@@ -23,8 +23,9 @@ class WisproPaymentsExport implements FromCollection, WithHeadings, ShouldAutoSi
         return [
             'client',
             'item',
-            'total_usd',
             'total_bs',
+            'ZONA',
+            'total_usd',
         ];
     }
 }

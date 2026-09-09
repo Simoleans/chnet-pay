@@ -13,6 +13,7 @@ class PaymentWispro extends Model
         'wispro_id',
         'public_id',
         'client_id',
+        'custom_client_id',
         'client_name',
         'client_public_id',
         'amount',

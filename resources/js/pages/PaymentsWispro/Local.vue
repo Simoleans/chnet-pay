@@ -102,6 +102,7 @@
                                     <span class="text-xs text-muted-foreground">
                                         ID {{ payment.custom_client_id || 'N/A' }}
                                     </span>
+
                                 </div>
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap">

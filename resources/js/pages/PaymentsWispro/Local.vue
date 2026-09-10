@@ -100,7 +100,7 @@
                                         {{ payment.client_name || 'N/A' }}
                                     </span>
                                     <span class="text-xs text-muted-foreground">
-                                        ID {{ payment.client_public_id || 'N/A' }}
+                                        ID {{ payment.custom_client_id || 'N/A' }}
                                     </span>
                                 </div>
                             </td>
@@ -374,6 +374,7 @@ interface WisproPayment {
     client_id: string
     client_name: string
     client_public_id: number
+    custom_client_id: string | null
     payment_date: string
     credit_amount: string
     name_collector: string | null

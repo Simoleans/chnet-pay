@@ -91,11 +91,13 @@ class PaymentWisproController extends Controller
                     'public_id' => $payment->public_id,
                     'client_name' => $payment->client_name,
                     'client_public_id' => $payment->client_public_id,
+                    'custom_client_id' => $payment->custom_client_id,
                     'amount' => $payment->amount,
                     'payment_date' => $payment->payment_date?->toIso8601String(),
                     'transaction_kind' => $payment->transaction_kind,
                     'comment' => $payment->comment,
                     'state' => $payment->state,
+                    'company_name' => $payment->invoiceLinks-,
                     'download' => (bool) $payment->download,
                     'payment_transactions' => $payment->invoiceLinks->map(fn ($link) => [
                         'id' => $link->wispro_transaction_id,

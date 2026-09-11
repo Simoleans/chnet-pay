@@ -61,4 +61,19 @@ class InvoiceWispro extends Model
     {
         return $this->hasMany(PaymentInvoiceWispro::class, 'invoice_wispro_id');
     }
+
+    public function lesysZone(): int
+    {
+        $firmId = (string) $this->invoicing_firm_id;
+
+        if ($firmId === (string) config('app.invoicing_firms.empresa_1')) {
+            return 90;
+        }
+
+        if ($firmId === (string) config('app.invoicing_firms.empresa_2')) {
+            return 91;
+        }
+
+        return 0;
+    }
 }

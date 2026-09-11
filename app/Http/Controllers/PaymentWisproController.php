@@ -159,7 +159,7 @@ class PaymentWisproController extends Controller
                         $payment->custom_client_id,
                         $item->product_code ?: '',
                         number_format($amountUsd * $bcvRate, 2, '.', ''),
-                        '',
+                        $invoice->lesysZone(),
                         number_format($amountUsd, 2, '.', ''),
                     ]);
                     $addedRow = true;

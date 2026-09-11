@@ -97,7 +97,6 @@ class PaymentWisproController extends Controller
                     'transaction_kind' => $payment->transaction_kind,
                     'comment' => $payment->comment,
                     'state' => $payment->state,
-                    'company_name' => $payment->invoiceLinks-,
                     'download' => (bool) $payment->download,
                     'payment_transactions' => $payment->invoiceLinks->map(fn ($link) => [
                         'id' => $link->wispro_transaction_id,

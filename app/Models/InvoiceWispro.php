@@ -66,13 +66,22 @@ class InvoiceWispro extends Model
     {
         $firmId = (string) $this->invoicing_firm_id;
 
-        if ($firmId === (string) config('app.invoicing_firms.empresa_1')) {
+        if ($firmId === (string) config('app.invoicing_firms.empresa_1')) { // cablehogar
             return 90;
         }
 
-        if ($firmId === (string) config('app.invoicing_firms.empresa_2')) {
-            return 91;
+        if ($firmId === (string) config('app.invoicing_firms.empresa_2')) { // cablehogar FLA
+            return 900;
         }
+
+        if ($firmId === (string) config('app.invoicing_firms.empresa_3')) { // riminet 19
+            return 90;
+        }
+
+        if ($firmId === (string) config('app.invoicing_firms.empresa_4')) { // wis pro
+            return 200;
+        }
+
 
         return 0;
     }

@@ -43,11 +43,11 @@ class LoginRequest extends FormRequest
         }
 
         // Solo validar captcha si está configurado
-        if (config('services.recaptcha.site_key') && config('services.recaptcha.secret_key')) {
+      /*   if (config('services.recaptcha.site_key') && config('services.recaptcha.secret_key')) {
             $rules['g-recaptcha-response'] = ['required', function ($attribute, $value, $fail) {
                 $this->validateRecaptcha($value, $fail);
             }];
-        }
+        } */
 
         return $rules;
     }

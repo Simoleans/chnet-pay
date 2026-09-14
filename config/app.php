@@ -168,6 +168,9 @@ return [
     'invoicing_firms' => [
         'empresa_1' => env('WISPRO_INVOICING_FIRM_EMPRESA_1', '1f1f8229-0526-4104-819c-c264abe5e727'),//cablehogar
         'empresa_2' => env('WISPRO_INVOICING_FIRM_EMPRESA_2', 'd6db69fd-d5b4-4418-aff9-f662f78d8717'),//cablehogar FLA
+        'empresa_3' => env('WISPRO_INVOICING_FIRM_EMPRESA_3', '7da99b07-5f80-4432-8211-a9c666ed4642'),//riminet 19
+        'empresa_4' => env('WISPRO_INVOICING_FIRM_EMPRESA_4', '67701125-25d5-4321-8da9-31304d130d84'),//wis pro
+        'empresa_5' => env('WISPRO_INVOICING_FIRM_EMPRESA_5', '57e7f62b-f852-4f57-a0d8-7d7cc5b5057'),// cablehogar lamas
     ],
 
     'bdv' => [

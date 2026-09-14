@@ -159,7 +159,7 @@ class PaymentWisproController extends Controller
                     $amountUsd = (float) $item->gross_amount;
 
                     $rows->push([
-                        $payment->custom_client_id,
+                        str_pad((string) $payment->custom_client_id, 6, '0', STR_PAD_LEFT),
                         $item->product_code ?: '',
                         number_format($amountUsd * $bcvRate, 2, '.', ''),
                         $invoice->lesysZone(),

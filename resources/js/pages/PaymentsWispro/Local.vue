@@ -37,6 +37,16 @@
                         />
                     </div>
                     <div class="flex flex-col">
+                        <label class="text-xs text-muted-foreground mb-1">Cobrador</label>
+                        <input
+                            v-model="nameCollector"
+                            @input="submitNameCollectorFilter"
+                            type="text"
+                            placeholder="Buscar cobrador..."
+                            class="p-2 border rounded-md dark:text-black text-sm"
+                        />
+                    </div>
+                    <div class="flex flex-col">
                         <label class="text-xs text-muted-foreground mb-1">Tipo</label>
                         <select
                             v-model="transactionKind"
@@ -113,6 +123,9 @@
                             </td>
                             <td class="px-4 py-3 whitespace-nowrap">
                                 {{ payment.transaction_kind || 'N/A' }}
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                {{ payment.name_collector || 'N/A' }}
                             </td>
                             <td class="px-4 py-3">
                                 <div class="max-w-xs truncate" :title="payment.comment">
@@ -432,6 +445,7 @@ const props = defineProps<{
         to?: string
         client_code?: string
         transaction_kind?: string
+        name_collector?: string
     }
     transaction_kinds: string[]
     pending_download: number
@@ -441,12 +455,14 @@ const fromDate = ref(props.filters?.from || '')
 const toDate = ref(props.filters?.to || '')
 const clientCode = ref(props.filters?.client_code || '')
 const transactionKind = ref(props.filters?.transaction_kind || '')
+const nameCollector = ref(props.filters?.name_collector || '')
 
 const columns = [
     { key: 'client_name', label: 'Cliente' },
     { key: 'amount', label: 'Monto' },
     { key: 'payment_date', label: 'Fecha de pago' },
     { key: 'transaction_kind', label: 'Tipo' },
+    { key: 'name_collector', label: 'Cobrador' },
     { key: 'comment', label: 'Comentario' },
     { key: 'invoice', label: 'Factura' },
     { key: 'state', label: 'Estado' },
@@ -495,6 +511,7 @@ const navigate = (page: number) => {
         to: toDate.value,
         client_code: clientCode.value,
         transaction_kind: transactionKind.value,
+        name_collector: nameCollector.value,
     }, {
         preserveState: true,
         replace: true,
@@ -505,11 +522,24 @@ const submitFilter = () => {
     navigate(1)
 }
 
+let nameCollectorTimeout: ReturnType<typeof setTimeout> | null = null
+
+const submitNameCollectorFilter = () => {
+    if (nameCollectorTimeout) {
+        clearTimeout(nameCollectorTimeout)
+    }
+
+    nameCollectorTimeout = setTimeout(() => {
+        navigate(1)
+    }, 400)
+}
+
 const restoreFilters = () => {
     fromDate.value = ''
     toDate.value = ''
     clientCode.value = ''
     transactionKind.value = ''
+    nameCollector.value = ''
     navigate(1)
 }
 
@@ -523,6 +553,7 @@ const downloadExcel = () => {
         to: toDate.value || '',
         client_code: clientCode.value || '',
         transaction_kind: transactionKind.value || '',
+        name_collector: nameCollector.value || '',
     })
 
     window.location.href = route('payments-wispro-local.export') + '?' + params.toString()

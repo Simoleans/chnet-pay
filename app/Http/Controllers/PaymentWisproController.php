@@ -62,6 +62,7 @@ class PaymentWisproController extends Controller
         $to = $request->get('to');
         $clientCode = $request->get('client_code');
         $transactionKind = $request->get('transaction_kind');
+        $nameCollector = $request->get('name_collector');
 
         $paginator = $this->localPaymentsQuery($request)
             ->with('invoiceLinks')
@@ -95,6 +96,7 @@ class PaymentWisproController extends Controller
                     'amount' => $payment->amount,
                     'payment_date' => $payment->payment_date?->toIso8601String(),
                     'transaction_kind' => $payment->transaction_kind,
+                    'name_collector' => $payment->name_collector,
                     'comment' => $payment->comment,
                     'state' => $payment->state,
                     'download' => (bool) $payment->download,
@@ -115,6 +117,7 @@ class PaymentWisproController extends Controller
                 'to' => $to ?? '',
                 'client_code' => $clientCode ?? '',
                 'transaction_kind' => $transactionKind ?? '',
+                'name_collector' => $nameCollector ?? '',
             ],
             'transaction_kinds' => PaymentWispro::query()
                 ->where('state', '!=', 'void')
@@ -188,13 +191,15 @@ class PaymentWisproController extends Controller
         $to = $request->get('to');
         $clientCode = $request->get('client_code');
         $transactionKind = $request->get('transaction_kind');
+        $nameCollector = $request->get('name_collector');
 
         return PaymentWispro::query()
             ->where('state', '!=', 'void')
             ->when($from, fn ($query) => $query->whereDate('payment_date', '>=', $from))
             ->when($to, fn ($query) => $query->whereDate('payment_date', '<=', $to))
             ->when($clientCode, fn ($query) => $query->where('client_public_id', $clientCode))
-            ->when($transactionKind, fn ($query) => $query->where('transaction_kind', $transactionKind));
+            ->when($transactionKind, fn ($query) => $query->where('transaction_kind', $transactionKind))
+            ->when($nameCollector, fn ($query) => $query->where('name_collector', 'like', '%' . $nameCollector . '%'));
     }
 
     public function localInvoices(PaymentWispro $payment)

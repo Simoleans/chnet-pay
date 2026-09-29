@@ -99,6 +99,7 @@ const page = usePage()
 type InvoicingFirmIds = {
     empresa_1?: string;
     empresa_2?: string;
+    empresa_3?: string;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -145,8 +146,9 @@ const selectedInvoiceFirmId = computed(() => {
 const isBdvPaymentDisabled = computed(() => {
     const firmIds = (page.props.invoicingFirmIds as InvoicingFirmIds | undefined) || {};
     const empresa2FirmId = firmIds.empresa_2;
+    const empresa3FirmId = firmIds.empresa_3;
 
-    return Boolean(empresa2FirmId && selectedInvoiceFirmId.value === String(empresa2FirmId));
+    return Boolean(empresa2FirmId && selectedInvoiceFirmId.value === String(empresa2FirmId)) || Boolean(empresa3FirmId && selectedInvoiceFirmId.value === String(empresa3FirmId));
 });
 
 // Funciones para manejar los modales

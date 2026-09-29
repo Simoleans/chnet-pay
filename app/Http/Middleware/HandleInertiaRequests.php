@@ -51,6 +51,12 @@ class HandleInertiaRequests extends Middleware
             'tlf' => config('app.payment_mobile_bnc2.tlf'),
             'rif' => config('app.payment_mobile_bnc2.rif'),
         ];
+        $paymentMobileRiminet = [
+            'name' => config('app.payment_mobile_riminet.name'),
+            'banco' => config('app.payment_mobile_riminet.banco'),
+            'tlf' => config('app.payment_mobile_riminet.tlf'),
+            'rif' => config('app.payment_mobile_riminet.rif'),
+        ];
 
         return [
             ...parent::share($request),
@@ -75,14 +81,17 @@ class HandleInertiaRequests extends Middleware
             ],
             'paymentMobile' => $paymentMobile,
             'paymentMobileBnc2' => $paymentMobileBnc2,
+            'paymentMobileRiminet' => $paymentMobileRiminet,
             'invoicingFirmIds' => [
                 'empresa_1' => config('app.invoicing_firms.empresa_1'),
                 'empresa_2' => config('app.invoicing_firms.empresa_2'),
+                'empresa_3' => config('app.invoicing_firms.empresa_3'),
             ],
             // Mapa usado por el modal: cada invoicing_firm_id apunta a su pago móvil.
             'paymentMobileByFirm' => [
                 config('app.invoicing_firms.empresa_1') => $paymentMobile,
                 config('app.invoicing_firms.empresa_2') => $paymentMobileBnc2,
+                config('app.invoicing_firms.empresa_3') => $paymentMobileRiminet,
             ],
             'paymentBdv' => [
                 'name' => config('app.bdv.name'),

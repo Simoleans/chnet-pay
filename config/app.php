@@ -143,6 +143,16 @@ return [
         //'client_id' => env('BNC_CLIENT_ID_FLA', ''),
     ],
 
+    'bnc_riminet' => [
+        'client_guid' => env('BNC_CLIENT_GUID', ''),
+        'master_key' => env('BNC_MASTER_KEY', ''),
+        'base_url' => env('BNC_BASE_URL', ''),
+        'phone' => env('BNC_PHONE_RIM', ''),
+        'account' => env('BNC_ACCOUNT_RIM', ''),
+        'terminal' => env('BNC_TERMINAL_RIM', ''),
+        //'client_id' => env('BNC_CLIENT_ID_FLA', ''),
+    ],
+
     'bdv' => [
         'api_key' => env('API_KEY', ''),
         'base_url' => env('BDV_BASE_URL', ''),
@@ -162,6 +172,13 @@ return [
         'banco' => env('PM_BANCO_BNC2', ''),
         'tlf' => env('PM_TLF_BNC2', ''),
         'rif' => env('PM_RIF_BNC2', ''),
+    ],
+
+    'payment_mobile_riminet' => [
+        'name' => env('PM_NAME_RIMINET', ''),
+        'banco' => env('PM_BANCO_RIMINET', ''),
+        'tlf' => env('PM_TLF_RIMINET', ''),
+        'rif' => env('PM_RIF_RIMINET', ''),
     ],
 
     // IDs de empresas de facturación que vienen en invoicing_firm_id.

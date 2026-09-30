@@ -34,7 +34,7 @@ class Payment extends Model
     const TYPE_BANK_BNC_FLA = 'bnc-fla';
     const TYPE_BANK_BDV = 'bdv';
     const TYPE_BANK_BNC_RIMINET = 'bnc-riminet';
-
+    const TYPE_BANK_BNC_WIS = 'bnc-wis';
 
     public function invoice()
     {

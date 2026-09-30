@@ -108,11 +108,14 @@ class PaymentController extends Controller
         $configKey = match ($firmId) {
             config('app.invoicing_firms.empresa_2') => 'app.bnc_bnc2',
             config('app.invoicing_firms.empresa_3') => 'app.bnc_riminet',
+            config('app.invoicing_firms.empresa_4') => 'app.bnc_wis',
             default => 'app.bnc',
         };
+
         $typeBank = match ($firmId) {
             config('app.invoicing_firms.empresa_2') => Payment::TYPE_BANK_BNC_FLA,
             config('app.invoicing_firms.empresa_3') => Payment::TYPE_BANK_BNC_RIMINET,
+            config('app.invoicing_firms.empresa_4') => Payment::TYPE_BANK_BNC_WIS,
             default => Payment::TYPE_BANK_BNC,
         };
 

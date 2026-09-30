@@ -181,6 +181,13 @@ return [
         'rif' => env('PM_RIF_RIMINET', ''),
     ],
 
+    'payment_mobile_wis' => [
+        'name' => env('PM_NAME_WIS', ''),
+        'banco' => env('PM_BANCO_WIS', ''),
+        'tlf' => env('PM_TLF_WIS', ''),
+        'rif' => env('PM_RIF_WIS', ''),
+    ],
+
     // IDs de empresas de facturación que vienen en invoicing_firm_id.
     'invoicing_firms' => [
         'empresa_1' => env('WISPRO_INVOICING_FIRM_EMPRESA_1', '1f1f8229-0526-4104-819c-c264abe5e727'),//cablehogar

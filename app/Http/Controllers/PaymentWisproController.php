@@ -147,7 +147,11 @@ class PaymentWisproController extends Controller
 
         foreach ($payments as $payment) {
             $addedRow = false;
+            // Código de cliente siempre con 6 dígitos (244 -> 000244)
+            $clientCode = str_pad((string) $payment->custom_client_id, 6, '0', STR_PAD_LEFT);
+            $lastZone = 0;
 
+            // Un pago puede aplicarse a una o varias facturas
             foreach ($payment->invoiceLinks as $link) {
                 $invoice = $link->invoice;
 
@@ -155,18 +159,37 @@ class PaymentWisproController extends Controller
                     continue;
                 }
 
-                foreach ($invoice->items as $item) {
-                    $amountUsd = (float) $item->gross_amount;
+                // Lo aplicado a ESTA factura, no el total cobrado.
+                // Si pagó de más, el vuelto va en credit_amount y no entra acá.
+                $paidAmount = (float) ($link->amount ?: $payment->amount);
+                $lastZone = $invoice->lesysZone();
 
+                // Una fila por ítem. Si pagó de menos, se prorratea a lo aplicado.
+                // Si pagó exacto, los ítems salen igual que en la factura.
+                foreach ($this->paidItemAmounts($invoice->items, $paidAmount) as [$item, $amountUsd]) {
                     $rows->push([
-                        str_pad((string) $payment->custom_client_id, 6, '0', STR_PAD_LEFT),
-                        $item->product_code ?: '',
+                        $clientCode,
+                        $item?->product_code ?: '',
                         number_format($amountUsd * $bcvRate, 2, '.', ''),
-                        $invoice->lesysZone(),
+                        $lastZone,
                         number_format($amountUsd, 2, '.', ''),
                     ]);
                     $addedRow = true;
                 }
+            }
+
+            // Pagó de más: fila extra del crédito, mismo cliente y zona, ítem vacío.
+            $creditUsd = (float) $payment->credit_amount;
+
+            if ($creditUsd > 0) {
+                $rows->push([
+                    $clientCode,
+                    '',
+                    number_format($creditUsd * $bcvRate, 2, '.', ''),
+                    $lastZone,
+                    number_format($creditUsd, 2, '.', ''),
+                ]);
+                $addedRow = true;
             }
 
             if ($addedRow) {
@@ -183,6 +206,41 @@ class PaymentWisproController extends Controller
         $fileName = 'pagos_wispro_' . now()->format('Ymd_His') . '.xlsx';
 
         return Excel::download(new WisproPaymentsExport($rows), $fileName);
+    }
+
+    /**
+     * Parte lo pagado entre los ítems de la factura.
+     *
+     * Ejemplo: factura 12 (ítems 9 + 3) y pagaron 10.58
+     * -> 9/12 * 10.58 = 7.94 y el último ítem se queda con el resto (2.64)
+     * para que sume exacto lo pagado, no el total de la factura.
+     *
+     * Si pagaron los 12, la cuenta da 9 y 3: no cambia nada.
+     */
+    private function paidItemAmounts($items, float $paidAmount): array
+    {
+        $items = collect($items);
+        $itemsTotal = (float) $items->sum('gross_amount');
+
+        if ($items->isEmpty() || $itemsTotal <= 0) {
+            return [[null, round($paidAmount, 2)]];
+        }
+
+        $remaining = round($paidAmount, 2);
+        $lastIndex = $items->count() - 1;
+        $amounts = [];
+
+        foreach ($items->values() as $index => $item) {
+            // El último ítem no usa la fórmula: se lleva lo que falte (centavos).
+            $amountUsd = $index === $lastIndex
+                ? $remaining
+                : round(((float) $item->gross_amount / $itemsTotal) * $paidAmount, 2);
+
+            $remaining = round($remaining - $amountUsd, 2);
+            $amounts[] = [$item, $amountUsd];
+        }
+
+        return $amounts;
     }
 
     private function localPaymentsQuery(Request $request)

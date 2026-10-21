@@ -178,13 +178,13 @@ class PaymentWisproController extends Controller
                 }
             }
 
-            // Pagó de más: fila extra del crédito, mismo cliente y zona, ítem vacío.
+            // Pagó de más: fila extra del crédito, mismo cliente y zona, ítem 111.
             $creditUsd = (float) $payment->credit_amount;
 
             if ($creditUsd > 0) {
                 $rows->push([
                     $clientCode,
-                    '',
+                    '111',
                     number_format($creditUsd * $bcvRate, 2, '.', ''),
                     $lastZone,
                     number_format($creditUsd, 2, '.', ''),

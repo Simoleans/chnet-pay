@@ -16,6 +16,7 @@ use App\Http\Requests\BDV\StartIpg2PaymentRequest;
 use App\Helpers\CurrencyHelper;
 use Illuminate\Support\Facades\DB;
 use App\Models\BdvIpg2Payment;
+use Carbon\Carbon;
 
 class BdvPaymentController extends Controller
 {
@@ -66,8 +67,18 @@ class BdvPaymentController extends Controller
             ], 422);
         }
 
-        // 3. Evitar duplicados internos
-        if (Payment::where('reference', $referencia)->where('bank', $data['bancoOrigen'])->exists()) {
+        // 3. Evitar duplicados recientes. La referencia es corta y se recicla;
+        // solo se bloquea si el mismo banco ya la usó en los 7 días anteriores.
+        $paymentDate = Carbon::parse($data['fechaPago']);
+        $duplicatedPayment = Payment::where('reference', $referencia)
+            ->where('bank', $data['bancoOrigen'])
+            ->whereBetween('payment_date', [
+                $paymentDate->copy()->subDays(16)->startOfDay(),
+                $paymentDate->copy()->endOfDay(),
+            ])
+            ->exists();
+
+        if ($duplicatedPayment) {
             return response()->json([
                 'success'            => true,
                 'already_registered' => true,

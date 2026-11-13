@@ -87,6 +87,10 @@ class SyncWisproPayments implements ShouldQueue, ShouldBeUnique
 
         $wisproId = $paymentData['id'] ?? null;
 
+        if (!$wisproId) {
+            return $result;
+        }
+
         /* if (!$wisproId || ($paymentData['state'] ?? '') === 'void') {
             return $result;
         } */

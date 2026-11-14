@@ -25,7 +25,7 @@ class SyncWisproPayments implements ShouldQueue, ShouldBeUnique
     public int $uniqueFor = 1800;
 
     public const PER_PAGE = 50;
-    public const LOOKBACK_DAYS = 1;
+    public const LOOKBACK_DAYS = 2;
 
     public function handle(WisproApiService $wisproApiService): void
     {

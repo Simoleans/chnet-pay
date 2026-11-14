@@ -678,6 +678,7 @@ class WisproApiService
                 ? Carbon::parse($from)->startOfDay()
                 : Carbon::create(now()->year, 7, 1)->startOfDay();
 
+                
             $params['created_at_after'] = $from->toIso8601String();
 
             if ($to) {

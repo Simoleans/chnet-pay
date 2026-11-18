@@ -19,13 +19,15 @@ class PaymentsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
     protected ?string $search;
     protected ?string $dateFrom;
     protected ?string $dateTo;
+    protected ?string $wisproRegistered;
     protected float $fallbackBcvRate;
 
-    public function __construct(?string $search, ?string $dateFrom, ?string $dateTo)
+    public function __construct(?string $search, ?string $dateFrom, ?string $dateTo, ?string $wisproRegistered = null)
     {
         $this->search = $search ?: null;
         $this->dateFrom = $dateFrom ?: null;
         $this->dateTo = $dateTo ?: null;
+        $this->wisproRegistered = ($wisproRegistered !== null && $wisproRegistered !== '') ? (string) $wisproRegistered : null;
         $this->fallbackBcvRate = (float) (BncHelper::getBcvRatesCached()['Rate'] ?? 1);
     }
 
@@ -50,6 +52,10 @@ class PaymentsExport implements FromQuery, WithHeadings, WithMapping, ShouldAuto
 
         if ($this->dateTo) {
             $query->whereDate('created_at', '<=', $this->dateTo);
+        }
+
+        if ($this->wisproRegistered !== null) {
+            $query->where('wispro_registered', (bool) $this->wisproRegistered);
         }
 
         return $query;

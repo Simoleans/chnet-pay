@@ -23,7 +23,7 @@ class SyncWisproPaymentsCommand extends Command
             return self::SUCCESS;
         } */
 
-        $this->info("Sincronizando pagos Wispro de los últimos 7 días ({$from} a {$to})...");
+        $this->info("Sincronizando pagos Wispro de los últimos 2 días ({$from} a {$to})...");
         SyncWisproPayments::dispatchSync();
         $this->info('Listo. Revisa payments_wispro, payment_invoice_wispro, invoices_wispro e invoice_items_wispro.');
 

@@ -6,39 +6,54 @@
                 <h1 class="text-2xl font-semibold">Pagos</h1>
             </div>
 
-            <div class="flex flex-col sm:flex-row justify-between gap-4">
-                <input
-                    v-model="search"
-                    @input="submit"
-                    type="text"
-                    placeholder="Buscar por referencia o código de abonado..."
-                    class="w-full sm:w-1/2 p-2 border rounded-md dark:text-black"
-                />
-
-                <!-- Filtros de fecha -->
-                <div class="flex gap-2 items-center">
-                    <div class="flex flex-col sm:flex-row gap-2">
-                        <div class="flex flex-col">
-                            <label class="text-xs text-muted-foreground mb-1">Desde</label>
-                            <input
-                                v-model="dateFrom"
-                                @change="submit"
-                                type="date"
-                                class="p-2 border rounded-md dark:text-black text-sm"
-                            />
-                        </div>
-                        <div class="flex flex-col">
-                            <label class="text-xs text-muted-foreground mb-1">Hasta</label>
-                            <input
-                                v-model="dateTo"
-                                @change="submit"
-                                type="date"
-                                class="p-2 border rounded-md dark:text-black text-sm"
-                            />
-                        </div>
+            <div class="flex flex-col gap-4 mb-2 md:flex-row md:justify-between md:items-end">
+                <div class="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-end">
+                    <div class="flex flex-col">
+                        <label class="text-xs text-muted-foreground mb-1">Buscar</label>
+                        <input
+                            v-model="search"
+                            @input="submit"
+                            type="text"
+                            placeholder="Referencia o código..."
+                            class="p-2 border rounded-md dark:text-black text-sm w-full sm:w-64"
+                        />
                     </div>
-                    <Button variant="outline" @click="restoreFilters" class="mt-5">Restaurar Filtros</Button>
-                    <Button @click="exportExcel" class="mt-5">Exportar Excel</Button>
+                    <div class="flex flex-col">
+                        <label class="text-xs text-muted-foreground mb-1">Desde</label>
+                        <input
+                            v-model="dateFrom"
+                            @change="submit"
+                            type="date"
+                            class="p-2 border rounded-md dark:text-black text-sm"
+                        />
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-xs text-muted-foreground mb-1">Hasta</label>
+                        <input
+                            v-model="dateTo"
+                            @change="submit"
+                            type="date"
+                            class="p-2 border rounded-md dark:text-black text-sm"
+                        />
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-xs text-muted-foreground mb-1">Wispro</label>
+                        <select
+                            v-model="wisproRegistered"
+                            @change="submit"
+                            class="p-2 border rounded-md dark:text-black text-sm"
+                        >
+                            <option value="">Todos</option>
+                            <option value="1">Verificado</option>
+                            <option value="0">Sin verificar</option>
+                        </select>
+                    </div>
+                    <Button variant="outline" @click="restoreFilters">
+                        Restaurar Filtros
+                    </Button>
+                    <Button @click="exportExcel">
+                        Exportar Excel
+                    </Button>
                 </div>
             </div>
 
@@ -228,6 +243,7 @@ const columns = [
 const search = ref(props.filters?.search || '')
 const dateFrom = ref(props.filters?.date_from || '')
 const dateTo = ref(props.filters?.date_to || '')
+const wisproRegistered = ref(props.filters?.wispro_registered ?? '')
 
 // Estados para los modales
 const showPaymentDetailsModal = ref(false)
@@ -238,6 +254,7 @@ const restoreFilters = () => {
     search.value = ''
     dateFrom.value = ''
     dateTo.value = ''
+    wisproRegistered.value = ''
     submit()
 }
 
@@ -254,6 +271,7 @@ const submit = debounce(() => {
         search: search.value,
         date_from: dateFrom.value,
         date_to: dateTo.value,
+        wispro_registered: wisproRegistered.value,
         page: 1, // Resetear a la primera página al filtrar
     }, {
         preserveState: true,
@@ -267,6 +285,7 @@ const previousPage = () => {
             search: search.value,
             date_from: dateFrom.value,
             date_to: dateTo.value,
+            wispro_registered: wisproRegistered.value,
             page: props.pagination.current_page - 1,
         }, {
             preserveState: true,
@@ -281,6 +300,7 @@ const nextPage = () => {
             search: search.value,
             date_from: dateFrom.value,
             date_to: dateTo.value,
+            wispro_registered: wisproRegistered.value,
             page: props.pagination.current_page + 1,
         }, {
             preserveState: true,
@@ -311,6 +331,7 @@ const exportExcel = () => {
         search: search.value || '',
         date_from: dateFrom.value || '',
         date_to: dateTo.value || '',
+        wispro_registered: wisproRegistered.value ?? '',
     })
     // Abrir descarga en la misma pestaña
     window.location.href = route('payments.export') + '?' + params.toString()

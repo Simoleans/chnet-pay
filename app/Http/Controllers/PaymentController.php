@@ -46,6 +46,11 @@ class PaymentController extends Controller
             $query->whereDate('payment_date', '<=', $request->date_to);
         }
 
+        // Filtro por estado en Wispro
+        if ($request->filled('wispro_registered')) {
+            $query->where('wispro_registered', (bool) $request->wispro_registered);
+        }
+
         $payments = $query->paginate(15)->appends($request->query());
 
         // Formatear los datos para la vista
@@ -83,6 +88,7 @@ class PaymentController extends Controller
                 'search' => $request->search ?? '',
                 'date_from' => $request->date_from ?? '',
                 'date_to' => $request->date_to ?? '',
+                'wispro_registered' => $request->wispro_registered ?? '',
             ],
         ]);
     }
@@ -968,8 +974,9 @@ class PaymentController extends Controller
         $search = $request->get('search');
         $dateFrom = $request->get('date_from');
         $dateTo = $request->get('date_to');
+        $wisproRegistered = $request->get('wispro_registered');
 
-        $export = new PaymentsExport($search, $dateFrom, $dateTo);
+        $export = new PaymentsExport($search, $dateFrom, $dateTo, $wisproRegistered);
         $fileName = 'pagos_' . now()->format('Ymd_His') . '.xlsx';
         return $export->download($fileName);
     }

@@ -125,6 +125,14 @@ class PaymentWisproController extends Controller
                 ->distinct()
                 ->orderBy('transaction_kind')
                 ->pluck('transaction_kind'),
+            'collectors' => PaymentWispro::query()
+                ->select('name_collector')
+                ->where('state', '!=', 'void')
+                ->whereNotNull('name_collector')
+                ->where('name_collector', '!=', '')
+                ->groupBy('name_collector')
+                ->orderBy('name_collector')
+                ->pluck('name_collector'),
             'pending_download' => $pendingDownload,
         ]);
     }
@@ -257,7 +265,7 @@ class PaymentWisproController extends Controller
             ->when($to, fn ($query) => $query->whereDate('payment_date', '<=', $to))
             ->when($clientCode, fn ($query) => $query->where('client_public_id', $clientCode))
             ->when($transactionKind, fn ($query) => $query->where('transaction_kind', $transactionKind))
-            ->when($nameCollector, fn ($query) => $query->where('name_collector', 'like', '%' . $nameCollector . '%'));
+            ->when($nameCollector, fn ($query) => $query->where('name_collector', $nameCollector));
     }
 
     public function localInvoices(PaymentWispro $payment)

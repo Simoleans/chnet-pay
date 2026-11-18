@@ -38,13 +38,20 @@
                     </div>
                     <div class="flex flex-col">
                         <label class="text-xs text-muted-foreground mb-1">Cobrador</label>
-                        <input
+                        <select
                             v-model="nameCollector"
-                            @input="submitNameCollectorFilter"
-                            type="text"
-                            placeholder="Buscar cobrador..."
+                            @change="submitFilter"
                             class="p-2 border rounded-md dark:text-black text-sm"
-                        />
+                        >
+                            <option value="">Todos</option>
+                            <option
+                                v-for="collector in collectors"
+                                :key="collector"
+                                :value="collector"
+                            >
+                                {{ collector }}
+                            </option>
+                        </select>
                     </div>
                     <div class="flex flex-col">
                         <label class="text-xs text-muted-foreground mb-1">Tipo</label>
@@ -448,6 +455,7 @@ const props = defineProps<{
         name_collector?: string
     }
     transaction_kinds: string[]
+    collectors: string[]
     pending_download: number
 }>()
 
@@ -520,18 +528,6 @@ const navigate = (page: number) => {
 
 const submitFilter = () => {
     navigate(1)
-}
-
-let nameCollectorTimeout: ReturnType<typeof setTimeout> | null = null
-
-const submitNameCollectorFilter = () => {
-    if (nameCollectorTimeout) {
-        clearTimeout(nameCollectorTimeout)
-    }
-
-    nameCollectorTimeout = setTimeout(() => {
-        navigate(1)
-    }, 400)
 }
 
 const restoreFilters = () => {

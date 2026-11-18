@@ -25,7 +25,7 @@ class SyncWisproPayments implements ShouldQueue, ShouldBeUnique
     public int $uniqueFor = 1800;
 
     public const PER_PAGE = 50;
-    public const LOOKBACK_DAYS = 1;
+    public const LOOKBACK_DAYS = 2;
 
     public function handle(WisproApiService $wisproApiService): void
     {
@@ -87,13 +87,9 @@ class SyncWisproPayments implements ShouldQueue, ShouldBeUnique
 
         $wisproId = $paymentData['id'] ?? null;
 
-        if (!$wisproId) {
+        if (!$wisproId || ($paymentData['state'] ?? '') === 'void') {
             return $result;
         }
-
-        /* if (!$wisproId || ($paymentData['state'] ?? '') === 'void') {
-            return $result;
-        } */
 
         $payment = PaymentWispro::updateOrCreate(
             ['wispro_id' => $wisproId],

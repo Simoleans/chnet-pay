@@ -678,10 +678,11 @@ class WisproApiService
                 ? Carbon::parse($from)->startOfDay()
                 : Carbon::create(now()->year, 7, 1)->startOfDay();
 
-            $params['payment_date_after'] = $from->toIso8601String();
+                
+            $params['created_at_after'] = $from->toIso8601String();
 
             if ($to) {
-                $params['payment_date_before'] = Carbon::parse($to)->endOfDay()->toIso8601String();
+                $params['created_at_before'] = Carbon::parse($to)->endOfDay()->toIso8601String();
             }
 
             $endpoint = '/invoicing/payments';

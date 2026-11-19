@@ -300,7 +300,6 @@ class PaymentController extends Controller
                 // Validación exitosa, registrar en Wispro si tiene invoice_wispro y no fue registrado antes
                 if ($payment->invoice_wispro && !$payment->wispro_registered) {
                     $this->registerPaymentInWispro($payment);
-                    $payment->update(['wispro_registered' => true]);
                 }
             }
 
@@ -452,54 +451,99 @@ class PaymentController extends Controller
     }
 
     /**
-     * Registra el pago en Wispro
+     * Registra manualmente un pago pendiente en Wispro (solo administradores).
      */
-    private function registerPaymentInWispro(Payment $payment): void
+    public function registerInWispro(Payment $payment)
+    {
+        if ($payment->wispro_registered) {
+            return back()->with('error', 'Este pago ya fue registrado en Wispro.');
+        }
+
+        $result = $this->registerPaymentInWispro($payment);
+
+        if (!$result['success']) {
+            return back()->with('error', $result['message']);
+        }
+
+        return back()->with('success', $result['message']);
+    }
+
+    /**
+     * Registra el pago en Wispro y retorna el resultado.
+     */
+    private function registerPaymentInWispro(Payment $payment): array
     {
         try {
             $user = $payment->user;
 
             if (!$user || !$user->id_wispro) {
-                return;
+                return [
+                    'success' => false,
+                    'message' => 'El usuario asociado no tiene un ID de Wispro registrado.',
+                ];
+            }
+
+            $invoiceIds = WisproInvoiceIds::parse($payment->invoice_wispro);
+            if (count($invoiceIds) === 0) {
+                return [
+                    'success' => false,
+                    'message' => 'El pago no tiene facturas de Wispro asociadas.',
+                ];
             }
 
             $paymentDate = now()->format('c'); // Formato ISO8601
             $wisproApiService = new WisproApiService();
 
-            $invoiceIds = WisproInvoiceIds::parse($payment->invoice_wispro);
-            if (count($invoiceIds) === 0) {
-                return;
-            }
-
             $wisproPaymentResponse = $wisproApiService->registerPayment(
                 $invoiceIds,
                 $user->id_wispro,
                 $paymentDate,
-                $payment->amount,
-                "Referencia: {$payment->reference}"
+                (float) $payment->amount,
+                "Referencia {$payment->reference}"
             );
 
             if ($wisproPaymentResponse['success']) {
+                $payment->update(['wispro_registered' => true]);
+
                 Log::info('Pago registrado exitosamente en Wispro', [
                     'payment_id' => $payment->id,
                     'invoice_wispro' => $payment->invoice_wispro,
                     'client_id' => $user->id_wispro,
-                    'response' => $wisproPaymentResponse['data']
+                    'response' => $wisproPaymentResponse['data'],
                 ]);
-            } else {
-                Log::error('Error al registrar pago en Wispro', [
-                    'payment_id' => $payment->id,
-                    'invoice_wispro' => $payment->invoice_wispro,
-                    'client_id' => $user->id_wispro,
-                    'error' => $wisproPaymentResponse['error'] ?? 'Error desconocido',
-                    'message' => $wisproPaymentResponse['message'] ?? null
-                ]);
+
+                return [
+                    'success' => true,
+                    'message' => 'Pago registrado exitosamente en Wispro.',
+                ];
             }
+
+            $errorMessage = $wisproPaymentResponse['message']
+                ?? $wisproPaymentResponse['error']
+                ?? 'Error desconocido al registrar en Wispro.';
+
+            Log::error('Error al registrar pago en Wispro', [
+                'payment_id' => $payment->id,
+                'invoice_wispro' => $payment->invoice_wispro,
+                'client_id' => $user->id_wispro,
+                'error' => $wisproPaymentResponse['error'] ?? 'Error desconocido',
+                'message' => $wisproPaymentResponse['message'] ?? null,
+            ]);
+
+            return [
+                'success' => false,
+                'message' => $errorMessage,
+            ];
         } catch (\Exception $e) {
             Log::error('Excepción al registrar pago en Wispro', [
                 'payment_id' => $payment->id,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ]);
+
+            return [
+                'success' => false,
+                'message' => 'Error al registrar el pago en Wispro: ' . $e->getMessage(),
+            ];
         }
     }
 

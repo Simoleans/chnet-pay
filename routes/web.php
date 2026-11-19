@@ -45,6 +45,7 @@ Route::post('/payments', [PaymentController::class, 'store'])
     ->name('payments.store');
 
 Route::patch('/payments/{payment}/verify', [PaymentController::class, 'toggleVerification'])->middleware(['auth', 'admin'])->name('payments.toggle-verification');
+Route::post('/payments/{payment}/register-wispro', [PaymentController::class, 'registerInWispro'])->middleware(['auth', 'admin'])->name('payments.register-wispro');
 Route::get('/payments-export', [PaymentController::class, 'export'])->middleware(['auth', 'admin'])->name('payments.export');
 
 Route::get('/payments-wispro', [PaymentWisproController::class, 'index'])

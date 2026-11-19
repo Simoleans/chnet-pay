@@ -81,6 +81,14 @@
                                 <template v-if="column.key === 'actions'">
                                     <div class="flex gap-2">
                                         <button
+                                            v-if="!item.wispro_registered"
+                                            @click="registerInWispro(item)"
+                                            :disabled="registeringWisproId === item.id"
+                                            class="px-3 py-1 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition text-sm"
+                                        >
+                                            {{ registeringWisproId === item.id ? 'Registrando...' : 'Registrar en Wispro' }}
+                                        </button>
+                                        <button
                                             v-if="item.image_path"
                                             @click="viewReceipt(item)"
                                             class="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition text-sm"
@@ -319,6 +327,27 @@ const viewReceipt = (payment) => {
         selectedPayment.value = payment
         showReceiptModal.value = true
     }
+}
+
+const registeringWisproId = ref(null)
+
+const registerInWispro = (payment) => {
+    if (!payment?.id || registeringWisproId.value) return
+
+    const confirmed = window.confirm(
+        `¿Seguro que deseas registrar el pago #${payment.id} (Ref: ${payment.reference || 'N/A'}) en Wispro?`
+    )
+    if (!confirmed) return
+
+    registeringWisproId.value = payment.id
+
+    router.post(route('payments.register-wispro', payment.id), {}, {
+        preserveState: true,
+        preserveScroll: true,
+        onFinish: () => {
+            registeringWisproId.value = null
+        },
+    })
 }
 
 const handlePaymentUpdate = () => {

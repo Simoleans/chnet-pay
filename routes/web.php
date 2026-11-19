@@ -34,9 +34,9 @@ Route::delete('/users/wispro/{wisproId}', [UserController::class, 'deleteWisproC
 //zones
 Route::resource('zones', ZoneController::class)->middleware(['auth', 'admin']);
 
-//payments - index, show, edit, update, destroy solo para administradores
+//payments - index solo para administradores
 Route::resource('payments', PaymentController::class)
-    ->except(['store'])
+    ->only(['index'])
     ->middleware(['auth', 'admin']);
 
 // Permite a todos los usuarios autenticados guardar pagos

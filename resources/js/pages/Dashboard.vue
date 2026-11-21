@@ -22,10 +22,13 @@ import RecentPaymentsTable from '../components/Dashboard/Admin/RecentPaymentsTab
 
 // User Components
 // import PaymentLinkCard from '../components/Dashboard/User/PaymentLinkCard.vue';
-import ContractCard from '../components/Dashboard/User/ContractCard.vue';
-import PlanCard from '../components/Dashboard/User/PlanCard.vue';
+// import ContractCard from '../components/Dashboard/User/ContractCard.vue'; // reemplazado por AccountInfo
+// import PlanCard from '../components/Dashboard/User/PlanCard.vue'; // reemplazado por AccountInfo
 import UserPaymentsTable from '../components/Dashboard/User/UserPaymentsTable.vue';
-import WisproInvoicesTable from './User/Components/WisproInvoicesTable.vue';
+// Vista del cliente (nuevo orden): saldo → facturas → pagos | resumen de cuenta
+import BalanceHero from '../components/Dashboard/User/BalanceHero.vue';
+import InvoiceList from '../components/Dashboard/User/InvoiceList.vue';
+import AccountInfo from '../components/Dashboard/User/AccountInfo.vue';
 
 // UI Components
 import { Button } from '@/components/ui/button';
@@ -213,6 +216,13 @@ const openPaymentModal = (invoice?: any) => {
     showBankSelector.value = true
 }
 
+// UI: saludo y atajo a la lista de facturas
+const firstName = computed(() => String((page.props.auth as any)?.user?.name ?? '').trim().split(/\s+/)[0] || '');
+const scrollToInvoices = () => {
+    showPendingInvoiceAlert.value = false;
+    document.getElementById('mis-facturas')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
 const handleBankSelected = (bank: 'bnc' | 'bdv') => {
     if (bank === 'bnc') {
         showUserPaymentModal.value = true
@@ -258,34 +268,37 @@ const handleBankSelected = (bank: 'bnc' | 'bdv') => {
             </template>
 
             <!-- Vista para USUARIO NORMAL (role = 0) -->
+            <!-- Orden pensado para el cliente: 1) ¿cuánto debo? 2) facturas 3) pagos; a un lado, su cuenta -->
             <template v-else>
-                <!-- Cards superiores -->
-                <div class="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-                    <BcvRateCard />
-                    <ContractCard :user-contract="user_contract" />
-                    <PlanCard
-                        :user-plan="user_plan"
-                        :pending-invoices-count="pending_invoices_count"
-                        :total-amount-plan="total_amount_plan"
-                    />
-                </div>
+                <!-- Más ancho en escritorio para no dejar espacio en blanco -->
+                <div class="mx-auto w-full max-w-[1400px] space-y-6">
+                    <header>
+                        <p class="text-[15px] text-muted-foreground">Hola{{ firstName ? ',' : '' }}</p>
+                        <h1 class="text-2xl font-bold">{{ firstName || 'Bienvenido' }}</h1>
+                    </header>
 
-                <!-- Tabla de Facturas de Wispro -->
-                <div v-if="user_invoices && user_invoices.length > 0" class="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                    <div class="p-4">
-                        <WisproInvoicesTable
-                            :invoices="user_invoices"
-                            @open-payment-modal="openPaymentModal"
-                        />
+                    <!-- lg: izquierda = saldo + facturas | derecha = cuenta + historial de pagos -->
+                    <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start xl:grid-cols-[minmax(0,1fr)_440px]">
+                        <div class="min-w-0 space-y-8">
+                            <!-- Mismo evento que antes: abre el selector de banco con la factura elegida -->
+                            <BalanceHero
+                                :invoices="user_invoices"
+                                :can-pay="$page.props.auth.user.role === 0"
+                                @pay="openPaymentModal"
+                                @see-invoices="scrollToInvoices"
+                            />
+                            <InvoiceList :invoices="user_invoices" :can-pay="$page.props.auth.user.role === 0" @pay="openPaymentModal" />
+                        </div>
+
+                        <aside class="min-w-0 space-y-8">
+                            <div class="space-y-3">
+                                <h2 class="text-lg font-bold lg:sr-only">Mi cuenta</h2>
+                                <AccountInfo :user-plan="(user_plan as any)" :user-contract="(user_contract as any)" />
+                            </div>
+                            <UserPaymentsTable :payments="(user_payments as any)" @view-payment="viewPayment" @view-receipt="viewReceipt" />
+                        </aside>
                     </div>
                 </div>
-
-                <!-- Tabla de pagos para usuarios con role = 0 -->
-                <UserPaymentsTable
-                    :payments="user_payments"
-                    @view-payment="viewPayment"
-                    @view-receipt="viewReceipt"
-                />
             </template>
         </div>
 
@@ -332,43 +345,25 @@ const handleBankSelected = (bank: 'bnc' | 'bdv') => {
             :payment="selectedPayment"
         />
 
-        <!-- Modal de Alerta de Facturas Pendientes -->
+        <!-- Aviso de facturas pendientes (al entrar) -->
         <Dialog v-model:open="showPendingInvoiceAlert">
-            <DialogContent class="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle class="flex items-center gap-2 text-yellow-600">
-                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+            <DialogContent class="sm:max-w-md sm:rounded-3xl">
+                <DialogHeader class="items-center text-center">
+                    <span class="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-950/50">
+                        <svg class="h-7 w-7" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
                         </svg>
-                        ¡Tienes facturas pendientes!
+                    </span>
+                    <DialogTitle class="text-xl font-bold">
+                        Tienes {{ pending_invoices_count }} {{ pending_invoices_count === 1 ? 'factura pendiente' : 'facturas pendientes' }}
                     </DialogTitle>
-                    <DialogDescription>
-                        <div class="space-y-3 mt-4">
-                            <div class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-                                <p class="text-sm text-gray-700 dark:text-gray-300 mb-2">
-                                    Tienes <span class="font-bold text-yellow-700 dark:text-yellow-400">{{ pending_invoices_count }}</span>
-                                    {{ pending_invoices_count === 1 ? 'factura pendiente' : 'facturas pendientes' }} de pago.
-                                </p>
-                                <p class="text-xs text-gray-600 dark:text-gray-400">
-                                    Por favor, realiza el pago lo antes posible para evitar la suspensión del servicio.
-                                </p>
-                            </div>
-
-                            <div class="text-sm text-gray-600 dark:text-gray-400">
-                                <p class="font-semibold mb-2">📋 Puedes ver los detalles de tus facturas más abajo en el dashboard.</p>
-                                <ul class="list-disc list-inside space-y-1 text-xs">
-                                    <li>Revisa las fechas de vencimiento</li>
-                                    <li>Verifica los montos a pagar</li>
-                                    <li>Usa el link de pago para realizar tu pago</li>
-                                </ul>
-                            </div>
-                        </div>
+                    <DialogDescription class="text-[15px]">
+                        Paga lo antes posible para evitar la suspensión del servicio.
                     </DialogDescription>
                 </DialogHeader>
-                <DialogFooter>
-                    <Button @click="showPendingInvoiceAlert = false" class="w-full bg-yellow-600 hover:bg-yellow-700">
-                        Entendido
-                    </Button>
+                <DialogFooter class="flex-col gap-2 sm:flex-col">
+                    <Button class="h-12 w-full rounded-xl text-base font-bold" @click="scrollToInvoices">Ver mis facturas</Button>
+                    <Button variant="ghost" class="h-11 w-full text-[15px] text-muted-foreground" @click="showPendingInvoiceAlert = false">Ahora no</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

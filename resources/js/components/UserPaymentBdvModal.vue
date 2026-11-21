@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
-import { useNotifications } from '@/composables/useNotifications';
 import { useBcvStore } from '@/stores/bcv';
 import { useBanksStore } from '@/stores/banks';
 import { storeToRefs } from 'pinia';
@@ -9,6 +8,20 @@ import axios from 'axios';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import AmountHero from '@/components/payment/AmountHero.vue';
+import CopyRow from '@/components/payment/CopyRow.vue';
+import RefInput from '@/components/payment/RefInput.vue';
+import DateChips from '@/components/payment/DateChips.vue';
+import BankSelect from '@/components/payment/BankSelect.vue';
+import AmountConfirm from '@/components/payment/AmountConfirm.vue';
+import InlineAlert from '@/components/payment/InlineAlert.vue';
+import SuccessView from '@/components/payment/SuccessView.vue';
+import VerifyingOverlay from '@/components/payment/VerifyingOverlay.vue';
+import type { PaymentAlert, PaymentSuccess } from '@/components/payment/types';
+import { usePersistedForm } from '@/composables/usePersistedForm';
+import { localIsoDate } from '@/lib/dates';
+import { formatBs } from '@/lib/money';
+import { ArrowLeft, KeyRound, ShieldCheck, Smartphone } from 'lucide-vue-next';
 import {
     Dialog,
     DialogClose,
@@ -46,7 +59,19 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>();
 
-const { notify } = useNotifications();
+// ── Alertas DENTRO de la hoja (UI) ──────────────────────────────────────────
+// Errores/avisos fijos hasta "Entendido"; éxito con pantalla propia.
+// La firma de notify() es la misma, así el resto del código no cambia.
+const paymentAlert = ref<PaymentAlert | null>(null);
+const paymentSuccess = ref<PaymentSuccess | null>(null);
+let alertTimer: ReturnType<typeof setTimeout> | null = null;
+const notify = ({ message, type = 'success' }: { message: string; type?: PaymentAlert['type']; duration?: number }) => {
+    if (alertTimer) clearTimeout(alertTimer);
+    paymentAlert.value = { type, message };
+    if (type === 'success' || type === 'info') {
+        alertTimer = setTimeout(() => (paymentAlert.value = null), 2500);
+    }
+};
 const page = usePage();
 
 // Tasa BCV
@@ -130,13 +155,12 @@ const enteredP2PAmountBs = computed(() => {
 });
 
 // ── Helpers de fecha ─────────────────────────────────────────────────────────
+// Fechas locales (antes toISOString = UTC: desde las 8 pm daba el día siguiente)
 const setToday = () => {
-    p2pFecha.value = new Date().toISOString().split('T')[0];
+    p2pFecha.value = localIsoDate(0);
 };
 const setYesterday = () => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    p2pFecha.value = d.toISOString().split('T')[0];
+    p2pFecha.value = localIsoDate(-1);
 };
 
 // ── Copiar datos bancarios ───────────────────────────────────────────────────
@@ -208,7 +232,7 @@ const openP2PForm = () => {
 
     // Pre-cargar fecha de hoy
     if (!p2pFecha.value) {
-        p2pFecha.value = new Date().toISOString().split('T')[0];
+        p2pFecha.value = localIsoDate(0); // fecha local (antes UTC)
     }
 
     // Precargar solo al abrir; luego se respeta el monto escrito por el usuario.
@@ -285,14 +309,16 @@ const submitP2P = async () => {
                 ? 'Este pago ya fue verificado anteriormente. No puede registrarlo dos veces.'
                 : 'Su pago ha sido verificado y registrado correctamente.';
 
-            notify({
+            // UI: pantalla de resultado; la recarga ocurre cuando la persona toca "Listo"
+            paymentSuccess.value = {
+                title: res.data?.already_registered ? 'Este pago ya estaba registrado' : '¡Pago verificado!',
                 message: mensaje,
-                type: res.data?.already_registered ? 'warning' : 'success',
-                duration: 3500,
-            });
-            resetStates();
-            emit('update:open', false);
-            setTimeout(() => window.location.reload(), 1500);
+                tone: res.data?.already_registered ? 'warning' : 'success',
+                amountBs: payload.importe,
+                reference: payload.referencia,
+                date: payload.fechaPago,
+            };
+            persisted.clear();
         } else {
             notify({
                 message: res.data?.message || 'El banco no pudo verificar el pago.',
@@ -318,250 +344,294 @@ watch(() => props.open, (val: boolean) => {
 });
 
 const handleOpenChange = (open: boolean) => {
+    // UI: no se puede cerrar mientras el banco está respondiendo
+    if (!open && loading.value) return;
+    // UI: si el pago ya se verificó, al cerrar refrescamos facturas
+    if (!open && paymentSuccess.value) {
+        window.location.reload();
+        return;
+    }
     emit('update:open', open);
     if (!open) resetStates();
 };
+// ── Ayudas solo de interfaz (no modifican payloads ni endpoints) ─────────────
+const goBack = () => {
+    showP2PForm.value = false;
+};
+
+// Sin maxlength en el HTML: así al pegar "765-4321" se limpia primero y luego se recorta.
+// Solo dígitos en el teléfono (la referencia la maneja <RefInput>)
+const onlyDigits = (v: string, max: number) => v.replace(/\D/g, '').slice(0, max);
+watch(p2pTelefonoNumber, (v) => { const c = onlyDigits(v, 7); if (c !== v) p2pTelefonoNumber.value = c; });
+
+const canSubmitP2P = computed(() =>
+    !loading.value &&
+    !!p2pCedula.value.trim() &&
+    /^\d{7}$/.test(p2pTelefonoNumber.value.trim()) &&
+    !!p2pBancoOrigen.value &&
+    /^\d{5}$/.test(p2pReferencia.value.trim()) &&
+    !!p2pFecha.value &&
+    !!p2pImporte.value &&
+    enteredP2PAmountBs.value > 0
+);
+
+const amountLabel = computed(() =>
+    isBatchInvoicePay.value ? 'Total de tus facturas' : props.selectedInvoice ? 'Total de la factura' : 'Total de tu plan'
+);
+
+const fieldBase =
+    'h-12 rounded-xl border border-input bg-background px-3 text-[15px] shadow-xs outline-none transition focus:border-foreground focus:ring-2 focus:ring-foreground/10';
+// ── Recordar lo escrito si la persona sale a la app del banco (localStorage) ──
+const persistKey = () => {
+    const uid = (page.props.auth as any)?.user?.id;
+    if (!uid) return null;
+    return `chnet:pm:bdv:${uid}:${invoiceIdsForWispro.value.join('-') || 'plan'}`;
+};
+const persisted = usePersistedForm({
+    key: persistKey,
+    enabled: () => props.open && !paymentSuccess.value,
+    sources: [showP2PForm, p2pCedula, p2pTelefonoPrefix, p2pTelefonoNumber, p2pBancoOrigen, p2pReferencia, p2pFecha, p2pImporte],
+    snapshot: () => ({
+        showP2PForm: showP2PForm.value,
+        p2pCedula: p2pCedula.value,
+        p2pTelefonoPrefix: p2pTelefonoPrefix.value,
+        p2pTelefonoNumber: p2pTelefonoNumber.value,
+        p2pBancoOrigen: p2pBancoOrigen.value,
+        p2pReferencia: p2pReferencia.value,
+        p2pFecha: p2pFecha.value,
+        p2pImporte: p2pImporte.value,
+    }),
+});
+
+watch(() => props.open, (isOpen) => {
+    if (!isOpen) return;
+    paymentAlert.value = null;
+    paymentSuccess.value = null;
+    const saved = persisted.load();
+    if (!saved) return;
+    if (!banks.value || banks.value.length === 0) banksStore.loadBanks();
+    p2pCedula.value = saved.p2pCedula ?? '';
+    p2pTelefonoPrefix.value = saved.p2pTelefonoPrefix ?? '0412';
+    p2pTelefonoNumber.value = saved.p2pTelefonoNumber ?? '';
+    p2pBancoOrigen.value = saved.p2pBancoOrigen ?? '';
+    p2pReferencia.value = saved.p2pReferencia ?? '';
+    p2pFecha.value = saved.p2pFecha ?? '';
+    p2pImporte.value = saved.p2pImporte ?? '';
+    showP2PForm.value = !!saved.showP2PForm;
+});
+
+// "Cancelar" sí olvida lo escrito; la X solo cierra (se conserva 30 min)
+const cancelAndForget = () => {
+    persisted.clear();
+    handleOpenChange(false);
+};
+
+const fieldClass =
+    'h-12 w-full rounded-xl border border-input bg-background px-3 text-[15px] shadow-xs outline-none transition focus:border-foreground focus:ring-2 focus:ring-foreground/10';
 </script>
 
 <template>
     <Dialog :open="open" @update:open="handleOpenChange">
-        <DialogContent class="sm:max-w-lg md:max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-                <div class="flex items-center gap-3">
-                    <img src="/img/bdv.webp" alt="BDV" class="h-8 w-8 object-contain" />
-                    <div>
-                        <DialogTitle>Pagar con Banco de Venezuela</DialogTitle>
-                        <DialogDescription>Verificación de pago móvil (P2P)</DialogDescription>
-                    </div>
+        <!-- Tocar fuera ya NO cierra la hoja (evita perder lo escrito) -->
+        <DialogContent
+            @open-auto-focus.prevent
+            @pointer-down-outside.prevent
+            @interact-outside.prevent
+            class="flex max-h-[92dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-md sm:rounded-3xl max-sm:top-auto max-sm:bottom-0 max-sm:max-w-full max-sm:translate-y-0 max-sm:rounded-t-3xl max-sm:rounded-b-none max-sm:border-x-0 max-sm:border-b-0"
+        >
+            <!-- Punto 9: capa de espera mientras el BDV responde -->
+            <VerifyingOverlay v-if="loading" />
+
+            <!-- ═════════ Pantalla de resultado ═════════ -->
+            <template v-if="paymentSuccess">
+                <DialogHeader class="sr-only">
+                    <DialogTitle>{{ paymentSuccess.title }}</DialogTitle>
+                    <DialogDescription>{{ paymentSuccess.message }}</DialogDescription>
+                </DialogHeader>
+                <div class="overflow-y-auto px-5 pt-8 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+                    <SuccessView v-bind="paymentSuccess" @done="handleOpenChange(false)" />
                 </div>
-            </DialogHeader>
+            </template>
 
-            <div class="space-y-4">
-                <!-- Datos de destino (empresa) -->
-                <div class="space-y-1 text-sm">
-                    <p class="font-medium">🏦 {{ paymentMobileName }}</p>
-                    <p><span class="font-medium">👤 RIF:</span> {{ paymentMobileRif }}</p>
-                    <p><span class="font-medium">📞 Teléfono destino:</span> {{ paymentMobileTlf }}</p>
-                </div>
-
-                <!-- Copiar datos bancarios -->
-                <Button
-                    @click="copyPaymentData"
-                    size="sm"
-                    variant="outline"
-                    :disabled="!bcv || !amountUsdPrimary"
-                    class="w-full"
-                >
-                    📋 Copiar datos bancarios
-                </Button>
-
-                <!-- Monto a pagar -->
-                <div class="bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-950/20 dark:to-rose-950/20 border-2 border-red-200 dark:border-red-800 rounded-lg p-4">
-                    <div class="flex flex-col items-center justify-center space-y-1">
-                        <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Monto Exacto a Pagar</p>
-                        <div v-if="bcv && amountUsdPrimary" class="text-center">
-                            <p class="text-4xl font-bold text-red-600 dark:text-red-400">
-                                {{ suggestedAmountBs }} Bs
-                            </p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                (${{ amountUsdPrimary.toFixed(2) }} USD × {{ parseFloat(String(bcv)).toFixed(2) }} Bs)
-                            </p>
-                            <p v-if="isBatchInvoicePay" class="text-xs text-amber-700 dark:text-amber-400 mt-1 font-medium">
-                                Pago de {{ invoiceIdsForWispro.length }} facturas
-                            </p>
-                        </div>
-                        <div v-else class="text-center">
-                            <p class="text-lg text-gray-500">Calculando monto...</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Botones de acción -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <!-- Reportar Pago Móvil -->
-                    <Button
-                        @click="openP2PForm"
-                        size="lg"
-                        :variant="showP2PForm ? 'default' : 'secondary'"
-                        :disabled="!bcv || !amountUsdPrimary"
-                        :class="[
-                            'w-full h-14 text-base font-semibold transition-all',
-                            showP2PForm
-                                ? 'ring-2 ring-primary shadow-lg scale-105'
-                                : 'border-2 border-muted-foreground/30 hover:border-primary/50',
-                        ]"
-                    >
-                        <span class="flex items-center justify-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                            </svg>
-                            Reportar Pago Móvil
-                        </span>
-                    </Button>
-
-                    <!-- C2P — Deshabilitado -->
-                    <div class="relative">
-                        <span class="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-amber-100 dark:bg-amber-950/60 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400 shadow-sm ring-1 ring-amber-200 dark:ring-amber-800 z-10">
-                            Próximamente
-                        </span>
-                        <Button
-                            size="lg"
-                            variant="secondary"
-                            disabled
-                            class="w-full h-14 text-base font-semibold opacity-50 cursor-not-allowed border-2 border-muted-foreground/30"
+            <template v-else>
+                <!-- Encabezado -->
+                <DialogHeader class="shrink-0 space-y-3 px-5 pt-5 pb-4 text-left">
+                    <div class="mx-auto -mt-2 mb-1 h-1.5 w-10 rounded-full bg-muted sm:hidden" />
+                    <div class="flex items-center gap-3 pr-8">
+                        <button
+                            v-if="showP2PForm"
+                            type="button"
+                            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted text-foreground transition hover:bg-muted/70"
+                            aria-label="Volver"
+                            @click="goBack"
                         >
-                            <span class="flex items-center justify-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
-                                    <path fill-rule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clip-rule="evenodd" />
-                                </svg>
-                                Pagar C2P
-                            </span>
-                        </Button>
+                            <ArrowLeft class="h-5 w-5" />
+                        </button>
+                        <img v-else src="/img/bdv.webp" alt="BDV" class="h-10 w-10 shrink-0 rounded-full bg-white object-contain p-1 ring-1 ring-border" />
+                        <div class="min-w-0">
+                            <DialogTitle class="text-xl leading-tight font-bold">
+                                {{ showP2PForm ? 'Confirma tu pago' : 'Paga con Pago Móvil' }}
+                            </DialogTitle>
+                            <DialogDescription class="text-[13px]">
+                                {{ showP2PForm ? 'Verificamos tu pago directamente con el BDV' : 'Banco de Venezuela (BDV)' }}
+                            </DialogDescription>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Formulario P2P -->
-                <div v-if="showP2PForm" class="border rounded-lg p-4 space-y-4">
-                  <!--   <p class="font-medium text-sm">Datos del pago móvil P2P</p> -->
+                    <div class="flex items-center gap-2">
+                        <div class="h-1.5 flex-1 rounded-full bg-foreground" />
+                        <div :class="['h-1.5 flex-1 rounded-full transition-colors', showP2PForm ? 'bg-foreground' : 'bg-muted']" />
+                    </div>
+                    <div class="-mt-1 flex justify-between text-[13px] font-medium text-muted-foreground">
+                        <span :class="!showP2PForm && 'font-semibold text-foreground'">Paso 1: Paga</span>
+                        <span :class="showP2PForm && 'font-semibold text-foreground'">Paso 2: Confirma</span>
+                    </div>
+                </DialogHeader>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <!-- Banco origen -->
-                        <div class="space-y-1">
-                            <label class="text-sm font-medium">Banco de origen</label>
-                            <select
-                                v-model="p2pBancoOrigen"
-                                class="w-full border rounded-md p-2 bg-background text-sm"
-                            >
-                                <option value="" disabled>Seleccione su banco</option>
-                                <option
-                                    v-for="b in banks"
-                                    :key="b.Code"
-                                    :value="String(b.Code).padStart(4, '0')"
+                <!-- Contenido -->
+                <div class="flex-1 space-y-5 overflow-y-auto px-5 pb-5">
+                    <InlineAlert v-if="paymentAlert" :alert="paymentAlert" @dismiss="paymentAlert = null" />
+
+                    <!-- ───────────── PASO 1: PAGAR ───────────── -->
+                    <template v-if="!showP2PForm">
+                        <AmountHero
+                            :amount-bs="suggestedAmountBs"
+                            :amount-usd="amountUsdPrimary"
+                            :rate="bcv"
+                            :label="amountLabel"
+                            :invoices-count="invoiceIdsForWispro.length"
+                        />
+
+                        <div>
+                            <div class="mb-2 flex items-center justify-between">
+                                <p class="text-[15px] font-semibold">Haz un Pago Móvil a</p>
+                                <button
+                                    type="button"
+                                    class="text-[13px] font-semibold text-foreground/70 underline underline-offset-4 hover:text-foreground disabled:opacity-40"
+                                    :disabled="!bcv || !amountUsdPrimary"
+                                    @click="copyPaymentData"
                                 >
-                                    {{ String(b.Code).padStart(4, '0') }} - {{ b.Name }}
-                                </option>
-                            </select>
-                            <p v-if="banksLoading" class="text-xs text-muted-foreground">Cargando bancos...</p>
-                            <p v-if="banksError" class="text-xs text-red-500">{{ banksError }}</p>
-                        </div>
-
-                        <!-- Cédula pagador -->
-                        <div class="space-y-1">
-                            <label class="text-sm font-medium">Cédula pagador</label>
-                            <Input
-                                v-model="p2pCedula"
-                                placeholder="V23795133"
-                                class="w-full uppercase text-sm"
-                            />
-                            <p class="text-xs text-muted-foreground">Formato: V o E seguido de números</p>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <!-- Columna izquierda -->
-                        <div class="space-y-3">
-                            <!-- Teléfono pagador -->
-                            <div class="space-y-1">
-                                <label class="text-sm font-medium">Teléfono pagador</label>
-                                <div class="flex gap-2">
-                                    <select
-                                        v-model="p2pTelefonoPrefix"
-                                        class="border rounded-md p-2 bg-background text-sm w-24 shrink-0"
-                                    >
-                                        <option v-for="p in PHONE_PREFIXES" :key="p" :value="p">{{ p }}</option>
-                                    </select>
-                                    <Input
-                                        v-model="p2pTelefonoNumber"
-                                        placeholder="1234567"
-                                        class="flex-1 text-sm"
-                                        type="text"
-                                        maxlength="7"
-                                        inputmode="numeric"
-                                        pattern="[0-9]{7}"
-                                    />
-                                </div>
-                                <p class="text-xs text-muted-foreground">7 dígitos — número registrado en tu pago móvil</p>
+                                    Copiar todo
+                                </button>
                             </div>
-
-                            <!-- Fecha -->
-                            <div class="space-y-1">
-                                <label class="text-sm font-medium">Fecha del pago</label>
-                                <Input
-                                    v-model="p2pFecha"
-                                    type="date"
-                                    class="w-full text-sm"
+                            <div class="divide-y overflow-hidden rounded-2xl border bg-card">
+                                <CopyRow label="Banco" :value="paymentMobileBanco || 'Banco de Venezuela (0102)'" :copy-value="paymentMobileBanco || '0102'" />
+                                <CopyRow label="Teléfono" :value="paymentMobileTlf" mono />
+                                <CopyRow label="RIF / Cédula" :value="paymentMobileRif" mono />
+                                <!-- Se MUESTRA 5.911,50 pero se COPIA 5911.50 -->
+                                <CopyRow
+                                    label="Monto exacto"
+                                    :value="suggestedAmountBs ? `${formatBs(suggestedAmountBs)} Bs` : ''"
+                                    :copy-value="suggestedAmountBs"
+                                    mono
                                 />
-                                <div class="flex gap-2">
-                                    <Button @click="setToday" size="sm" variant="outline" type="button" class="flex-1 text-xs">
-                                        Hoy
-                                    </Button>
-                                    <Button @click="setYesterday" size="sm" variant="outline" type="button" class="flex-1 text-xs">
-                                        Ayer
-                                    </Button>
-                                </div>
                             </div>
+                            <p v-if="paymentMobileName" class="mt-2 px-1 text-[13px] text-muted-foreground">
+                                Titular: <span class="font-medium text-foreground">{{ paymentMobileName }}</span>
+                            </p>
                         </div>
 
-                        <!-- Columna derecha -->
-                        <div class="space-y-3">
-                            <!-- Referencia -->
-                            <div class="space-y-1">
-                                <label class="text-sm font-medium">Últimos 5 dígitos de la referencia</label>
-                                <Input
-                                    v-model="p2pReferencia"
-                                    placeholder="Ej: 12908"
-                                    class="w-full text-sm"
+                        <div class="flex gap-2.5 rounded-xl bg-amber-50 px-3.5 py-3 text-[13px] text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
+                            <ShieldCheck class="mt-0.5 h-4 w-4 shrink-0" />
+                            <p>
+                                <span class="font-semibold">Antes de pagar,</span> verifica que estos datos correspondan a tu factura. Paga el
+                                monto exacto para que la verificación sea automática.
+                            </p>
+                        </div>
+
+                        <!-- C2P: deshabilitado -->
+                        <div class="flex w-full items-center gap-3 rounded-2xl border border-dashed px-4 py-3.5 opacity-60">
+                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
+                                <KeyRound class="h-5 w-5" />
+                            </span>
+                            <span class="min-w-0 flex-1">
+                                <span class="block text-[15px] font-semibold">Pagar con C2P</span>
+                                <span class="block text-[13px] text-muted-foreground">Débito con clave de pago</span>
+                            </span>
+                            <span class="rounded-full bg-amber-100 px-2.5 py-0.5 text-[13px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                Próximamente
+                            </span>
+                        </div>
+                    </template>
+
+                    <!-- ───────────── PASO 2: VERIFICAR P2P ───────────── -->
+                    <template v-else>
+                        <div class="flex items-center justify-between rounded-xl bg-muted px-4 py-3 text-[15px]">
+                            <span class="text-muted-foreground">Monto a pagar</span>
+                            <span class="font-bold tabular-nums">{{ formatBs(suggestedAmountBs) }} Bs</span>
+                        </div>
+
+                        <!-- Referencia (BDV pide 5) -->
+                        <div class="space-y-1.5">
+                            <label for="p2pReferencia" class="text-[15px] font-semibold">Últimos 5 números de la referencia</label>
+                            <p class="text-[13px] text-muted-foreground">
+                                <span class="font-semibold text-foreground">Referencia:</span> el número que aparece en el comprobante que te dio tu
+                                banco.
+                            </p>
+                            <RefInput id="p2pReferencia" v-model="p2pReferencia" :length="5" />
+                        </div>
+
+                        <!-- Banco origen (Punto 7) -->
+                        <div class="space-y-1.5">
+                            <label for="p2pBancoOrigen" class="text-[15px] font-semibold">¿Desde qué banco pagaste?</label>
+                            <BankSelect id="p2pBancoOrigen" v-model="p2pBancoOrigen" :banks="banks" :loading="banksLoading" :error="banksError" pad />
+                        </div>
+
+                        <!-- Cédula -->
+                        <div class="space-y-1.5">
+                            <label class="text-[15px] font-semibold">Cédula de quien pagó</label>
+                            <input v-model="p2pCedula" placeholder="V12345678" :class="[fieldClass, 'uppercase']" />
+                            <p class="text-[13px] text-muted-foreground">V o E seguido de los números</p>
+                        </div>
+
+                        <!-- Teléfono -->
+                        <div class="space-y-1.5">
+                            <label class="text-[15px] font-semibold">Teléfono desde el que pagaste</label>
+                            <div class="flex gap-2">
+                                <select v-model="p2pTelefonoPrefix" :class="[fieldBase, 'w-[5.5rem] shrink-0 px-2']" aria-label="Código">
+                                    <option v-for="p in PHONE_PREFIXES" :key="p" :value="p">{{ p }}</option>
+                                </select>
+                                <input
+                                    v-model="p2pTelefonoNumber"
+                                    placeholder="1234567"
                                     type="text"
-                                    maxlength="5"
-                                    pattern="[0-9]{5}"
                                     inputmode="numeric"
+                                    pattern="[0-9]{7}"
+                                    aria-label="Número"
+                                    :class="[fieldBase, 'min-w-0 flex-1 tabular-nums']"
                                 />
-                                <p class="text-xs text-muted-foreground">Solo los últimos 5 dígitos del comprobante</p>
-                            </div>
-
-                            <!-- Monto -->
-                            <div class="space-y-1">
-                                <label class="text-sm font-medium">Monto (Bs)</label>
-                                <Input
-                                    v-model="p2pImporte"
-                                    type="text"
-                                    class="w-full font-bold dark:bg-green-950/10 border-green-300 dark:border-green-700 text-center text-lg"
-                                />
-                                <div class="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-2">
-                                    <p class="text-xs text-yellow-800 dark:text-yellow-300 font-medium">
-                                        ⚠️ Verifica que el monto coincida con el pago realizado.
-                                    </p>
-                                </div>
                             </div>
                         </div>
-                    </div>
-                    <!-- Botón enviar -->
-                    <Button
-                        @click="submitP2P"
-                        class="w-full"
-                        :disabled="
-                            loading ||
-                            !p2pCedula.trim() ||
-                            !/^\d{7}$/.test(p2pTelefonoNumber.trim()) ||
-                            !p2pBancoOrigen ||
-                            !/^\d{5}$/.test(p2pReferencia.trim()) ||
-                            !p2pFecha ||
-                            !p2pImporte ||
-                            enteredP2PAmountBs <= 0
-                        "
-                    >
-                        <span v-if="loading">Verificando con el banco...</span>
-                        <span v-else>Verificar Pago con BDV</span>
-                    </Button>
-                </div>
-            </div>
 
-            <DialogFooter>
-                <DialogClose asChild>
-                    <Button variant="outline">Cerrar</Button>
-                </DialogClose>
-            </DialogFooter>
+                        <!-- Fecha -->
+                        <div class="space-y-1.5">
+                            <label for="p2pFecha" class="text-[15px] font-semibold">¿Cuándo pagaste?</label>
+                            <DateChips id="p2pFecha" v-model="p2pFecha" />
+                        </div>
+
+                        <!-- Monto (Punto 6) -->
+                        <div class="space-y-1.5">
+                            <p class="text-[15px] font-semibold">¿Cuánto pagaste?</p>
+                            <AmountConfirm v-model="p2pImporte" :expected="suggestedAmountBs" />
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Pie con acción principal -->
+                <div class="shrink-0 border-t bg-background px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                    <Button v-if="!showP2PForm" size="lg" class="h-14 w-full rounded-2xl text-base font-bold" :disabled="!bcv || !amountUsdPrimary" @click="openP2PForm">
+                        <Smartphone class="h-5 w-5" />
+                        Ya pagué, reportar pago
+                    </Button>
+                    <Button v-else size="lg" class="h-14 w-full rounded-2xl text-base font-bold" :disabled="!canSubmitP2P" @click="submitP2P">
+                        Verificar pago
+                    </Button>
+
+                    <DialogFooter class="mt-1 sm:justify-center">
+                        <Button variant="ghost" size="sm" class="h-10 w-full text-[15px] text-muted-foreground" @click="cancelAndForget">Cancelar</Button>
+                    </DialogFooter>
+                </div>
+            </template>
         </DialogContent>
     </Dialog>
 </template>

@@ -153,6 +153,17 @@ return [
         //'client_id' => env('BNC_CLIENT_ID_FLA', ''),
     ],
 
+    //bnc wispro
+    'bnc_wis' => [
+        'client_guid' => env('BNC_CLIENT_GUID', ''),
+        'master_key' => env('BNC_MASTER_KEY', ''),
+        'base_url' => env('BNC_BASE_URL', ''),
+        'phone' => env('BNC_PHONE_WIS', ''),
+        'account' => env('BNC_ACCOUNT_WIS', ''),
+        'terminal' => env('BNC_TERMINAL_WIS', ''),
+        //'client_id' => env('BNC_CLIENT_ID_FLA', ''),
+    ],
+
     'bdv' => [
         'api_key' => env('API_KEY', ''),
         'base_url' => env('BDV_BASE_URL', ''),
@@ -216,6 +227,11 @@ return [
     'recaptcha' => [
         'site_key' => env('RECAPTCHA_SITE_KEY'),
         'secret_key' => env('RECAPTCHA_SECRET_KEY'),
+    ],
+
+    'serdimpre' => [
+        'base_url' => env('SERDIMPRE_BASE_URL', ''),
+        'api_key' => env('SERDIMPRE_API_KEY', ''),
     ],
 
 ];
